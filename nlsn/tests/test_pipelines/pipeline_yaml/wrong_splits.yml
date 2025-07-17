@@ -1,0 +1,45 @@
+wrong_split_name_1:
+  name: "wrong_split_name_1"
+  pipeline:
+    split_ok:
+      - transformer: Cast
+        params:
+            cast: {"col_1": "int"}
+
+    transformer:  # A split cannot be named "transformer"
+      - transformer: IterableSize
+        params:
+          input_col: "col_x"
+          output_col: "col_t"
+
+  split_function: my_split_function
+
+wrong_split_name_2:
+  name: "wrong_split_name_2"
+  pipeline:
+    split_ok:
+      - transformer: Cast
+        params:
+            cast: {"col_1": "int"}
+
+    pipeline:  # A split cannot be named "pipeline"
+      - transformer: IterableSize
+        params:
+          input_col: "col_x"
+          output_col: "col_t"
+
+  split_function: my_split_function
+
+wrong_pipeline:
+  name: "wrong_pipeline"
+  pipeline:
+    - transformer: Cast
+      params:
+          cast: {"col_1": "int"}
+
+    - transformer: IterableSize
+      params:
+        input_col: "col_x"
+        output_col: "col_t"
+
+  split_function: my_split_function

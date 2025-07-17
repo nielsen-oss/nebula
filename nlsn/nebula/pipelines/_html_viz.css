@@ -1,0 +1,322 @@
+#dag-container {
+
+    /* Definition of color scheme common for light and dark mode */
+    --block-color-text: #000;
+    --block-color-text-muted: #666;
+    --block-color-line: gray;
+
+    /* Definition of color scheme for transformer */
+    --block-color-transformer-level-0: #f0f8ff;
+    --block-color-transformer-level-1: #d4ebff;
+    --block-color-transformer-level-2: #b3dbfd;
+    --block-color-transformer-level-3: cornflowerblue;
+
+    /*--block-color-transformer-level-0: #f0f8ff;*/
+    /*--block-color-transformer-level-1: #d4ebff;*/
+    /*--block-color-transformer-level-2: #b3dbfd;*/
+    /*--block-color-transformer-level-3: cornflowerblue;*/
+
+    /* Specific color for light theme */
+    --block-color-text-on-default-background: var(--sg-text-color, var(--theme-code-foreground, var(--jp-content-font-color1, black)));
+    --block-color-background: var(--sg-background-color, var(--theme-background, var(--jp-layout-color0, white)));
+    --block-color-border-box: var(--sg-text-color, var(--theme-code-foreground, var(--jp-content-font-color1, black)));
+    --block-color-icon: #696969;
+
+    @media (prefers-color-scheme: dark) {
+
+    /* Redefinition of color scheme for dark theme */
+    --block-color-text-on-default-background: var(--sg-text-color, var(--theme-code-foreground, var(--jp-content-font-color1, white)));
+    --block-color-background: var(--sg-background-color, var(--theme-background, var(--jp-layout-color0, #111)));
+    --block-color-border-box: var(--sg-text-color, var(--theme-code-foreground, var(--jp-content-font-color1, white)));
+    --block-color-icon: #878787;
+
+    }
+}
+
+#dag-container {
+    color: var(--block-color-text);
+}
+
+#dag-container pre {
+    padding: 0;
+}
+
+#dag-container input.blk-hidden--visually {
+    border: 0;
+    clip: rect(1px 1px 1px 1px);
+    clip: rect(1px, 1px, 1px, 1px);
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    padding: 0;
+    position: absolute;
+    width: 1px;
+}
+
+#dag-container div.blk-dashed-wrapped {
+    border: 1px dashed var(--block-color-line);
+    margin: 0 0.4em 0.5em 0.4em;
+    box-sizing: border-box;
+    padding-bottom: 0.4em;
+    background-color: var(--block-color-background);
+}
+
+#dag-container div.blk-container {
+    display: inline-block !important;
+    position: relative;
+}
+
+div.blk-parallel-item,
+div.blk-serial,
+div.blk-item {
+    /* draw centered vertical line to link steps */
+    background-image: linear-gradient(var(--block-color-text-on-default-background), var(--block-color-text-on-default-background));
+    background-size: 2px 100%;
+    background-repeat: no-repeat;
+    background-position: center center;
+}
+
+/* Parallel-specific style step block */
+#dag-container div.blk-parallel-item::after {
+    content: "";
+    width: 100%;
+    border-bottom: 2px solid var(--block-color-text-on-default-background);
+    flex-grow: 1;
+}
+
+#dag-container div.blk-parallel {
+    display: flex;
+    align-items: stretch;
+    justify-content: center;
+    background-color: var(--block-color-background);
+    position: relative;
+}
+
+#dag-container div.blk-parallel-item {
+    display: flex;
+    flex-direction: column;
+
+}
+
+#dag-container div.blk-parallel-item:first-child::after {
+    align-self: flex-end;
+    width: 50%;
+}
+
+#dag-container div.blk-parallel-item:last-child::after {
+    align-self: flex-start;
+    width: 50%;
+}
+
+#dag-container div.blk-parallel-item:only-child::after {
+    width: 0;
+}
+
+
+/* Serial-specific style step block */
+#dag-container div.blk-serial {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background-color: var(--block-color-background);
+    padding-right: 1em;
+    padding-left: 1em;
+}
+
+
+#dag-container div.blk-toggleable {
+    background-color: var(--block-color-background);
+}
+
+
+/* Toggleable label */
+#dag-container label.blk-toggleable__label {
+    cursor: pointer;
+    display: flex;
+    width: 100%;
+    margin-bottom: 0;
+    padding: 0.5em;
+    box-sizing: border-box;
+    text-align: center;
+    align-items: start;
+    justify-content: space-between;
+    gap: 0.5em;
+}
+
+#dag-container label.blk-toggleable__label .caption {
+    font-size: 0.6rem;
+    font-weight: lighter;
+    color: var(--block-color-text-muted);
+}
+
+#dag-container label.blk-toggleable__label-arrow:before {
+
+    /* Arrow on the left of the label */
+    content: "▸";
+    float: left;
+    margin-right: 0.25em;
+    color: var(--block-color-icon);
+}
+
+#dag-container label.blk-toggleable__label-arrow:hover:before {
+    color: var(--block-color-text);
+}
+
+
+/* Toggleable content - dropdown */
+#dag-container div.blk-toggleable__content {
+    max-height: 0;
+    max-width: 0;
+    overflow: hidden;
+    text-align: left;
+
+    background-color: var(--block-color-transformer-level-0);
+
+}
+
+
+#dag-container div.blk-toggleable__content pre {
+    margin: 0.2em;
+    border-radius: 0.25em;
+    color: var(--block-color-text);
+
+    background-color: var(--block-color-transformer-level-0);
+
+}
+
+#dag-container input.blk-toggleable__control:checked ~ div.blk-toggleable__content {
+
+    /* Expand drop-down */
+    max-height: 200px;
+    max-width: 100%;
+    overflow: auto;
+
+}
+
+#dag-container input.blk-toggleable__control:checked ~ label.blk-toggleable__label-arrow:before {
+    content: "▾";
+}
+
+/* Pipeline/ColumnTransformer-specific style */
+#dag-container div.blk-label input.blk-toggleable__control:checked ~ label.blk-toggleable__label {
+    color: var(--block-color-text);
+    background-color: var(--block-color-transformer-level-2);
+
+}
+
+
+/* Colorize step box */
+#dag-container div.blk-step input.blk-toggleable__control:checked ~ label.blk-toggleable__label {
+
+    background-color: var(--block-color-transformer-level-2);
+
+}
+
+
+#dag-container div.blk-label label.blk-toggleable__label,
+#dag-container div.blk-label label {
+
+    /* The background is the default theme color */
+    color: var(--block-color-text-on-default-background);
+
+}
+
+
+/* On hover, darken the color of the background */
+#dag-container div.blk-label:hover label.blk-toggleable__label {
+    color: var(--block-color-text);
+    background-color: var(--block-color-transformer-level-2);
+
+}
+
+
+/* Step label */
+#dag-container div.blk-label label {
+    font-family: monospace;
+    font-weight: bold;
+    display: inline-block;
+    line-height: 1.2em;
+
+}
+
+#dag-container div.blk-label-container {
+    text-align: center;
+
+}
+
+
+/* Step-specific */
+#dag-container div.blk-step {
+    font-family: monospace;
+    border: 1px dotted var(--block-color-border-box);
+    border-radius: 0.25em;
+    box-sizing: border-box;
+    margin-bottom: 0.5em;
+
+    background-color: var(--block-color-transformer-level-0);
+}
+
+
+/* on hover */
+#dag-container div.blk-step:hover {
+    background-color: var(--block-color-transformer-level-2);
+}
+
+
+/* Common style for "i" and "?" */
+.blk-step-doc-link,
+a:link.blk-step-doc-link,
+a:visited.blk-step-doc-link {
+    float: right;
+    font-size: smaller;
+    line-height: 1em;
+    font-family: monospace;
+    background-color: var(--block-color-background);
+    border-radius: 1em;
+    height: 1em;
+    width: 1em;
+    text-decoration: none !important;
+    margin-left: 0.5em;
+    text-align: center;
+
+    border: var(--block-color-transformer-level-1) 1pt solid;
+    color: var(--block-color-transformer-level-1);
+
+}
+
+
+/* On hover */
+div.blk-step:hover .blk-step-doc-link:hover,
+.blk-step-doc-link:hover,
+div.blk-label-container:hover .blk-step-doc-link:hover,
+.blk-step-doc-link:hover {
+
+    background-color: var(--block-color-transformer-level-3);
+    color: var(--block-color-background);
+    text-decoration: none;
+
+}
+
+
+/* Span, style for the box shown on hovering the info icon */
+.blk-step-doc-link span {
+    display: none;
+    z-index: 9999;
+    position: relative;
+    font-weight: normal;
+    right: .2ex;
+    padding: .5ex;
+    margin: .5ex;
+    width: min-content;
+    min-width: 20ex;
+    max-width: 50ex;
+    color: var(--block-color-text);
+    box-shadow: 2pt 2pt 4pt #999;
+    background: var(--block-color-transformer-level-0);
+    border: .5pt solid var(--block-color-transformer-level-3);
+}
+
+
+.blk-step-doc-link:hover span {
+    display: block;
+}

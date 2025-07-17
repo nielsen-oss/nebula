@@ -1,0 +1,84 @@
+set_c1_to_x: &set_c1_to_x
+  params:
+    column_name: "c1"
+    value: "x"
+
+
+skip_transformer:
+  pipeline:
+    - transformer: WithColumn
+      skip: True
+      <<: *set_c1_to_x
+
+dont_perform_transformer:
+  pipeline:
+    - transformer: WithColumn
+      perform: False
+      <<: *set_c1_to_x
+
+
+# shared pipelines
+flat_pipeline: &flat_pipeline
+  pipeline:
+    - transformer: WithColumn
+      <<: *set_c1_to_x
+
+split_pipeline: &split_pipeline
+  pipeline:
+    c_x:
+      - transformer: WithColumn
+        params:
+          column_name: "c_x"
+          value: "x"
+
+    c_y:
+      - transformer: WithColumn
+        params:
+          column_name: "c_y"
+          value: "y"
+
+
+nested_pipeline: &nested_pipeline
+  pipeline:
+    - transformer: WithColumn
+      <<: *set_c1_to_x
+    - split_function: mock_split_function
+      pipeline:
+        c_x:
+          - transformer: WithColumn
+            params:
+              column_name: "c_x"
+              value: "x"
+
+        c_y:
+          - transformer: WithColumn
+            params:
+              column_name: "c_y"
+              value: "y"
+
+
+skip_flat_pipeline:  # skip = True
+  skip: True
+  <<: *flat_pipeline
+
+dont_perform_flat_pipeline:  # perform = False
+  perform: False
+  <<: *flat_pipeline
+
+
+skip_split_pipeline:  # skip = True
+  skip: True
+  <<: *split_pipeline
+
+dont_perform_split_pipeline:  # perform = False
+  perform: False
+  <<: *split_pipeline
+
+
+skip_nested_pipeline:  # skip = True
+  skip: True
+  <<: *nested_pipeline
+
+dont_perform_nested_pipeline:  # perform = False
+  perform: False
+  <<: *nested_pipeline

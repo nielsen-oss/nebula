@@ -1,0 +1,87 @@
+apply_to_rows_is_null_dead_end:
+  apply_to_rows:
+    "input_col": "c1"
+    "operator": "isNull"
+    "dead-end": True
+    "skip_if_empty": True
+  pipeline:
+    - transformer: WithColumn
+      params:
+        column_name: "new"
+        value: -1
+    - store: "df_fork"
+
+
+apply_to_rows_gt:
+  - apply_to_rows:
+      "input_col": "idx"
+      "operator": "gt"
+      "value": 5
+    coalesce_output_to_original: True
+    pipeline:
+      - transformer: WithColumn
+        params:
+          column_name: "c1"
+          value: "x"
+
+
+apply_to_rows_comparison_col:
+  apply_to_rows:
+    "input_col": "c1"
+    "operator": "gt"
+    "comparison_column": "c2"
+    "skip_if_empty": True
+  allow_missing_columns: True
+  repartition_output_to_original: True
+  pipeline:
+    - transformer: WithColumn
+      params:
+        column_name: "new_column"
+        value: "new_value"
+
+
+apply_to_rows_error:
+  # New column created without setting allow_missing_columns=True
+  apply_to_rows:
+    "input_col": "c1"
+    "operator": "gt"
+    "comparison_column": "c2"
+  allow_missing_columns: False
+  pipeline:
+    - transformer: WithColumn
+      params:
+        column_name: "new_column"
+        value: "new_value"
+
+
+apply_to_rows_otherwise:
+  - apply_to_rows:
+      "input_col": "idx"
+      "operator": "gt"
+      "value": 5
+      "skip_if_empty": True  # It shouldn't be skipped
+    coalesce_output_to_original: True
+    pipeline:
+      - transformer: WithColumn
+        params:
+          column_name: "c1"
+          value: "x"
+    otherwise:
+      transformer: WithColumn
+      params:
+        column_name: "c1"
+        value: "other"
+
+
+apply_to_rows_skip_if_empty:
+  - apply_to_rows:
+      "input_col": "idx"
+      "operator": "lt"
+      "value": -100  # No negative values in the test df
+      "skip_if_empty": True  # Should skip the branch
+    coalesce_output_to_original: True
+    pipeline:
+      - transformer: WithColumn
+        params:
+          column_name: "c1"
+          value: "x"

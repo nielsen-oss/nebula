@@ -1,0 +1,23 @@
+name: "check-laziness"
+pipeline:
+  - transformer: "Distinct"  # w/o params
+    lazy: True
+
+  - transformer: "WithColumn"  # w/ params
+    lazy: True
+    params:
+      column_name: "c3"
+      value: "lazy"
+
+  - transformer: "WithColumn"  # lazy func
+    msg: "random msg"
+    lazy: True
+    params:
+      column_name: "c4"
+      value: "__fn__my_func"
+
+  - transformer: "WithColumn"  # lazy storage
+    lazy: True
+    params:
+      column_name: "c5"
+      value: "__ns__my_key"

@@ -1,0 +1,12 @@
+split-allow-missing-columns:
+  allow_missing_columns: True
+  split_function: split_func_outer
+  pipeline:
+    outer_low:
+      - transformer: WithColumn
+        params:
+          column_name: "new_column"
+          value: "new_value"
+
+    outer_hi:
+      - transformer: Count
