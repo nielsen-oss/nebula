@@ -1,7 +1,5 @@
 """Unit-test for Filter."""
 
-# pylint: disable=bare-except
-
 import math
 import operator as py_operator
 import re
@@ -49,7 +47,7 @@ def __set_nan(o) -> (bool, set):
     try:
         flag = any(_isna(i) for i in ret)
         ret = {i for i in ret if not _isna(i)}
-    except:
+    except:  # noqa: E722
         pass
     return flag, ret
 

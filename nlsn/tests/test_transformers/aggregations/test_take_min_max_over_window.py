@@ -11,7 +11,6 @@ from pyspark.sql.types import BooleanType, StringType, StructField, StructType
 
 from nlsn.nebula.spark_transformers.aggregations import TakeMinMaxOverWindow
 
-# fmt: off
 # The last two boolean values indicate whether the row must be kept
 # after the transformation with operator set to "min" and "max" respectively.
 _DATA = [
@@ -30,9 +29,6 @@ _DATA = [
 
     [None, None, None, False, False],
 ]
-
-
-# fmt: on
 
 
 @pytest.fixture(scope="module", name="df_input")

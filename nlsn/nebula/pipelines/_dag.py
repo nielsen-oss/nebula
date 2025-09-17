@@ -1,7 +1,5 @@
 """Generate the dag from the pipeline."""
 
-# pylint: disable=unused-wildcard-import
-
 from enum import Enum
 from typing import List, Optional, Union
 

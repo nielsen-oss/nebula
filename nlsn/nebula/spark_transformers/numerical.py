@@ -414,7 +414,6 @@ class MathOperator(Transformer):
 
         l1 = [self._get_constant_or_col(i) for i in strategy]
         ops = iter([self._get_op(op) for op in operators])
-        # pylint: disable=unnecessary-lambda
         col_list = reduce(lambda a, b: next(ops)(a, b), l1)
         return col_list
 

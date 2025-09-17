@@ -20,7 +20,6 @@ class TestFromDictOfListToListOfDicts:
     def test_empty_input(self):
         """Empty data."""
         data = {"a": [], "b": []}
-        # pylint: disable=use-implicit-booleaness-not-comparison)
         assert [] == CreateDataFrame._from_dict_of_list_to_list_of_dicts(data)
 
     def test_mismatched_lengths(self):

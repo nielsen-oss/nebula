@@ -1,7 +1,5 @@
 """Unit-test for AggregateAndAddAsLiteral."""
 
-# pylint: disable=ungrouped-imports
-
 import random
 
 import numpy as np

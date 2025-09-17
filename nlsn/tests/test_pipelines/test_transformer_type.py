@@ -1,7 +1,5 @@
 """Test functions to verify if an object is a valid transformer for a nebula pipeline."""
 
-# pylint: disable=unused-argument
-
 import pytest
 
 from nlsn.nebula.pipelines.transformer_type_util import (

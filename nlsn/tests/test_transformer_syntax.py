@@ -12,9 +12,6 @@ Ensure that:
 Then check if all the transformers are publicly declared in `__all__` for each py file.
 """
 
-# pylint: disable=unused-argument
-# pylint: disable=no-self-argument
-
 import inspect
 from functools import lru_cache
 from typing import List, Mapping, Optional, Set

@@ -31,7 +31,7 @@ class InitParamsStorage(type):
             li_kwargs = [str(v) for k, v in params.items() if k != "self"]
             sign_str = "\n  ".join(li_kwargs)
             err += f"\n__init__ signature: \n  {sign_str}"
-            raise TypeError(err)  # pylint: disable=raise-missing-from
+            raise TypeError(err)
 
         obj._transformer_init_params = kwargs
         return obj

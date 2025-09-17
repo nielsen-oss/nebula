@@ -18,7 +18,6 @@ def _get_df_input(spark):
         StructField("b_3", StringType(), True),
     ]
 
-    # fmt: off
     data = [
         ("1", "11", None, "4", "41", "411"),
         ("1", "12", "120", "4", None, "412"),
@@ -27,7 +26,6 @@ def _get_df_input(spark):
         ("1", "12", "120", "4", "41", None),
         (None, None, None, "4", "41", "412"),
     ]
-    # fmt: on
     return spark.createDataFrame(data, schema=StructType(fields)).persist()
 
 

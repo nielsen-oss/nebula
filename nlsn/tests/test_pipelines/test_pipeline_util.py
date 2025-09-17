@@ -1,7 +1,5 @@
 """Unit-tests for pipeline utils."""
 
-# pylint: disable=unused-wildcard-import
-
 from typing import List
 
 import pytest

@@ -70,6 +70,5 @@ def test_drop_any_null_or_empty_array(df_input, kwargs):
     exp_cond = [i.isNull() | (i == "") for i in spark_cond]
     cond = reduce(or_, exp_cond)
 
-    # pylint: disable=invalid-unary-operand-type
     df_exp = df_input.filter(~cond)
     assert_df_equality(df_out, df_exp, ignore_row_order=True)

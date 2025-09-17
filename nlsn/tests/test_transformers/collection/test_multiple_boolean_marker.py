@@ -63,7 +63,6 @@ def test_multiple_boolean_marker_dynamic(
     cond_iter: Generator[Any, None, None] = (
         (x["column"], x["operator"], x["value"]) for x in cond
     )
-    # pylint: disable=unnecessary-lambda
     full_cond = reduce(
         lambda a, b: _ASSEMBLY_OPERATORS[next(assembly_iter)](a, b),
         [

@@ -5,5 +5,4 @@ exclude_lines =
 omit =
     nlsn/nebula/spark_constants.py
     nlsn/nebula/pipelines/_graphviz.py
-    nlsn/nebula/pipelines/_html_viz.py
     nlsn/nebula/backend_util.py

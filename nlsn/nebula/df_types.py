@@ -4,8 +4,6 @@ Dynamically create a Union type like:
 Union[pyspark.sql.dataframe.DataFrame, pandas.core.frame.DataFrame]
 """
 
-# pylint: disable=eval-used
-
 from typing import List, Union
 
 from nlsn.nebula.backend_util import HAS_PANDAS, HAS_POLARS, HAS_SPARK

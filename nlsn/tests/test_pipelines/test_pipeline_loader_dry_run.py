@@ -1,7 +1,5 @@
 """Test the pipeline loader starting from YAML data with a dry-run."""
 
-# pylint: disable=comparison-with-callable
-
 import pytest
 
 from nlsn.nebula.pipelines.pipeline_loader import (
@@ -183,7 +181,6 @@ class TestExtractLazyParams:
 
     def test_empty_input(self):
         """Tests an empty input dictionary."""
-        # pylint: disable=use-implicit-booleaness-not-comparison
         assert extract_lazy_params({}, self.extra_funcs) == {}
 
     def test_fn_not_found(self):

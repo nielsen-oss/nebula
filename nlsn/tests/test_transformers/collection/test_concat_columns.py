@@ -17,15 +17,13 @@ def _get_input_df(spark):
         StructField("col3", StringType(), True),
     ]
 
-    # fmt: off
     data = [
         (1, "Alice", "Bob", "Charlie"),
         (2, "David", "Eva", "Frank"),
         (3, None, "Hank", None),
         (4, None, None, None),
     ]
-    # fmt: on
-    return spark.createDataFrame(data, schema=StructType(fields)).cache()
+    return spark.createDataFrame(data, schema=StructType(fields)).persist()
 
 
 @pytest.mark.parametrize("drop", [True, False])
@@ -114,7 +112,6 @@ def test_concat_columns_concat_strategy_error():
 
 def test_concat_columns_strategy_error():
     """Test ConcatColumns with wrong concat strategies."""
-    # fmt: off
     list_concat_strategy = [
         (TypeError, "invalid_strategy"),  # Wrong concat strategy
         (KeyError, [{
@@ -143,7 +140,6 @@ def test_concat_columns_strategy_error():
             'strategy': [{'invalid_key': 'value'}]  # Wrong key
         }])
     ]
-    # fmt: on
 
     for error_type, concat_strategy in list_concat_strategy:
         with pytest.raises(error_type):
@@ -152,7 +148,6 @@ def test_concat_columns_strategy_error():
 
 def test_concat_columns_strategy(df_input):
     """Test ConcatColumns with concat strategies."""
-    # fmt: off
     concat_strategy = [
         {
             "new_column_name": "new_col",
@@ -169,7 +164,6 @@ def test_concat_columns_strategy(df_input):
             ],
         },
     ]
-    # fmt: on
 
     t = ConcatColumns(concat_strategy=concat_strategy)
     df_chk = t.transform(df_input)

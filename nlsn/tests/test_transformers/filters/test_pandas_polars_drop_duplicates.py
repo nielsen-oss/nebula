@@ -10,7 +10,6 @@ from nlsn.tests.auxiliaries import assert_pandas_polars_frame_equal
 
 @pytest.fixture(scope="module", name="df_input")
 def _get_df_input():
-    # fmt: off
     data = [
         ["a1", "b1", "c1"],
         ["a1", "b1", "c1"],
@@ -19,7 +18,6 @@ def _get_df_input():
         ["a1", "b2", "c2"],
         ["a1", None, "c2"],
     ]
-    # fmt: on
     return pd.DataFrame(data, columns=["a", "b", "c"])
 
 

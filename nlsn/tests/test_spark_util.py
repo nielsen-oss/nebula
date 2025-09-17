@@ -1,8 +1,5 @@
 """Unit-tests for 'spark_util' module."""
 
-# pylint: disable=unused-wildcard-import
-# pylint: disable=too-many-public-methods
-
 import math
 import operator as py_operator
 from collections import defaultdict
@@ -458,7 +455,6 @@ class TestDropDuplicatesNoRandomness:
         StructField("os_group", StringType(), True),
     ]
 
-    # fmt: off
     input_data = [
         ["OTT", "STV", "Android"],
         ["OTT", "STV", None],
@@ -478,8 +474,6 @@ class TestDropDuplicatesNoRandomness:
         ["MBL", "PHN", None],
         ["MBL", "PHN", "iOS"],
     ]
-
-    # fmt: on
 
     @staticmethod
     def _test_complex_types(df_input):
@@ -749,10 +743,10 @@ class TestFunctionHashDataFrame:
         ]
 
         data = [
-            ["a", 0.0, [1, 2]],
-            ["  ", float("nan"), [None, 12]],
-            [None, None, None],
-        ] * 100
+                   ["a", 0.0, [1, 2]],
+                   ["  ", float("nan"), [None, 12]],
+                   [None, None, None],
+               ] * 100
 
         return spark.createDataFrame(data, schema=StructType(fields)).persist()
 
@@ -853,7 +847,6 @@ class TestSparkSchemaUtilities:
 class TestTakeMinMaxOverWindowFunction:
     """Unit-Test for 'take_min_max_over_window' function."""
 
-    # fmt: off
     # comments are for perform="filter"
     _input_data = [
         # a
@@ -886,8 +879,6 @@ class TestTakeMinMaxOverWindowFunction:
         [None, 3.0],  # keep for min / max
         [None, _nan],  # never keep
     ]
-
-    # fmt: on
 
     @staticmethod
     def _is_nan(x):

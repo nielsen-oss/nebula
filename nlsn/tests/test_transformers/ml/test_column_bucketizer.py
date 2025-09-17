@@ -30,7 +30,6 @@ def _get_df_input(spark):
         StructField("values", FloatType(), True),
     ]
 
-    # fmt: off
     data = [
         [0, 3.0],
         [1, 4.5],
@@ -45,7 +44,6 @@ def _get_df_input(spark):
         [10, -np.inf],
         [11, np.inf],
     ]
-    # fmt: on
 
     return spark.createDataFrame(data, schema=StructType(fields)).persist()
 

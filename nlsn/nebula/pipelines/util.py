@@ -241,7 +241,6 @@ def get_transformer_name(
                     v_show = f'"{v}"' if isinstance(v, str) else v
 
                 li_attrs.append(f"{k}={v_show}")
-        # pylint: disable=bare-except
         except:  # noqa PyBroadException  pragma: no cover
             return [tf_name] if as_list else tf_name
 
@@ -255,7 +254,6 @@ def get_transformer_name(
             for k, v in sorted(tf_attrs.items()):
                 v_show = f'"{v}"' if isinstance(v, str) else v
                 li_attrs.append(f"{k}={v_show}")
-        # pylint: disable=bare-except
         except:  # noqa PyBroadException  pragma: no cover
             return [tf_name] if as_list else tf_name
 

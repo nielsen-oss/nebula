@@ -1,7 +1,5 @@
 """Test 'apply_to_rows' pipeline functionalities."""
 
-# pylint: disable=unused-wildcard-import
-
 import pandas as pd
 import pytest
 
