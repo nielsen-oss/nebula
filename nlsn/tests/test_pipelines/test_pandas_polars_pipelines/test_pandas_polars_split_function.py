@@ -69,7 +69,7 @@ class TestPandasPolarsSplitFunctions:
     )
     def test_polars_null_nan_operator(self, operator: str, n_true: int):
         """Unit-test specific for Polars Dataframes, where nan != null."""
-        data = {"c1": [10, None, float("nan"), 40]}
+        data = {"c1": [10.5, None, float("nan"), 40.1]}
         df = pl.DataFrame(data)
         n_tot = df.shape[0]
         n_valid = n_tot - n_true

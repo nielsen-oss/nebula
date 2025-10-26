@@ -22,7 +22,7 @@ CONDITIONS = [
             "operator": choice(["eq", "ne", "le", "lt", "ge", "gt"]),
             "value": randint(0, 1 << 4),
         }
-        for column in sample(DATA[0].keys(), randint(2, 1 << 3))
+        for column in sample(list(DATA[0]), randint(2, 1 << 3))
     ]
     for _ in range(3)
 ]
@@ -46,9 +46,9 @@ def _get_df_input(spark) -> DataFrame:
 @pytest.mark.parametrize("out_col", ["out", "out2"])
 @pytest.mark.parametrize("cond_number", list(range(len(CONDITIONS))))
 def test_multiple_boolean_marker_dynamic(
-    df_input_dynamic,
-    out_col: str,
-    cond_number: int,
+        df_input_dynamic,
+        out_col: str,
+        cond_number: int,
 ):
     """Test MultipleBooleanMarker using dynamic parameters."""
     cond, assembly = CONDITIONS[cond_number], _ASSEMBLIES[cond_number]
@@ -63,7 +63,6 @@ def test_multiple_boolean_marker_dynamic(
     cond_iter: Generator[Any, None, None] = (
         (x["column"], x["operator"], x["value"]) for x in cond
     )
-    # pylint: disable=unnecessary-lambda
     full_cond = reduce(
         lambda a, b: _ASSEMBLY_OPERATORS[next(assembly_iter)](a, b),
         [

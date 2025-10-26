@@ -9,6 +9,8 @@ spark_local/
 tmp/
 venv/
 venv*/
+.venv/
+spark*/
 .coverage
 .idea/
 .ipynb_checkpoints/

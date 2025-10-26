@@ -18,7 +18,6 @@ from nlsn.nebula.spark_transformers import RoundDecimalValues, RoundValues
 
 # Do not use FloatType, precision is too low, and the test can fail.
 
-# fmt: off
 _params = [
     ("c_int", 0, None),
     ("c_double", 3, None),
@@ -39,7 +38,6 @@ _data = [
     ("5", -6.0),
     ("6", None),
 ]
-# fmt: on
 
 
 @pytest.fixture(scope="module", name="df_input")

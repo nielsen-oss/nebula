@@ -1,21 +1,14 @@
-bandit
-black==23.3.0
 chispa
 coverage
 holidays>=0.26
-isort==5.11.5
 lxml
 numpy
 orjson
-pandas>=1.2.5
-polars
-pre-commit==2.21.0
+pandas>=2.0.0
+polars>=1.0.0
+pyspark>=3.5.0
 pyarrow
 py-cpuinfo
 pytest
 pytest-cov
-tox
 pyyaml
-# sphinx
-# sphinx-autoapi
-# sphinx_rtd_theme

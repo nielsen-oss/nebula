@@ -1,9 +1,5 @@
 """Unit-testing for pipeline checks.py module."""
 
-# pylint: disable=unused-wildcard-import
-# pylint: disable=undefined-variable
-# pylint: disable=unused-wildcard-import
-
 from typing import Optional
 
 import pytest

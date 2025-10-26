@@ -1,10 +1,8 @@
 """Dynamically create README.md with the collapsible transformers section."""
 
-import json
-import os
 from collections import defaultdict
 from pathlib import Path
-from typing import Dict, Tuple, Type
+from typing import Type
 
 from nlsn.nebula import spark_transformers
 from nlsn.nebula.base import Transformer
@@ -29,23 +27,32 @@ _DICT_FOLDERS = {
     "temporal": "Time Manipulation, Conversions and Operations.",
 }
 
-
-def load_extra_requirements() -> dict:
-    """Load extra requirements from "extra_requirements.json"."""
-    path = Path(os.getcwd()).parent.parent / "extra_requirements.json"
-    with open(str(path), "r", encoding="utf-8") as f:
-        json_data = json.load(f)
-    return json_data
+_EXTRA_REQUIREMENTS = {
+    "cpu-info": {
+        "packages": ["py-cpuinfo"],
+        "transformers": ["CpuInfo"]
+    },
+    "holidays": {
+        "packages": ["holidays>=0.26"],
+        "transformers": ["IsHoliday"]
+    },
+    "pandas": {
+        "packages": ["pandas>=1.2.5"],
+        "transformers": ["LogDataSkew"]
+    },
+    "graphviz": {
+        "packages": ["graphviz"],
+        "functionalities": ["Pipeline rendering"]
+    }
+}
 
 
 def get_extra_deps_section():
     """Create the optional dependencies section."""
-    json_data = load_extra_requirements()
-
     ret = "### Extra dependencies for specific transformers\n"
     ret += "The following transformers need some extra dependencies:\n\n"
     ret += "```"
-    for dep, nd in sorted(json_data.items()):
+    for dep, nd in sorted(_EXTRA_REQUIREMENTS.items()):
         li_trf = nd.get("transformers")
         if not li_trf:
             continue
@@ -76,7 +83,7 @@ def get_transformers() -> dict:
     """Find all the transformers and put them in a dict(name -> transformer)."""
     d_all_attrs = {i: getattr(spark_transformers, i) for i in dir(spark_transformers)}
 
-    d_transformers: Dict[str, Type[Transformer]] = {}
+    d_transformers: dict[str, Type[Transformer]] = {}
 
     for k, v in d_all_attrs.items():
         try:
@@ -89,7 +96,7 @@ def get_transformers() -> dict:
     return d_transformers
 
 
-def get_transformer_data(d_transformers: Dict[str, Type[Transformer]]) -> list:
+def get_transformer_data(d_transformers: dict[str, Type[Transformer]]) -> list:
     """Get transformer data and information.
 
     Args:
@@ -128,7 +135,7 @@ def to_collapsible(title: str, text: str) -> str:
     return f"<details>\n<summary>{title}\n</summary>\n\n{text}\n</details>"
 
 
-def to_inner_collapsible(o: Tuple[str, str, str, bool]) -> dict:
+def to_inner_collapsible(o: tuple[str, str, str, bool]) -> dict:
     """Create a collapsible paragraph describing the transformer."""
     name, folder, docstring, deprecated = o
     header = docstring.split(".\n")[0] + "."

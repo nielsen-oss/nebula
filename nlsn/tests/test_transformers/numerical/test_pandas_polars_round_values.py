@@ -7,7 +7,6 @@ import pytest
 from nlsn.nebula.shared_transformers import RoundValues
 from nlsn.tests.auxiliaries import assert_pandas_polars_frame_equal, pandas_to_polars
 
-# fmt: off
 _params = [
     ("c_int", 0, None),
     ("c_double", 3, None),
@@ -28,9 +27,6 @@ _data = [
     ("5", -6.0),
     ("6", float("nan")),
 ]
-
-
-# fmt: on
 
 
 @pytest.fixture(scope="module", name="df_input")

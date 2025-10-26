@@ -37,14 +37,11 @@ def _get_input_data(spark):
     return spark.createDataFrame(data, schema=schema).persist()
 
 
-# fmt: off
 _params = [
     {"operator": "isin", "value": {"a", "b"}},
     {"operator": "startswith", "value": "a"},
 ]
 
-
-# fmt: on
 
 
 @pytest.mark.parametrize("kwargs", _params)

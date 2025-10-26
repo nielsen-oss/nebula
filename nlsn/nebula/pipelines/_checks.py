@@ -1,21 +1,21 @@
 """Functions to check the user input."""
 
-from typing import Any, Dict, Optional, Set, Union
+from typing import Any, Optional, Union
 
 __all__ = [
     "assert_branch_inputs",
     "assert_apply_to_rows_inputs",
-    "ensure_no_branch_or_apply_to_rows_otherwise",
     "ensure_no_branch_or_apply_to_rows_in_split_pipeline",
+    "ensure_no_branch_or_apply_to_rows_otherwise",
     "validate_skip_perform",
 ]
 
-_APPLY_TO_ROWS_KEYS: Dict[str, Set[str]] = {
+_APPLY_TO_ROWS_KEYS: dict[str, set[str]] = {
     "mandatory": {"input_col", "operator"},
     "optional": {"value", "comparison_column", "dead-end", "skip_if_empty"},
 }
 
-_BRANCH_KEYS: Dict[str, Set[str]] = {
+_BRANCH_KEYS: dict[str, set[str]] = {
     "mandatory": {"end"},
     "optional": {"storage", "on", "how", "broadcast", "skip", "perform"},
 }
@@ -32,10 +32,10 @@ def _assert_is_dict(name: str, o):
         raise TypeError(f"'{name}' must be <dict>, found {type(o)}")
 
 
-def _check_keys(name: str, o: Union[set, dict], cmp: Dict[str, Set[str]]):
-    """Checks for necessary and optional keys."""
-    mandatory: Set[str] = cmp["mandatory"]
-    optional: Set[str] = cmp["optional"]
+def _check_keys(name: str, o: Union[set, dict], cmp: dict[str, set[str]]):
+    """Check for necessary and optional keys."""
+    mandatory: set[str] = cmp["mandatory"]
+    optional: set[str] = cmp["optional"]
 
     all_keys = mandatory.union(optional)
     keys = set(o)
@@ -51,7 +51,7 @@ def _check_keys(name: str, o: Union[set, dict], cmp: Dict[str, Set[str]]):
         raise KeyError(msg)
 
 
-def assert_apply_to_rows_inputs(o: Dict[str, Union[str, bool, None]]) -> None:
+def assert_apply_to_rows_inputs(o: dict[str, Union[str, bool, None]]) -> None:
     """Check the validity of an 'apply_to_rows' configuration dictionary.
 
     Args:
@@ -106,16 +106,16 @@ def assert_branch_inputs(o: dict) -> None:
     if end_value not in allowed_ends:
         raise ValueError(f"The 'end' value must be in {allowed_ends}")
 
-    keys: Set[str] = set(o).copy() - {"end", "storage"}
+    keys: set[str] = set(o).copy() - {"end", "storage"}
     sub_name = f"'branch[{end_value}]'"
     _check_keys(sub_name, keys, _BRANCH_END_VALUES[end_value])
     validate_skip_perform(o.get("skip"), o.get("perform"))
 
 
 def ensure_no_branch_or_apply_to_rows_otherwise(
-    branch: Optional[Dict[str, Union[str, bool]]],
-    apply_to_rows: Optional[Dict[str, Union[str, bool]]],
-    otherwise: Optional[Dict[str, Any]],
+    branch: Optional[dict[str, Union[str, bool]]],
+    apply_to_rows: Optional[dict[str, Union[str, bool]]],
+    otherwise: Optional[dict[str, Any]],
 ) -> None:
     """Ensure that 'branch', 'apply_to_rows' and 'otherwise' are valid.
 
@@ -155,7 +155,7 @@ def ensure_no_branch_or_apply_to_rows_otherwise(
 
 
 def ensure_no_branch_or_apply_to_rows_in_split_pipeline(
-    branch: Optional[Dict[str, Any]], apply_to_rows: Optional[Dict[str, Any]]
+    branch: Optional[dict[str, Any]], apply_to_rows: Optional[dict[str, Any]]
 ) -> None:
     """Ensure that 'branch' and 'apply_to_rows' are not passed in split-pipelines.
 
@@ -176,7 +176,7 @@ def ensure_no_branch_or_apply_to_rows_in_split_pipeline(
 
 
 def validate_skip_perform(skip: Optional[bool], perform: Optional[bool]) -> bool:
-    """Validates that the skip and perform flags are not set contradictorily.
+    """Validate that the skip and perform flags are not set contradictorily.
 
     Return True if the user requests NOT to perform the operation, False otherwise.
     """

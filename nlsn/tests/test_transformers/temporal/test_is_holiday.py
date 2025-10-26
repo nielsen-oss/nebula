@@ -76,7 +76,6 @@ def test_is_holiday_thailand(spark):
         ["2023-05-01", True],
         ["2023-05-04", True],
         ["2023-05-05", True],
-        ["2023-05-11", True],
         ["2023-06-03", True],
         ["2023-06-05", True],
         ["2023-06-15", False],

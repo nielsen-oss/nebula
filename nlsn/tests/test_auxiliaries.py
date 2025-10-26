@@ -1,7 +1,5 @@
 """Test auxiliaries."""
 
-# pylint: disable=unused-wildcard-import
-
 import itertools
 import random
 from string import ascii_lowercase
@@ -305,8 +303,6 @@ def test_ensure_nested_length(o: list, n: int, exp: bool):
 def test_get_class_name():
     """Test the 'get_class_name' function."""
     # noqa: D202
-    # pylint: disable=multiple-statements
-    # fmt: off
     class A: ...  # noqa
 
     class AA: ...  # noqa
@@ -316,8 +312,6 @@ def test_get_class_name():
     class Test: ...  # noqa
 
     class TestClass: ...  # noqa
-
-    # fmt: on
 
     li_tests = [
         [A, ("A", "a")],

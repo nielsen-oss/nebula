@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nlsnnebula"
+version = "0.0.1"
+description = "Nebula: A collection of dataframe transformers"
+authors = [
+  { name = "DSci Global Platform Support Team", email = "dscigps@nielsen.com" },
+]
+readme = "README.md"
+requires-python = ">=3.9"
+keywords = ["nielsen"]
+classifiers = [
+  "License :: OSI Approved :: Apache Software License",
+]
+license = { file = "LICENSE" }
+
+[project.urls]
+Homepage = "http://www.nielsen.com"
+Source = "https://github.com/nielsen-oss/nebula"
+
+[project.optional-dependencies]
+cpu-info = ["py-cpuinfo"]
+holidays = ["holidays>=0.26"]
+pandas = ["pandas>=1.2.5"]
+
+# "full" option installs all
+full = [
+  "py-cpuinfo",
+  "holidays>=0.26",
+  "pandas>=1.2.5",
+]
+
+[tool.setuptools.packages.find]
+include = ["nlsn", "nlsn.*"]
+namespaces = true

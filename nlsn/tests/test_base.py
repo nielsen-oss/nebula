@@ -58,7 +58,6 @@ def test_extract_lazy_params():
     }
 
     try:
-        # pylint: disable=comparison-with-callable
         chk = extract_lazy_params(kws)
         assert chk["a"] == "ok"
         assert chk["b"] is _not_lazy

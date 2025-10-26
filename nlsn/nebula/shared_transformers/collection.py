@@ -1,7 +1,7 @@
 """General Purposes Transformers."""
 
 import itertools
-from typing import Any, List, Optional
+from typing import Any, Optional
 
 from nlsn.nebula import nebula_storage as ns
 from nlsn.nebula.auxiliaries import assert_allowed
@@ -60,7 +60,7 @@ class CreateDataFrame(Transformer):
         self._kwargs: dict = kwargs or {}
 
     @staticmethod
-    def _from_dict_of_list_to_list_of_dicts(data: dict) -> List[dict]:
+    def _from_dict_of_list_to_list_of_dicts(data: dict) -> list[dict]:
         lengths = {len(v) for v in data.values()}
         if len(lengths) != 1:
             raise ValueError(f"Found multiple lengths in the input data: {lengths}")

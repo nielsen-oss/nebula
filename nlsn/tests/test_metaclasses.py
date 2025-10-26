@@ -43,5 +43,4 @@ def test_init_params_storage():
 def test_init_params_storage_error():
     """Unit-test for 'InitParamsStorage' with wrong class initialization."""
     with pytest.raises(TypeError):
-        # pylint: disable=unexpected-keyword-arg
         Child(x="x", c=5)

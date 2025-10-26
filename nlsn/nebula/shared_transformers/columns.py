@@ -1,7 +1,7 @@
 """Transformers for Managing Columns without Affecting Row Values."""
 
 import re
-from typing import Dict, Iterable, List, Optional, Union
+from typing import Iterable, Optional, Union
 
 from nlsn.nebula.auxiliaries import (
     assert_at_least_one_non_null,
@@ -23,7 +23,7 @@ class DropColumns(Transformer):
     def __init__(
         self,
         *,
-        columns: Optional[Union[str, List[str]]] = None,
+        columns: Optional[Union[str, list[str]]] = None,
         regex: Optional[str] = None,
         glob: Optional[str] = None,
         startswith: Optional[Union[str, Iterable[str]]] = None,
@@ -75,19 +75,19 @@ class DropColumns(Transformer):
         return self._select_transform(df)
 
     def _transform_pandas(self, df):
-        selection: List[str] = self._get_selected_columns(df)
+        selection: list[str] = self._get_selected_columns(df)
         errors = "ignore" if self._allow_excess_columns else "raise"
         return df.drop(columns=selection, errors=errors)
 
     def _transform_polars(self, df):
-        selection: List[str] = self._get_selected_columns(df)
+        selection: list[str] = self._get_selected_columns(df)
         if self._allow_excess_columns:
             actual = set(df.columns)
             selection = [i for i in selection if i in actual]
         return df.drop(selection)
 
     def _transform_spark(self, df):
-        selection: List[str] = self._get_selected_columns(df)
+        selection: list[str] = self._get_selected_columns(df)
         return df.drop(*selection)
 
 
@@ -97,9 +97,9 @@ class RenameColumns(Transformer):
     def __init__(
         self,
         *,
-        columns: Optional[Union[str, List[str]]] = None,
-        columns_renamed: Optional[Union[str, List[str]]] = None,
-        mapping: Optional[Dict[str, str]] = None,
+        columns: Optional[Union[str, list[str]]] = None,
+        columns_renamed: Optional[Union[str, list[str]]] = None,
+        mapping: Optional[dict[str, str]] = None,
         regex_pattern: Optional[str] = None,
         regex_replacement: Optional[str] = None,
         fail_on_missing_columns: bool = True,
@@ -152,15 +152,15 @@ class RenameColumns(Transformer):
                 "'columns_renamed' and 'columns' must be used together."
             )
 
-        columns: List[str] = ensure_flat_list(columns)
-        columns_renamed: List[str] = ensure_flat_list(columns_renamed)
+        columns: list[str] = ensure_flat_list(columns)
+        columns_renamed: list[str] = ensure_flat_list(columns_renamed)
         if len(columns) != len(columns_renamed):
             raise AssertionError(
                 f"len(columns)={len(columns)} != len(columns_renamed)={len(columns_renamed)}"
             )
 
         mapping = mapping if mapping else {}
-        self._map_rename: Dict[str, str] = (
+        self._map_rename: dict[str, str] = (
             {**mapping, **dict(zip(columns, columns_renamed))} if columns else mapping
         )
 
@@ -174,7 +174,7 @@ class RenameColumns(Transformer):
     def _transform(self, df):
         return self._select_transform(df)
 
-    def _get_regex_mapping(self, df) -> Dict[str, str]:
+    def _get_regex_mapping(self, df) -> dict[str, str]:
         return {c: re.sub(self._regex_pattern, self._regex_repl, c) for c in df.columns}
 
     def _transform_pandas(self, df):
@@ -211,7 +211,7 @@ class SelectColumns(Transformer):
     def __init__(
         self,
         *,
-        columns: Optional[Union[str, List[str]]] = None,
+        columns: Optional[Union[str, list[str]]] = None,
         regex: Optional[str] = None,
         glob: Optional[str] = None,
         startswith: Optional[Union[str, Iterable[str]]] = None,
@@ -250,13 +250,13 @@ class SelectColumns(Transformer):
         return self._select_transform(df)
 
     def _transform_pandas(self, df):
-        selection: List[str] = self._get_selected_columns(df)
+        selection: list[str] = self._get_selected_columns(df)
         return df[selection]
 
     def _transform_polars(self, df):
-        selection: List[str] = self._get_selected_columns(df)
-        return df[selection]
+        selection: list[str] = self._get_selected_columns(df)
+        return df.select(selection)
 
     def _transform_spark(self, df):
-        selection: List[str] = self._get_selected_columns(df)
+        selection: list[str] = self._get_selected_columns(df)
         return df.select(*selection)
