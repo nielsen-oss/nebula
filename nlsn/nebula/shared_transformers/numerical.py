@@ -1,6 +1,6 @@
 """Transformers for numerical operations."""
 
-from typing import List, Optional, Set, Union
+from typing import Optional, Union
 
 from nlsn.nebula.auxiliaries import assert_is_integer, ensure_list
 from nlsn.nebula.base import Transformer
@@ -18,7 +18,7 @@ class RoundValues(Transformer):
     def __init__(
         self,
         *,
-        input_columns: Union[str, List[str]],
+        input_columns: Union[str, list[str]],
         precision: int = 2,
         output_column: Optional[str] = None,
     ):
@@ -46,7 +46,7 @@ class RoundValues(Transformer):
         assert_is_integer(precision, "precision")
 
         super().__init__()
-        self._input_cols: List[str] = ensure_list(input_columns)
+        self._input_cols: list[str] = ensure_list(input_columns)
         self._output_col: Optional[str] = None
         self._is_multiple: bool = len(self._input_cols) > 1
 
@@ -65,7 +65,7 @@ class RoundValues(Transformer):
     def _transform(self, df):
         return self._select_transform(df)
 
-    def _check_spark_dtype(self, df, columns: List[str]):
+    def _check_spark_dtype(self, df, columns: list[str]):
         msg_err = "Input column '{}' is '{}'. Must be numeric type."
         for col_name in columns:
             dtype = df.schema[col_name].dataType
@@ -100,7 +100,7 @@ class RoundValues(Transformer):
 
         # Multiple columns: in this case, the 'output_column' is None, and the
         # column order is preserved.
-        cols2round: Set[str] = set(self._input_cols)
+        cols2round: set[str] = set(self._input_cols)
         vr: int = self._scale
         cols = [F.round(c, vr).alias(c) if c in cols2round else c for c in df.columns]
 
@@ -119,7 +119,7 @@ class RoundValues(Transformer):
     def _transform_polars(self, df):
         import polars as pl
 
-        is_pos: bool = self._scale >= 0
+        is_positive: bool = self._scale >= 0
         schema: dict = df.schema
 
         def _round_neg(_x):  # pragma: no cover
@@ -127,17 +127,17 @@ class RoundValues(Transformer):
 
         if not self._is_multiple:
             input_col: str = self._input_cols[0]
-            if is_pos:
+            if is_positive:
                 op = pl.col(input_col).round(self._scale)
             else:
-                op = pl.col(input_col).apply(_round_neg).cast(schema[input_col])
+                op = pl.col(input_col).map_elements(_round_neg).cast(schema[input_col])
             return df.with_columns(op.alias(self._output_col))
 
-        if is_pos:
+        if is_positive:
             li_ops = [pl.col(i).round(self._scale) for i in self._input_cols]
         else:
             li_ops = [
-                pl.col(i).apply(_round_neg).cast(schema[i]) for i in self._input_cols
+                pl.col(i).map_elements(_round_neg).cast(schema[i]) for i in self._input_cols
             ]
 
         return df.with_columns(li_ops)

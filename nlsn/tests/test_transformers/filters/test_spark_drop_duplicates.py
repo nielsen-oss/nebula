@@ -17,7 +17,6 @@ def _get_df_input(spark):
         StructField("os_group", StringType(), True),
     ]
 
-    # fmt: off
     data = [
         ["OTT", "STV", "Android"],
         ["OTT", "STV", None],
@@ -37,7 +36,6 @@ def _get_df_input(spark):
         ["MBL", "PHN", None],
         ["MBL", "PHN", "iOS"],
     ]
-    # fmt: on
     return spark.createDataFrame(data, schema=StructType(fields)).persist()
 
 

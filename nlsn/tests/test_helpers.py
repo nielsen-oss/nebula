@@ -1,7 +1,5 @@
 """Unit-test module for helpers functions."""
 
-# pylint: disable=unused-wildcard-import
-
 import numpy as np
 import pandas as pd
 import pytest

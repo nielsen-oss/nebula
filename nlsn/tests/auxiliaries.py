@@ -2,7 +2,7 @@
 
 import re
 from fnmatch import fnmatch
-from typing import List, Optional, Set, Union
+from typing import Optional, Union
 
 import pandas as pd
 import polars as pl
@@ -11,14 +11,20 @@ from polars.testing import assert_frame_equal as pl_assert_frame_equal
 
 from nlsn.nebula.auxiliaries import ensure_list
 
+__all__ = [
+    "assert_pandas_polars_frame_equal",
+    "get_expected_columns",
+    "pandas_to_polars",
+]
+
 
 def assert_pandas_polars_frame_equal(
-    df_type: str,
-    df_exp,
-    df_chk,
-    *,
-    check_row_order=False,
-    check_dtype: bool = True,
+        df_type: str,
+        df_exp,
+        df_chk,
+        *,
+        check_row_order=False,
+        check_dtype: bool = True,
 ) -> None:
     """Assert that 2 Pandas / Polars dataframes are equal.
 
@@ -40,27 +46,27 @@ def assert_pandas_polars_frame_equal(
         pd_assert_frame_equal(df_exp, df_chk)
     elif df_type == "polars":
         pl_assert_frame_equal(
-            df_exp, df_chk, check_row_order=check_row_order, check_dtype=check_dtype
+            df_exp, df_chk, check_row_order=check_row_order, check_dtypes=check_dtype
         )
     else:
         raise ValueError("df_type must be either 'pandas' or 'polars'")
 
 
 def get_expected_columns(
-    df, columns: Optional[list], regex: Optional[str], glob: Optional[str]
-) -> List[str]:
+        df, columns: Optional[list], regex: Optional[str], glob: Optional[str]
+) -> list[str]:
     """Get the expected columns by using the nlsn.nebula.select_columns logic."""
     columns = ensure_list(columns)
 
     if not (regex or glob):
         return columns
 
-    columns_seen: Set[str] = set()
+    columns_seen: set[str] = set()
 
-    ret: List[str] = columns[:]
+    ret: list[str] = columns[:]
     columns_seen.update(columns)
 
-    input_columns: List[str] = df.columns
+    input_columns: list[str] = df.columns
 
     if regex:
         pattern = re.compile(regex)

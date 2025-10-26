@@ -106,7 +106,7 @@ Notes:
 
 from copy import deepcopy
 from itertools import product
-from typing import Any, List, Optional, Tuple
+from typing import Any, Optional
 
 __all__ = ["explode_loops_in_pipeline"]
 
@@ -216,7 +216,7 @@ def substitute_params(d: dict, params: dict) -> dict:
     return _substitute_params(d, params)
 
 
-def process_loop(loop_dict: dict) -> List[dict]:
+def process_loop(loop_dict: dict) -> list[dict]:
     """Process a single loop and return list of expanded dictionaries."""
     loop_dict = prepare_loop_params(loop_dict)
     values: dict = loop_dict["values"]
@@ -242,7 +242,7 @@ def process_loop(loop_dict: dict) -> List[dict]:
     return ret
 
 
-def _explode_loops(o) -> Tuple[Any, bool]:
+def _explode_loops(o) -> tuple[Any, bool]:
     """Recursively process all loops, from innermost to outermost."""
     # No need for deepcopy - we'll build a new dict as we go
     if isinstance(o, dict):

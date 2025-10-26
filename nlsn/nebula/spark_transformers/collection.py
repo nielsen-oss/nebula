@@ -1056,7 +1056,6 @@ class MultipleBooleanMarker(Transformer):
             )
             spark_conds.append(cond)
 
-        # pylint: disable=unnecessary-lambda
         main_cond = reduce(lambda a, b: next(self._assembly)(a, b), spark_conds)
         main_cond = null_cond_to_false(main_cond)
         return df.withColumn(self._output_col, main_cond)

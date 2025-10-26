@@ -3,9 +3,6 @@
 This file was written in a few days and needs refactoring.
 """
 
-# pylint: disable=protected-access
-# pylint: disable=unused-wildcard-import
-
 from collections import OrderedDict
 from copy import deepcopy
 from enum import Enum
@@ -1426,18 +1423,6 @@ class TransformerPipeline:
 
     def _print_dag(self):
         return print_dag(self._dag.dag)
-
-    def render_html(self, render_nb: bool = True):  # pragma: no cover
-        """Create an HTML representation of the pipeline."""
-        from nlsn.nebula.pipelines._html_viz import render_html
-
-        html_data = render_html(self, "", "")
-
-        if render_nb:
-            from IPython.core.display import HTML
-
-            return HTML(html_data)
-        return html_data
 
 
 if __name__ == "__main__":  # pragma: no cover

@@ -1,6 +1,6 @@
 """Transformers for debugging."""
 
-from typing import Iterable, List, Optional, Union
+from typing import Iterable, Optional, Union
 
 from nlsn.nebula.base import Transformer
 
@@ -13,7 +13,7 @@ class PrintSchema(Transformer):
     def __init__(
         self,
         *,
-        columns: Optional[Union[str, List[str]]] = None,
+        columns: Optional[Union[str, list[str]]] = None,
         regex: Optional[str] = None,
         glob: Optional[str] = None,
         startswith: Optional[Union[str, Iterable[str]]] = None,
@@ -50,7 +50,7 @@ class PrintSchema(Transformer):
         return self._select_transform(df)
 
     def __print_pandas_polars_schema(self, df, t: str) -> None:
-        selection: List[str] = self._get_selected_columns(df)
+        selection: list[str] = self._get_selected_columns(df)
         if selection:
             df_show = df[selection]
         else:
@@ -74,7 +74,7 @@ class PrintSchema(Transformer):
         return df
 
     def _transform_spark(self, df):
-        selection: List[str] = self._get_selected_columns(df)
+        selection: list[str] = self._get_selected_columns(df)
         if selection:
             df_show = df.select(selection)
         else:

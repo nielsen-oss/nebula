@@ -1,9 +1,7 @@
 """Generate the dag from the pipeline."""
 
-# pylint: disable=unused-wildcard-import
-
 from enum import Enum
-from typing import List, Optional, Union
+from typing import Optional, Union
 
 from nlsn.nebula.pipelines.auxiliaries import *
 from nlsn.nebula.pipelines.transformer_type_util import is_transformer
@@ -20,9 +18,9 @@ def create_dag(pipeline, df_input_name: str, df_output_name: str):
 class _DAG:
     def __init__(self, pipeline, df_input_name: str, df_output_name):
         """Dag constructor."""
-        self.dag: List[Union[Node, dict]] = []
+        self.dag: list[Union[Node, dict]] = []
         self._node_counter: int = 0
-        self.__temp_parents: Optional[List[Union[Node, dict]]] = None
+        self.__temp_parents: Optional[list[Union[Node, dict]]] = None
         self.__update_dag(
             None,
             NodeType.INPUT_DF,
@@ -49,11 +47,11 @@ class _DAG:
         t: NodeType,
         *,
         kws=None,
-        parents: Union[List[Node], bool, None] = None,
+        parents: Union[list[Node], bool, None] = None,
         skip_node: bool = False,
     ) -> Optional[Node]:
         if skip_node:
-            # Do not add pipeline as nodes, but keep track of them
+            # Do not add pipelines as nodes, but keep track of them
             self.dag.append({"type": t, "params": kws})
             return None
         node = Node(o, t=t, n=self._node_counter, kwargs=kws)
@@ -263,7 +261,7 @@ class _DAG:
                 obj.split_function, NodeType.SPLIT_FUNCTION
             )
 
-            parents: List[Node] = []
+            parents: list[Node] = []
 
             for split_name, el in obj.splits.items():
                 # The parent node for each split is the split function node
@@ -301,7 +299,7 @@ def print_dag(dag):
     max_data_name: int = 0
 
     _data_name: str
-    li_msg: List[List[str]] = []
+    li_msg: list[list[str]] = []
 
     for el in dag:
         if isinstance(el, dict):

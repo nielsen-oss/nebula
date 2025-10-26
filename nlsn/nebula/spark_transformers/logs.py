@@ -212,16 +212,16 @@ class CpuInfo(Transformer):
         super().__init__()
 
         try:  # pragma: no cover
-            import cpuinfo  # pylint: disable=unused-import
+            import cpuinfo  #   # noqa: F401
         except ImportError:  # pragma: no cover
             msg = "'cpuinfo' optional package not installed. \n"
             msg += "Run 'pip install py-cpuinfo' or 'install nebula[cpu-info]'"
-            raise ImportError(msg)  # pylint: disable=raise-missing-from
+            raise ImportError(msg)
 
         self._n: int = n_partitions
 
     def _transform(self, df):
-        import cpuinfo
+        import cpuinfo  # noqa: F401
 
         def _func() -> list:  # pragma: no cover
             cpu: str = cpuinfo.get_cpu_info()["brand_raw"]
@@ -373,11 +373,11 @@ class LogDataSkew(Transformer):
                 Persist the dataframe if not already cached.
         """
         try:  # pragma: no cover
-            import pandas  # pylint: disable=unused-import
+            import pandas  # noqa: F401
         except ImportError:  # pragma: no cover
             msg = "'pandas' optional package not installed. \n"
             msg += "Run 'pip install pandas' or 'install nebula[pandas]'"
-            raise ImportError(msg)  # pylint: disable=raise-missing-from
+            raise ImportError(msg)
 
         super().__init__()
         self._persist: bool = persist

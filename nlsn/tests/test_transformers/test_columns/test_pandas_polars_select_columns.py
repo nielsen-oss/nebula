@@ -1,6 +1,6 @@
 """Unit-test for Pandas / Polars SelectColumns."""
 
-from typing import List, Optional
+from typing import Optional
 
 import pandas as pd
 import polars as pl
@@ -17,7 +17,7 @@ from nlsn.tests.test_transformers.test_columns._shared import SharedSelectColumn
 @pytest.mark.parametrize(*SharedSelectColumns.glob_params)
 def test_select_columns(
     df_type: str,
-    columns: Optional[List[str]],
+    columns: Optional[list[str]],
     regex: Optional[str],
     glob: Optional[str],
 ):

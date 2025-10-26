@@ -1,7 +1,7 @@
 """Pipeline yaml loader."""
 
 from types import ModuleType
-from typing import Callable, Dict, List, Optional, Set, Union
+from typing import Callable, Optional, Union
 
 from nlsn.nebula.auxiliaries import extract_kwarg_names
 from nlsn.nebula.base import LazyWrapper, Transformer
@@ -19,7 +19,7 @@ __all__ = ["load_pipeline"]
 #     return {"split_1": df_1, "split_2": df_2}
 
 # Set the forbidden split names in YAML file ...
-_NOT_ALLOWED_SPLIT_NAMES: Set[str] = {
+_NOT_ALLOWED_SPLIT_NAMES: set[str] = {
     "loop",
     "pipeline",
     "store",
@@ -30,7 +30,7 @@ _NOT_ALLOWED_SPLIT_NAMES: Set[str] = {
 }
 
 # ... extract the kwarg name from "TransformerPipeline" ...
-_kws_pipeline: Set[str] = set(extract_kwarg_names(TransformerPipeline))
+_kws_pipeline: set[str] = set(extract_kwarg_names(TransformerPipeline))
 if not _kws_pipeline:  # pragma: no cover
     raise RuntimeError("Unable to detect kwarg name in the 'TransformerPipeline'")
 
@@ -81,7 +81,7 @@ def _cache_transformer_packages(ext_transformers: Optional[list], t: Optional[st
     _cache["transformer_packages"] = (ext_transformers or []) + [nebula_transformers]
 
 
-def extract_lazy_params(input_params: dict, extra_funcs: Dict[str, Callable]) -> dict:
+def extract_lazy_params(input_params: dict, extra_funcs: dict[str, Callable]) -> dict:
     ret: dict = {}
     for k, v in input_params.items():
         # [6:] 6 is the len of "__fn__" / "__ns__"
@@ -170,7 +170,7 @@ def _load_objects(o, **kwargs):
         raise TypeError(msg)
 
 
-def _extract_function(li: List[Callable], name: str) -> Callable:
+def _extract_function(li: list[Callable], name: str) -> Callable:
     names = [i.__name__ for i in li]
     if len(names) != len(set(names)):
         raise AssertionError(f"Duplicated function names: {names}")
@@ -293,7 +293,7 @@ def load_pipeline(
     o: Union[dict, list, tuple],
     *,
     extra_functions: Optional[
-        Union[Callable, List[Callable], Dict[str, Callable]]
+        Union[Callable, list[Callable], dict[str, Callable]]
     ] = None,
     extra_transformers: Optional[ModuleType] = None,
     backend: Optional[str] = None,

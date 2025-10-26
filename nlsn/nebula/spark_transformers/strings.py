@@ -206,7 +206,6 @@ class RegexReplace(Transformer):
 
 
 class SplitStringToList(Transformer):
-    # pylint: disable=anomalous-backslash-in-string
     def __init__(
         self,
         *,

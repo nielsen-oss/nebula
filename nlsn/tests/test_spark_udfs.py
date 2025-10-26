@@ -1,7 +1,5 @@
 """Unit-tests for 'spark_udfs' module."""
 
-# pylint: disable=unused-wildcard-import
-
 from nlsn.nebula.spark_udfs import *
 
 

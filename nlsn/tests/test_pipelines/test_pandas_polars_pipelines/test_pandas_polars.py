@@ -1,7 +1,5 @@
 """Test pandas pipelines."""
 
-# pylint: disable=too-few-public-methods
-
 # This module is awful, it must be refactored
 
 from copy import deepcopy
