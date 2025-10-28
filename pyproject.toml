@@ -25,6 +25,7 @@ Source = "https://github.com/nielsen-oss/nebula"
 cpu-info = ["py-cpuinfo"]
 holidays = ["holidays>=0.26"]
 pandas = ["pandas>=1.2.5"]
+pyspark =["pyspark==3.5.6"]
 
 # "full" option installs all
 full = [
