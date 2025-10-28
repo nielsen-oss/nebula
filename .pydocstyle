@@ -1,7 +1,0 @@
-[pydocstyle]
-convention = google
-inherit = false
-match = .*\.py
-add-ignore =
-    D101,  # Missing docstring in public class
-    D417,  # Missing argument descriptions in the docstring
