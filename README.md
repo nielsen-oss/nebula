@@ -12,20 +12,6 @@ available for `Pandas` and `Polars` (`Count`, `Distinct`, `DropColumns`, `PrintS
 `RenameColumns`, `RoundValues` and `SelectColumns`), so users may need to develop additional
 ones if necessary.
 
-Presentation: https://docs.google.com/presentation/d/1TO1pBv37Nf728iSwhqu5zHICvU1JXdgBwKnSaPSpBg8
-
-## Installation
-### Using pip
-```
-python3 -m pip install --upgrade git+https://gitlab+deploy-token-2233151:XroesFyTte_7zyHK4xUK@gitlab.com/nielsen-media/dsci/dsciint/dsci-gps/nebula.git@main#egg=nlsnnebula
-```
-
-### In a requirements.txt
-Get the latest stable version in your project requirements:
-```
-git+https://gitlab+deploy-token-2233151:XroesFyTte_7zyHK4xUK@gitlab.com/nielsen-media/dsci/dsciint/dsci-gps/nebula.git@main#egg=nlsnnebula
-```
-
 ### Development setup
 
  1. Clone this repo: `git clone git@gitlab.com:nielsen-media/dsci/dsciint/dsci-gps/nebula.git`

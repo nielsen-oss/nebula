@@ -39,5 +39,7 @@ report.xml
 *.tar
 _*.html
 
+uv.lock
+
 # keep
 !/example_notebooks/*.ipynb
