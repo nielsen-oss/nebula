@@ -28,27 +28,62 @@ dependencies = [
 Homepage = "http://www.nielsen.com"
 Source = "https://github.com/nielsen-oss/nebula"
 
-[dependency-groups]
 
+[dependency-groups]
 dev = [
     "pre-commit>=4.3.0",
     "py-cpuinfo",
     "holidays>=0.26",
-    "pyarrow"]
+    "pyarrow"
+  ]
 
 test = [
-  "chispa",
-  "coverage",
-  "holiday>=0.26",
-  "lxml",
-  "numpy",
-  "orjson",
-  "pyarrow",
-  "py-cpuinfo",
-  "pytest",
-  "pytest-cov",
-  "pyyaml"
+    "chispa",
+    "coverage",
+    "holidays>=0.26",
+    "lxml",
+    "numpy",
+    "orjson",
+    "pyarrow",
+    "py-cpuinfo",
+    "pytest",
+    "pytest-cov",
+    "pyyaml"
 ]
+
+full = [
+  {include-group = "dev"},
+  {include-group = "test"}
+]
+
+# TODO Discuss what to include in optionals
+# [project.optional-dependencies]
+
+# dev = [
+#     "pre-commit>=4.3.0",
+#     "py-cpuinfo",
+#     "holidays>=0.26",
+#     "pyarrow"
+# ]
+
+# test = [
+#     "chispa",
+#     "coverage",
+#     "holidays>=0.26",
+#     "lxml",
+#     "numpy",
+#     "orjson",
+#     "pyarrow",
+#     "py-cpuinfo",
+#     "pytest",
+#     "pytest-cov",
+#     "pyyaml"
+# ]
+
+# full = [
+#     ".[dev]",
+#     ".[test]"
+# ]
 
 [tool.setuptools.packages.find]
 include = ["nlsn", "nlsn.*"]
