@@ -42,3 +42,44 @@ full = [
 [tool.setuptools.packages.find]
 include = ["nlsn", "nlsn.*"]
 namespaces = true
+
+[dependency-groups]
+dev = [
+    "pre-commit>=4.3.0",
+]
+
+# In your pyproject.toml
+
+[tool.ruff]
+# Set the line length, just like Black
+line-length = 88
+# Fix all fixable errors
+fix = true
+
+[tool.ruff.lint]
+# Enable all the rule sets you were using before:
+# E/F: pyflakes/pycodestyle (standard)
+# I: isort
+# D: pydocstyle
+# PL: pylint
+select = ["E", "F", "I", "D", "PL"]
+
+# Ignore any specific rules you don't like
+# ignore = ["D100", "PLR2004"]
+
+# --- Pydocstyle configuration ---
+[tool.ruff.lint.pydocstyle]
+# This mimics using a config file for docstring convention
+# Options: "google", "numpy", "pep257"
+convention = "google"
+
+# --- Pylint configuration ---
+[tool.ruff.lint.pylint]
+# Example: set max-args, just like in .pylintrc
+max-args = 6
+
+
+[tool.ruff.format]
+# Use black-compatible formatting
+quote-style = "double"
+indent-style = "space"
