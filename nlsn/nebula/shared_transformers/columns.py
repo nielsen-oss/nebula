@@ -16,7 +16,6 @@ __all__ = [
     "SelectColumns",
 ]
 
-print("Ciao!")
 
 class DropColumns(Transformer):
     backends = {"pandas", "polars", "spark"}
