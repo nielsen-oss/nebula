@@ -5,21 +5,21 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "nlsnnebula"
 version = "0.0.1"
-description = "Nebula: A collection of dataframe transformers"
+description = "A collection of dataframe transformers with pipeline assembly and execution capabilities"
 authors = [
-  { name = "DSci Global Platform Support Team", email = "dscigps@nielsen.com" },
+    { name = "DSci Global Platform Support Team", email = "dscigps@nielsen.com" },
 ]
 readme = "README.md"
 requires-python = ">=3.9"
 keywords = ["nielsen"]
 classifiers = [
-  "License :: OSI Approved :: Apache Software License",
+    "License :: OSI Approved :: Apache Software License",
 ]
 license = { file = "LICENSE" }
 dependencies = [
     "polars>=1.34.0",
-    "pytest>=8.4.2",
-    "setuptools>=80.9.0",
+    "pytest>=7.4.4",
+    "setuptools>=61.0.0",
 ]
 
 [project.urls]
@@ -30,13 +30,15 @@ Source = "https://github.com/nielsen-oss/nebula"
 cpu-info = ["py-cpuinfo"]
 holidays = ["holidays>=0.26"]
 pandas = ["pandas>=1.2.5"]
-pyspark =["pyspark==3.5.6"]
+pyspark = ["pyspark==3.5.6"]
+graphviz = ["graphviz>=0.21"]
 
 # "full" option installs all
 full = [
-  "py-cpuinfo",
-  "holidays>=0.26",
-  "pandas>=1.2.5",
+    "py-cpuinfo",
+    "holidays>=0.26",
+    "pandas>=1.2.5",
+    "graphviz>=0.21",
 ]
 
 [tool.setuptools.packages.find]
