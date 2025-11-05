@@ -2,8 +2,9 @@
 
 import re
 from fnmatch import fnmatch
-from typing import Optional, Union
+from typing import Optional
 
+import narwhals as nw
 import pandas as pd
 import polars as pl
 from pandas.testing import assert_frame_equal as pd_assert_frame_equal
@@ -13,8 +14,8 @@ from nlsn.nebula.auxiliaries import ensure_list
 
 __all__ = [
     "assert_pandas_polars_frame_equal",
+    "from_pandas",
     "get_expected_columns",
-    "pandas_to_polars",
 ]
 
 
@@ -52,11 +53,26 @@ def assert_pandas_polars_frame_equal(
         raise ValueError("df_type must be either 'pandas' or 'polars'")
 
 
+def from_pandas(df_input, backend: str, to_nw: bool, spark=None):
+    if backend == "polars":
+        df = pl.from_pandas(df_input)
+    elif backend == "spark":
+        df = spark.createDataFrame(df_input)
+    else:
+        df = df_input
+
+    if to_nw:
+        df = nw.from_native(df)
+
+    return df
+
+
 def get_expected_columns(
         input_columns: list[str],
-        columns: Optional[list],
-        regex: Optional[str],
-        glob: Optional[str]
+        *,
+        columns: Optional[list] = None,
+        regex: Optional[str] = None,
+        glob: Optional[str] = None
 ) -> list[str]:
     """Get the expected columns by using the nlsn.nebula.select_columns logic."""
     columns = ensure_list(columns)
@@ -84,18 +100,10 @@ def get_expected_columns(
 
     return ret
 
-
-def pandas_to_polars(backend: str, df) -> Union[pd.DataFrame, pl.DataFrame]:
-    """Convert pandas dataframe to polars dataframe if requested."""
-    if backend == "polars":
-        return pl.from_pandas(df)
-    return df
-
-
-def assert_frame_equal(
-        df_chk_input,
-        df_exp_input,
-        ignore_order: bool = False,
-):
-    df_chk: pd.DataFrame = _to_pd = (df_chk_input)
-    df_exp: pd.DataFrame = _to_pd(df_exp_input)
+# def assert_frame_equal(
+#         df_chk_input,
+#         df_exp_input,
+#         ignore_order: bool = False,
+# ):
+#     df_chk: pd.DataFrame = _to_pd = (df_chk_input)
+#     df_exp: pd.DataFrame = _to_pd(df_exp_input)

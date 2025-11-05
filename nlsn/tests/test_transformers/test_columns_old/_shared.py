@@ -1,7 +1,6 @@
 """Shared util for 'columns' transformers."""
 
 from itertools import product
-from random import randint, sample
 
 import numpy as np
 
@@ -12,22 +11,6 @@ def _generate_data_column_selector():
     n_rows = 10
     shape = (n_rows, len(_columns_selector))
     return np.random.randint(0, 100, shape).tolist()
-
-
-class SharedDropColumns:
-    columns = _columns_selector
-
-    columns_params = "columns", [
-        None,
-        *(sample(_columns_selector, randint(0, 5)) for _ in range(3)),
-    ]
-    regex_params = "regex", [None, "c1", "c[1-5]", "c[46]"]
-    glob_params = "glob", [None, "", "c*"]
-
-    @staticmethod
-    def generate_data():
-        """Data for DropColumns."""
-        return _generate_data_column_selector()
 
 
 class SharedRenameColumns:
@@ -51,19 +34,3 @@ class SharedRenameColumns:
             (None, None, None, "^c1", "c1_new", ["c1_new", "c2"]),
         ],
     )
-
-
-class SharedSelectColumns:
-    columns = _columns_selector
-
-    columns_params = "columns", [
-        None,
-        *(sample(_columns_selector, randint(1, 8)) for _ in range(3)),
-    ]
-    regex_params = "regex", [None, "a^", "^c", "^d", "[c-d]1"]
-    glob_params = "glob", [None, "*", "", "c*"]
-
-    @staticmethod
-    def generate_data():
-        """Data for DropColumns."""
-        return _generate_data_column_selector()

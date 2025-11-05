@@ -4,13 +4,23 @@ This class will be inherited from all nebula transformers.
 
 If user-defined custom transformers are meant to be invoked
 from the Nebula pipeline runner, they should import this base class.
+
+The Narwhals implementation has this logic:
+Input: Narwhals DF
+├─ Has _transform_nw? → Use it directly (nw → nw)
+└─ No _transform_nw? → Convert to native → _select_transform() → Convert back to nw
+Input: Native DF (pandas/polars/spark)
+├─ Has _transform_nw? → Wrap in nw → _transform_nw() → Unwrap to native
+└─ No _transform_nw? → Use backend-specific method via _select_transform()
 """
 
 from copy import deepcopy
 from functools import partial
 from types import FunctionType
+from typing import Any, Callable, Dict, Iterable, List, Optional, Union
+
 import narwhals as nw
-from typing import Any, Callable, Dict, Iterable, List, Optional, Set, Union
+
 from nlsn.nebula.auxiliaries import select_columns
 from nlsn.nebula.df_types import get_dataframe_type
 from nlsn.nebula.metaclasses import InitParamsStorage
@@ -35,14 +45,14 @@ class Transformer(metaclass=InitParamsStorage):
         self._desc: Optional[str] = None
 
     def _set_columns_selections(
-        self,
-        *,
-        columns: Optional[Union[Iterable[str], str]] = None,
-        regex: Optional[str] = None,
-        glob: Optional[str] = None,
-        startswith: Optional[Union[str, Iterable[str]]] = None,
-        endswith: Optional[Union[str, Iterable[str]]] = None,
-        allow_excess_columns: bool = False,
+            self,
+            *,
+            columns: Optional[Union[Iterable[str], str]] = None,
+            regex: Optional[str] = None,
+            glob: Optional[str] = None,
+            startswith: Optional[Union[str, Iterable[str]]] = None,
+            endswith: Optional[Union[str, Iterable[str]]] = None,
+            allow_excess_columns: bool = False,
     ) -> None:
         """Prepare the input for the function 'auxiliaries.select_columns'."""
         self.__columns_selector = partial(
@@ -71,7 +81,6 @@ class Transformer(metaclass=InitParamsStorage):
     def transformer_init_parameters(self) -> dict:
         """Return the initialization parameters as dict."""
         return deepcopy(self._transformer_init_params)
-
 
     def transform(self, df):
         """Public transform method."""
