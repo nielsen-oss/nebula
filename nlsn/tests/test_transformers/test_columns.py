@@ -6,14 +6,14 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from nlsn.nebula.transformers import DropColumns, SelectColumns, RenameColumns
+from nlsn.nebula.transformers import AddPrefixSuffixToColumnNames, DropColumns, SelectColumns, RenameColumns
 from nlsn.tests.auxiliaries import get_expected_columns, from_pandas
 
 _columns_product = [f"{a}{b}" for a, b in product(["c", "d"], range(5))]
 
 
 def _get_random_int_data(n_rows: int, n_cols: int) -> list[list[int]]:
-    shape: tuple[int, int] = (n_rows, len(_columns_product))  # rows x cols
+    shape: tuple[int, int] = (n_rows, n_cols)  # rows x cols
     return np.random.randint(0, 100, shape).tolist()
 
 
@@ -69,33 +69,33 @@ class TestRenameColumns:
         "backend, is_nw, kws, expected",
         [
             (
-                "pandas",
-                False,
-                {"mapping": {"c1": "new_c1", "d2": "new_d2"}},
-                ["c0", "new_c1", "c2", "c3", "c4", "d0", "d1", "new_d2", "d3", "d4"],
+                    "pandas",
+                    False,
+                    {"mapping": {"c1": "new_c1", "d2": "new_d2"}},
+                    ["c0", "new_c1", "c2", "c3", "c4", "d0", "d1", "new_d2", "d3", "d4"],
             ),
             (
-                "polars",
-                True,
-                {"columns": ["c0", "d0"], "columns_renamed": ["col_c0", "col_d0"]},
-                ["col_c0", "c1", "c2", "c3", "c4", "col_d0", "d1", "d2", "d3", "d4"],
+                    "polars",
+                    True,
+                    {"columns": ["c0", "d0"], "columns_renamed": ["col_c0", "col_d0"]},
+                    ["col_c0", "c1", "c2", "c3", "c4", "col_d0", "d1", "d2", "d3", "d4"],
             ),
             (
-                "spark",
-                True,
-                {"regex_pattern": "^c", "regex_replacement": "column_"},
-                [
-                    "column_0",
-                    "column_1",
-                    "column_2",
-                    "column_3",
-                    "column_4",
-                    "d0",
-                    "d1",
-                    "d2",
-                    "d3",
-                    "d4",
-                ],
+                    "spark",
+                    True,
+                    {"regex_pattern": "^c", "regex_replacement": "column_"},
+                    [
+                        "column_0",
+                        "column_1",
+                        "column_2",
+                        "column_3",
+                        "column_4",
+                        "d0",
+                        "d1",
+                        "d2",
+                        "d3",
+                        "d4",
+                    ],
             ),
         ],
     )
@@ -138,4 +138,42 @@ class TestSelectColumns:
         df_out = t.transform(df_input)
 
         chk_cols = list(df_out.columns)
+        assert chk_cols == exp_cols
+
+
+class TestAddPrefixSuffixToColumnNames:
+    """Test AddPrefixSuffixToColumnNames transformer."""
+
+    @pytest.mark.parametrize("columns", [None, [], "a_1", ["a_1", "a_2"]])
+    @pytest.mark.parametrize("prefix", [None, "pre_"])
+    @pytest.mark.parametrize("suffix", [None, "_post"])
+    @pytest.mark.parametrize("regex", [None, "^a", "^z"])
+    @pytest.mark.parametrize("glob", [None, "*", "", "a*"])
+    def test(self, prefix, suffix, columns, regex, glob):
+        """Test adding prefix and suffix to specific columns."""
+        if not prefix and not suffix:
+            with pytest.raises(AssertionError):
+                AddPrefixSuffixToColumnNames(
+                    columns=columns, regex=regex, glob=glob, prefix=prefix, suffix=suffix
+                )
+            return
+
+        input_columns = ["a_1", "a_2", "ab_1", "ab_2"]
+        data = _get_random_int_data(5, len(input_columns))
+        df_input = pd.DataFrame(data, columns=input_columns)
+
+        t = AddPrefixSuffixToColumnNames(
+            columns=columns, regex=regex, glob=glob, prefix=prefix, suffix=suffix
+        )
+        df_out = t.transform(df_input)
+        chk_cols: list[str] = list(df_out.columns)
+
+        prefix = prefix if prefix else ""
+        suffix = suffix if suffix else ""
+
+        cols2rename = get_expected_columns(input_columns, columns=columns, regex=regex, glob=glob)
+        exp_cols = [
+            f"{prefix}{c}{suffix}" if c in cols2rename else c for c in df_input.columns
+        ]
+
         assert chk_cols == exp_cols

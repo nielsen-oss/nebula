@@ -5,14 +5,12 @@ from typing import Any, Dict, Iterable, List, Optional, Set, Tuple, Union
 import pyspark.sql.functions as F
 
 from nlsn.nebula.auxiliaries import (
-    assert_at_least_one_non_null,
     assert_is_string,
     assert_only_one_non_none,
 )
 from nlsn.nebula.base import Transformer
 
 __all__ = [
-    "AddPrefixSuffixToColumnNames",
     "AddTypedColumns",
     "ColumnsToLowercase",
     "DuplicateColumn",
@@ -20,84 +18,11 @@ __all__ = [
 ]
 
 
-class AddPrefixSuffixToColumnNames(Transformer):
-    def __init__(
-        self,
-        *,
-        columns: Optional[Union[str, List[str]]] = None,
-        regex: Optional[str] = None,
-        glob: Optional[str] = None,
-        startswith: Optional[Union[str, Iterable[str]]] = None,
-        endswith: Optional[Union[str, Iterable[str]]] = None,
-        prefix: Optional[str] = None,
-        suffix: Optional[str] = None,
-        allow_excess_columns: bool = False,
-    ):
-        """Add the prefix and / or suffix to column names.
-
-        This does not change the field values.
-
-        Args:
-            columns (str | list(str) | None):
-                Column(s) to rename. Defaults to None.
-            regex (str | None):
-                Select the columns to rename by using a regex pattern.
-                Defaults to None.
-            glob (str | None):
-                Select the columns to rename by using a bash-like pattern.
-                Defaults to None.
-            startswith (str | iterable(str) | None):
-                Select all the columns whose names start with the provided
-                string(s). Defaults to None.
-            endswith (str | iterable(str) | None):
-                Select all the columns whose names end with the provided
-                string(s). Defaults to None.
-            prefix (str | None):
-                Prefix to add at the beginning of the newly created column(s).
-                Defaults to None.
-            prefix (str | None):
-                Suffix to add at the end of the newly created column(s).
-                Defaults to None.
-            allow_excess_columns (bool):
-                Whether to allow columns that are not contained in the
-                dataframe (raises AssertionError by default).
-                Defaults to False.
-        """
-        assert_at_least_one_non_null(prefix, suffix)
-
-        super().__init__()
-        self._prefix: str = prefix if prefix else ""
-        self._suffix: str = suffix if suffix else ""
-        self._set_columns_selections(
-            columns=columns,
-            regex=regex,
-            glob=glob,
-            startswith=startswith,
-            endswith=endswith,
-            allow_excess_columns=allow_excess_columns,
-        )
-
-    def _transform(self, df):
-        list_selection: List[str] = self._get_selected_columns(df)
-
-        set_selection: Set[str] = set(list_selection)
-
-        out_cols = []
-        for c in df.columns:
-            if c in set_selection:
-                new_col = F.col(c).alias(self._prefix + c + self._suffix)
-            else:
-                new_col = c
-            out_cols.append(new_col)
-
-        return df.select(out_cols)
-
-
 class AddTypedColumns(Transformer):
     def __init__(
-        self,
-        *,
-        columns: Optional[Union[List[Tuple[str, str]], Dict[str, Any]]],
+            self,
+            *,
+            columns: Optional[Union[List[Tuple[str, str]], Dict[str, Any]]],
     ):
         """Add typed columns if they do not exist in the DF.
 
@@ -199,14 +124,14 @@ class AddTypedColumns(Transformer):
 
 class ColumnsToLowercase(Transformer):
     def __init__(
-        self,
-        *,
-        columns: Optional[Union[str, List[str]]] = None,
-        regex: Optional[str] = None,
-        glob: Optional[str] = None,
-        startswith: Optional[Union[str, Iterable[str]]] = None,
-        endswith: Optional[Union[str, Iterable[str]]] = None,
-        trim: bool = False,
+            self,
+            *,
+            columns: Optional[Union[str, List[str]]] = None,
+            regex: Optional[str] = None,
+            glob: Optional[str] = None,
+            startswith: Optional[Union[str, Iterable[str]]] = None,
+            endswith: Optional[Union[str, Iterable[str]]] = None,
+            trim: bool = False,
     ):
         """Rename column names to lowercase.
 
@@ -259,10 +184,10 @@ class ColumnsToLowercase(Transformer):
 
 class DuplicateColumn(Transformer):
     def __init__(
-        self,
-        *,
-        col_map: Optional[Dict[str, str]] = None,
-        pairs: Optional[List[Tuple[str, str]]] = None,
+            self,
+            *,
+            col_map: Optional[Dict[str, str]] = None,
+            pairs: Optional[List[Tuple[str, str]]] = None,
     ):
         """Duplicate columns and assign them new names.
 
