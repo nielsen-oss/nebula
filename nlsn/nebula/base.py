@@ -9,8 +9,8 @@ from the Nebula pipeline runner, they should import this base class.
 from copy import deepcopy
 from functools import partial
 from types import FunctionType
+import narwhals as nw
 from typing import Any, Callable, Dict, Iterable, List, Optional, Set, Union
-
 from nlsn.nebula.auxiliaries import select_columns
 from nlsn.nebula.df_types import get_dataframe_type
 from nlsn.nebula.metaclasses import InitParamsStorage
@@ -27,8 +27,6 @@ def nlazy(func: FunctionType) -> FunctionType:
 
 class Transformer(metaclass=InitParamsStorage):
     """Base class for transformers."""
-
-    backends: Set[str] = set()
 
     def __init__(self):
         """Initialize the base transformer."""
@@ -74,12 +72,25 @@ class Transformer(metaclass=InitParamsStorage):
         """Return the initialization parameters as dict."""
         return deepcopy(self._transformer_init_params)
 
-    def _transform(self, df):
-        raise NotImplementedError
 
     def transform(self, df):
         """Public transform method."""
-        return self._transform(df)
+        if isinstance(df, nw.DataFrame):
+            # narwhals df in -> narwhals df out
+            if hasattr(self, '_transform_nw'):  # it's nw compatible
+                return self._transform_nw(df)
+            else:  # it requires separated logic
+                df_native = nw.to_native(df)
+                df_out = self._select_transform(df_native)
+                return nw.from_native(df_out)
+
+        # native df in -> native df out
+        if hasattr(self, '_transform_nw'):  # it's nw compatible
+            df_nw = nw.from_native(df)
+            df_out = self._transform_nw(df_nw)
+            return nw.to_native(df_out)
+        # it requires separated logic
+        return self._select_transform(df)
 
     def transform_pandas(self, df):
         """Public transform method for Pandas transformers."""
@@ -94,6 +105,7 @@ class Transformer(metaclass=InitParamsStorage):
         return self._transform_spark(df)
 
     def _select_transform(self, df):
+        # Fallback for non-Narwhals transformation
         name: str = get_dataframe_type(df)
         if name == "pandas":
             return self._transform_pandas(df)

@@ -285,9 +285,9 @@ def _transform(
     forced_trf: Optional[Transformer],
 ) -> "GenericDataFrame":
     """Apply the actual transformation and log the time."""
-    t: Transformer
-    for t in stages:
-        df = __transform(df, t, backend)
+    trf: Transformer
+    for trf in stages:
+        df = __transform(df, trf, backend)
 
         if forced_trf is not None:
             df = __transform(df, forced_trf, backend)

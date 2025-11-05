@@ -53,7 +53,10 @@ def assert_pandas_polars_frame_equal(
 
 
 def get_expected_columns(
-        df, columns: Optional[list], regex: Optional[str], glob: Optional[str]
+        input_columns: list[str],
+        columns: Optional[list],
+        regex: Optional[str],
+        glob: Optional[str]
 ) -> list[str]:
     """Get the expected columns by using the nlsn.nebula.select_columns logic."""
     columns = ensure_list(columns)
@@ -65,8 +68,6 @@ def get_expected_columns(
 
     ret: list[str] = columns[:]
     columns_seen.update(columns)
-
-    input_columns: list[str] = df.columns
 
     if regex:
         pattern = re.compile(regex)
@@ -89,3 +90,12 @@ def pandas_to_polars(backend: str, df) -> Union[pd.DataFrame, pl.DataFrame]:
     if backend == "polars":
         return pl.from_pandas(df)
     return df
+
+
+def assert_frame_equal(
+        df_chk_input,
+        df_exp_input,
+        ignore_order: bool = False,
+):
+    df_chk: pd.DataFrame = _to_pd = (df_chk_input)
+    df_exp: pd.DataFrame = _to_pd(df_exp_input)

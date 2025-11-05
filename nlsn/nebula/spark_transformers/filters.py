@@ -24,13 +24,6 @@ __all__ = [
 ]
 
 
-def select_all_columns(cols, regex, glob: Optional[str]) -> bool:
-    """Check if the user is asking for all columns or a subset."""
-    ret = glob == "*"  # means all columns
-    ret |= not (cols or regex or glob)  # means no particular subset
-    return ret
-
-
 class DiscardNulls(Transformer):
     def __init__(
         self,

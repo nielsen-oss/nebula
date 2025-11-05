@@ -117,7 +117,7 @@ def _test_transformer_method_name(transformer):
     """Transformer must have the private method '_transform' and not 'transform'."""
     class_meths = transformer.__dict__
     assert "transform" not in class_meths
-    assert "_transform" in class_meths
+    assert {"_transform", "_transform_nw"}.intersection(class_meths)
 
 
 def _test_transformer_method_signature(transformer):
