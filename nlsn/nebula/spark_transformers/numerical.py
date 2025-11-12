@@ -1,121 +1,23 @@
 """Transformers for numerical operations."""
 
 import operator as py_operator
-from functools import partial, reduce
-from typing import Callable, Dict, Iterable, List, Optional, Union
+from functools import reduce
+from typing import Callable, List, Optional, Union
 
-import numpy as np
-import pandas as pd
 import pyspark.sql.functions as F
-from pyspark.sql.types import ArrayType, DoubleType, IntegerType, StructField
 
-from nlsn.nebula.auxiliaries import (
-    assert_allowed,
-    assert_is_integer,
-    assert_only_one_non_none,
-    ensure_flat_list,
-)
 from nlsn.nebula.base import Transformer
 
 __all__ = [
-    "FloorOrCeil",
     "MathOperator",
 ]
 
 
-
-class FloorOrCeil(Transformer):
-    def __init__(
-        self,
-        *,
-        operation: Optional[str] = None,
-        columns: Optional[Union[str, List[str]]] = None,
-        regex: Optional[str] = None,
-        glob: Optional[str] = None,
-        startswith: Optional[Union[str, Iterable[str]]] = None,
-        endswith: Optional[Union[str, Iterable[str]]] = None,
-        input_output_columns: Optional[Dict[str, str]] = None,
-    ):
-        """Perform 'floor' or 'ceil' operations on specified columns.
-
-        Only one argument among:
-        - 'columns'
-        - 'regex'
-        - 'glob'
-        - 'input_output_columns'
-        can be used to select the columns on which to perform the operation.
-        The only argument that allows the user to create new fields with the
-        ceil/floor values is 'input_output_columns'. With all the other
-        arguments, the transformer replaces the new values in the input columns.
-
-        Args:
-            operation (str):
-                The operation to perform, either 'floor' or 'ceil'.
-            columns (str | list(str) | None):
-                A list of columns to select. Defaults to None.
-            regex (str | None):
-                Select the columns by using a regex pattern.
-                Defaults to None.
-            glob (str | None):
-                Select the columns by using a bash-like pattern.
-                Defaults to None.
-            startswith (str | iterable(str) | None):
-                Select all the columns whose names start with the provided
-                string(s). Defaults to None.
-            endswith (str | iterable(str) | None):
-                Select all the columns whose names end with the provided
-                string(s). Defaults to None.
-            input_output_columns (dict(str, str) | None):
-                If provided, a dictionary where the keys (str) represent the
-                input columns and the values (str) represent the output columns.
-                Defaults to None.
-        """
-        assert_allowed(operation, {"floor", "ceil"}, operation)
-
-        # Assert only one input columns selection strategy is provided.
-        assert_only_one_non_none(columns, regex, glob, input_output_columns)
-
-        if input_output_columns:
-            if not isinstance(input_output_columns, dict):
-                raise TypeError('"input_output_columns" must be <dict>')
-            if not all(isinstance(i, str) for i in input_output_columns):
-                raise TypeError('"input_output_columns" keys must be <str>')
-            values = input_output_columns.values()
-            if not all(isinstance(i, str) for i in values):
-                raise TypeError('"input_output_columns" values must be <str>')
-            if len(values) != len(set(values)):
-                raise ValueError('Duplicated values in "input_output_columns"')
-
-        super().__init__()
-        self._operation: str = operation
-        self._set_columns_selections(
-            columns=columns,
-            regex=regex,
-            glob=glob,
-            startswith=startswith,
-            endswith=endswith,
-        )
-        self._input_output_columns: Optional[Dict[str, str]] = input_output_columns
-
-    def _transform(self, df):
-        op: F.col = getattr(F, self._operation)
-        if self._input_output_columns:
-            set_new_cols = set(self._input_output_columns.values())
-            new_cols = [op(k).alias(v) for k, v in self._input_output_columns.items()]
-            old_cols = [i for i in df.columns if i not in set_new_cols]
-            out_cols = old_cols + new_cols
-        else:
-            selection: List[str] = self._get_selected_columns(df)
-            out_cols = [op(i).alias(i) if i in selection else i for i in df.columns]
-
-        return df.select(*out_cols)
-
-
 class MathOperator(Transformer):
     def __init__(
-        self,
-        *,
-        strategy: Union[dict, List[dict]],
+            self,
+            *,
+            strategy: Union[dict, List[dict]],
     ):
         """Apply a mathematical operator to columns and constants.
 

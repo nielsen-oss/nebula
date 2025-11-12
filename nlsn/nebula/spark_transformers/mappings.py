@@ -1,44 +1,37 @@
 """MapType Columns Manipulations."""
 
-import operator
-from functools import reduce
 from itertools import chain
-from typing import Any, Dict, Iterable, List, Optional, Set, Tuple, Union
+from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 
 from pyspark.sql import functions as F
 from pyspark.sql.types import MapType
 
 from nlsn.nebula.auxiliaries import (
-    assert_allowed,
-    check_if_columns_are_present,
     ensure_flat_list,
     ensure_nested_length,
     is_list_uniform,
 )
 from nlsn.nebula.base import Transformer
-from nlsn.nebula.logger import logger
-from nlsn.nebula.spark_util import null_cond_to_false
 
 __all__ = [
     "ColumnsToMap",
-    "KeysToArray",
     "MapToColumns",
 ]
 
 
 class ColumnsToMap(Transformer):
     def __init__(
-        self,
-        *,
-        output_column: str,
-        columns: Optional[Union[str, List[str]]] = None,
-        regex: Optional[str] = None,
-        glob: Optional[str] = None,
-        startswith: Optional[Union[str, Iterable[str]]] = None,
-        endswith: Optional[Union[str, Iterable[str]]] = None,
-        exclude_columns: Optional[Union[str, Iterable[str]]] = None,
-        cast_values: Optional[str] = None,
-        drop_input_columns: bool = False,
+            self,
+            *,
+            output_column: str,
+            columns: Optional[Union[str, List[str]]] = None,
+            regex: Optional[str] = None,
+            glob: Optional[str] = None,
+            startswith: Optional[Union[str, Iterable[str]]] = None,
+            endswith: Optional[Union[str, Iterable[str]]] = None,
+            exclude_columns: Optional[Union[str, Iterable[str]]] = None,
+            cast_values: Optional[str] = None,
+            drop_input_columns: bool = False,
     ):
         """Create a MapType field using the provided columns.
 
@@ -101,53 +94,12 @@ class ColumnsToMap(Transformer):
         return df
 
 
-
-class KeysToArray(Transformer):
-    def __init__(
-        self,
-        *,
-        input_column: str,
-        output_column: Optional[str] = None,
-        sort: bool = False,
-    ):
-        """Extract keys from a MapType column to create an ArrayType field.
-
-        Args:
-            input_column (str):
-                Name of the column containing the MapType.
-            output_column (str, | None):
-                If not provided, output is stored in the <input_col>.
-            sort (bool):
-                If True, sort the output array. Defaults to False.
-
-        Raises:
-            ValueError: If the specified input column does not exist.
-            TypeError: If the input column is not a MapType.
-        """
-        super().__init__()
-        self._input_column: str = input_column
-        self._output_column: str = output_column if output_column else input_column
-        self._sort: bool = sort
-
-    def _transform(self, df):
-        check_if_columns_are_present([self._input_column], df.columns)
-        col_data_type = df.schema[self._input_column].dataType
-        if not isinstance(col_data_type, MapType):
-            raise TypeError(f"Column '{self._input_column}' is not of MapType.")
-
-        func = F.map_keys(self._input_column)
-        if self._sort:
-            func = F.sort_array(func)
-
-        return df.withColumn(self._output_column, func)
-
-
 class MapToColumns(Transformer):
     def __init__(
-        self,
-        *,
-        input_column: str,
-        output_columns: Union[List[str], List[List[str]], Dict[Any, str]],
+            self,
+            *,
+            input_column: str,
+            output_columns: Union[List[str], List[List[str]], Dict[Any, str]],
     ):
         """Extract keys from a MapType column and create new columns.
 
