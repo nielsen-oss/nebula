@@ -19,44 +19,6 @@ def _get_random_int_data(n_rows: int, n_cols: int) -> list[list[int]]:
     return np.random.randint(0, 100, shape).tolist()
 
 
-class TestAddPrefixSuffixToColumnNames:
-    """Test AddPrefixSuffixToColumnNames transformer."""
-
-    @pytest.mark.parametrize("columns", [None, [], "a_1", ["a_1", "a_2"]])
-    @pytest.mark.parametrize("prefix", [None, "pre_"])
-    @pytest.mark.parametrize("suffix", [None, "_post"])
-    @pytest.mark.parametrize("regex", [None, "^a", "^z"])
-    @pytest.mark.parametrize("glob", [None, "*", "", "a*"])
-    def test(self, prefix, suffix, columns, regex, glob):
-        """Test adding prefix and suffix to specific columns."""
-        if not prefix and not suffix:
-            with pytest.raises(AssertionError):
-                AddPrefixSuffixToColumnNames(
-                    columns=columns, regex=regex, glob=glob, prefix=prefix, suffix=suffix
-                )
-            return
-
-        input_columns = ["a_1", "a_2", "ab_1", "ab_2"]
-        data = _get_random_int_data(5, len(input_columns))
-        df_input = pd.DataFrame(data, columns=input_columns)
-
-        t = AddPrefixSuffixToColumnNames(
-            columns=columns, regex=regex, glob=glob, prefix=prefix, suffix=suffix
-        )
-        df_out = t.transform(df_input)
-        chk_cols: list[str] = list(df_out.columns)
-
-        prefix = prefix if prefix else ""
-        suffix = suffix if suffix else ""
-
-        cols2rename = get_expected_columns(input_columns, columns=columns, regex=regex, glob=glob)
-        exp_cols = [
-            f"{prefix}{c}{suffix}" if c in cols2rename else c for c in df_input.columns
-        ]
-
-        assert chk_cols == exp_cols
-
-
 class TestAddTypedColumns:
     """Test AddTypedColumns transformer."""
 
@@ -333,22 +295,3 @@ class TestSelectColumns:
 
         chk_cols = list(df_out.columns)
         assert chk_cols == exp_cols
-
-
-class TestSortColumnNames:
-    """Test SortColumnNames transformer."""
-
-    @pytest.mark.parametrize(
-        "backend, is_nw",
-        [
-            ("pandas", True),
-            ("polars", False),
-            ("spark", True),
-        ],
-    )
-    def test_sort_column_names(self, spark, backend: str, is_nw: bool):
-        input_cols = ["a", "c", "b"]
-        df_input = pd.DataFrame(np.random.random((2, 3)), columns=input_cols)
-        df_input = from_pandas(df_input, backend, is_nw, spark=spark)
-        df_out = SortColumnNames().transform(df_input)
-        assert list(df_out.columns) == sorted(df_out.columns)

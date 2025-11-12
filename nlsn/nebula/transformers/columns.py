@@ -13,82 +13,11 @@ from nlsn.nebula.auxiliaries import (
 from nlsn.nebula.base import Transformer
 
 __all__ = [
-    "AddPrefixSuffixToColumnNames",
     "AddTypedColumns",
     "DropColumns",
     "RenameColumns",
     "SelectColumns",
-    "SortColumnNames",
 ]
-
-
-class AddPrefixSuffixToColumnNames(Transformer):
-    def __init__(
-            self,
-            *,
-            columns: str | list[str] | None = None,
-            regex: str | None = None,
-            glob: str | None = None,
-            startswith: str | Iterable[str] | None = None,
-            endswith: str | Iterable[str] | None = None,
-            prefix: str | None  = None,
-            suffix: str | None  = None,
-            allow_excess_columns: bool = False,
-    ):
-        """Add the prefix and / or suffix to column names.
-
-        This does not change the field values.
-
-        Args:
-            columns (str | list(str) | None):
-                Column(s) to rename. Defaults to None.
-            regex (str | None):
-                Select the columns to rename by using a regex pattern.
-                Defaults to None.
-            glob (str | None):
-                Select the columns to rename by using a bash-like pattern.
-                Defaults to None.
-            startswith (str | iterable(str) | None):
-                Select all the columns whose names start with the provided
-                string(s). Defaults to None.
-            endswith (str | iterable(str) | None):
-                Select all the columns whose names end with the provided
-                string(s). Defaults to None.
-            prefix (str | None):
-                Prefix to add at the beginning of the newly created column(s).
-                Defaults to None.
-            suffix (str | None):
-                Suffix to add at the end of the newly created column(s).
-                Defaults to None.
-            allow_excess_columns (bool):
-                Whether to allow columns that are not contained in the
-                dataframe (raises AssertionError by default).
-                Defaults to False.
-        """
-        assert_at_least_one_non_null(prefix, suffix)
-
-        super().__init__()
-        self._prefix: str = prefix if prefix else ""
-        self._suffix: str = suffix if suffix else ""
-        self._set_columns_selections(
-            columns=columns,
-            regex=regex,
-            glob=glob,
-            startswith=startswith,
-            endswith=endswith,
-            allow_excess_columns=allow_excess_columns,
-        )
-
-    def _transform_nw(self, nw_df):
-        selection: list[str] = self._get_selected_columns(nw_df)
-        set_selection: set[str] = set(selection)
-
-        rename_mapping = {}
-        for col in nw_df.columns:
-            if col in set_selection:
-                rename_mapping[col] = self._prefix + col + self._suffix
-
-        return nw_df.rename(rename_mapping)
 
 
 class AddTypedColumns(Transformer):
@@ -207,7 +136,7 @@ class DropColumns(Transformer):
             self,
             *,
             columns: str | list[str] | None = None,
-            regex: str | None  = None,
+            regex: str | None = None,
             glob: str | None = None,
             startswith: str | Iterable[str] | None = None,
             endswith: str | Iterable[str] | None = None,
@@ -393,14 +322,3 @@ class SelectColumns(Transformer):
     def _transform_nw(self, nw_df):
         selection: list[str] = self._get_selected_columns(nw_df)
         return nw_df.select(selection)
-
-
-class SortColumnNames(Transformer):
-
-    def __init__(self):
-        """Sort the columns alphabetically."""
-        super().__init__()
-
-    @staticmethod
-    def _transform_nw(nw_df):
-        return nw_df.select(sorted(nw_df.columns))
