@@ -82,7 +82,8 @@ class ClearCache(Transformer):
         """Remove all cached tables from the in-memory cache."""
         super().__init__()
 
-    def _transform_spark(self, df):
+    @staticmethod
+    def _transform_spark(df):
         logger.info("Removing all cached tables from the in-memory cache.")
         spark_session = get_spark_session(df)
         spark_session.catalog.clearCache()
@@ -190,7 +191,8 @@ class Persist(Transformer):
         """Cache dataframe if not already cached."""
         super().__init__()
 
-    def _transform_spark(self, df):
+    @staticmethod
+    def _transform_spark(df):
         if df.is_cached:
             logger.info("DataFrame was already cached, no need to persist.")
             return df

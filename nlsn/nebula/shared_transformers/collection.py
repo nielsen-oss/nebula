@@ -4,26 +4,24 @@ import itertools
 from typing import Any, Optional
 
 from nlsn.nebula import nebula_storage as ns
-from nlsn.nebula.auxiliaries import assert_allowed
 from nlsn.nebula.base import Transformer
 
 __all__ = [
-    "CreateDataFrame",
-    "StoreColumnNames",
+    "FromData",
     "WithColumn",
 ]
 
 
-class CreateDataFrame(Transformer):
+class FromData(Transformer):
     backends = {"pandas", "polars", "spark"}
 
     def __init__(
-        self,
-        *,
-        data: Any,
-        storage_key: Optional[str] = None,
-        broadcast: bool = False,
-        kwargs: Optional[dict] = None,
+            self,
+            *,
+            data: Any,
+            storage_key: Optional[str] = None,
+            broadcast: bool = False,
+            kwargs: Optional[dict] = None,
     ):
         """Create a DataFrame using the same backend as the input one with the provided data.
 
@@ -109,31 +107,16 @@ class CreateDataFrame(Transformer):
         return df_created
 
 
-class StoreColumnNames(Transformer):
-    backends = {"pandas", "polars", "spark"}
-
-    def __init__(self, *, key: str):
-        """Store column names into nebula storage under a given key."""
-        super().__init__()
-        self._key: str = key
-
-    def _transform(self, df):
-        columns = list(df.columns)
-        ns.set(self._key, columns)
-        return df
-
-
-
 class WithColumn(Transformer):
     backends = {"pandas", "polars", "spark"}
 
     def __init__(
-        self,
-        *,
-        column_name: str,
-        value: Optional[Any] = None,
-        cast: Optional[Any] = None,
-        copy: bool = True,
+            self,
+            *,
+            column_name: str,
+            value: Optional[Any] = None,
+            cast: Optional[Any] = None,
+            copy: bool = True,
     ):
         """Add a column to the DataFrame.
 

@@ -5,7 +5,7 @@ import pytest
 from chispa import assert_df_equality
 from pyspark.sql.types import StringType, StructField, StructType
 
-from nlsn.nebula.shared_transformers import CreateDataFrame
+from nlsn.nebula.shared_transformers import FromData
 from nlsn.nebula.spark_util import is_broadcast
 from nlsn.nebula.storage import nebula_storage as ns
 
@@ -49,7 +49,7 @@ def _get_df(spark):
 @pytest.mark.parametrize("broadcast", [True, False])
 def test_create_dataframe(spark, df_input, data, kwargs, broadcast):
     """Test 'CreateDataFrame' transformer."""
-    t = CreateDataFrame(data=data, broadcast=broadcast, kwargs=kwargs)
+    t = FromData(data=data, broadcast=broadcast, kwargs=kwargs)
     ns.clear()
     try:
         df_out = t.transform(df_input)
