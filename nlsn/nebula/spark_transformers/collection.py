@@ -45,7 +45,6 @@ __all__ = [
     "ReplaceWithMap",
     "RowWiseGreatestOrLeast",
     "SqlFunction",
-    "ToDF",
     "UnionByName",
     "When",
 ]
@@ -1133,26 +1132,6 @@ class SqlFunction(Transformer):
     def _transform(self, df):
         func = getattr(F, self._func_name)(*self._args, **self._kwargs)
         return df.withColumn(self._output_col, func)
-
-
-class ToDF(Transformer):
-    def __init__(self, *, columns: Optional[Union[str, List[str]]] = None):
-        """Returns a new DataFrame that with new specified column names.
-
-        Args:
-            columns (list(str) | None):
-                If passed, an iterable of strings representing the new column
-                names. The length of the list needs to be the same as the
-                number of columns in the initial DataFrame.
-                If not passed, it uses all the columns in the initial DataFrame.
-                Defaults to None.
-        """
-        super().__init__()
-        self._cols: Optional[List[str]] = ensure_flat_list(columns) if columns else None
-
-    def _transform(self, df):
-        columns: List[str] = self._cols if self._cols else df.columns
-        return df.toDF(*columns)
 
 
 class UnionByName(Transformer):
