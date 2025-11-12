@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from nlsn.nebula.shared_transformers import RoundValues
+from nlsn.nebula.transformers.numerical import RoundValues
 from nlsn.tests.auxiliaries import assert_pandas_polars_frame_equal, pandas_to_polars
 
 _params = [
@@ -40,19 +40,19 @@ def _get_df_input():
 def test_round_values_invalid_parameters():
     """Test case with output column and multiple input columns."""
     with pytest.raises(AssertionError):
-        RoundValues(input_columns=["c1", "c2"], output_column="c3", precision=1)
+        RoundValues(input_columns=["c1", "c2"], output_column="c3", decimals=1)
 
 
 def test_round_values_duplicated_input_columns():
     """Test case with duplicated input columns."""
     with pytest.raises(AssertionError):
-        RoundValues(input_columns=["a", "a"], precision=1)
+        RoundValues(input_columns=["a", "a"], decimals=1)
 
 
 def test_round_values_invalid_input_column_type(df_input):
     """Test case with input column with non-numeric type."""
     with pytest.raises(TypeError):
-        RoundValues(input_columns="id", precision=2).transform(df_input)
+        RoundValues(input_columns="id", decimals=2).transform(df_input)
 
 
 @pytest.mark.parametrize("df_type", ["pandas", "polars"])
@@ -65,7 +65,7 @@ def test_round_values(df_input, df_type: str, input_columns, precision, output_c
         return
 
     t = RoundValues(
-        input_columns=input_columns, precision=precision, output_column=output_column
+        input_columns=input_columns, decimals=precision, output_column=output_column
     )
 
     df_exp = df_input.copy()

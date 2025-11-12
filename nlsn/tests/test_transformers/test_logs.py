@@ -1,12 +1,12 @@
-"""Unit-test for CpuInfo."""
+"""Unit-test for Logs Transformers."""
 
 from pyspark.sql.types import IntegerType, StructField, StructType
 
-from nlsn.nebula.spark_transformers import CpuInfo
+from nlsn.nebula.transformers.logs import *
 
 
 def test_cpu_info(spark):
-    """Test CpuInfo transformer."""
+    """Test CpuInfo."""
     schema = StructType([StructField("c1", IntegerType(), True)])
     df = spark.createDataFrame([[1]], schema=schema)
 

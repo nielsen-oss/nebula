@@ -32,10 +32,6 @@ _EXTRA_REQUIREMENTS = {
         "packages": ["py-cpuinfo"],
         "transformers": ["CpuInfo"]
     },
-    "holidays": {
-        "packages": ["holidays>=0.26"],
-        "transformers": ["IsHoliday"]
-    },
     "pandas": {
         "packages": ["pandas>=1.2.5"],
         "transformers": ["LogDataSkew"]
@@ -64,7 +60,7 @@ def get_extra_deps_section():
     ret += "To install a specific dependency put its name inside square brackets, e.g.:\n\n"
     ret += '`pip install ".[cpu-info]"`\n\n'
     ret += "Or, to install more options, separate the option names with a comma.\n\n"
-    ret += 'Eg `pip install ".[cpu-info, holidays]"`\n\n'
+    ret += 'Eg `pip install ".[cpu-info, graphviz]"`\n\n'
     ret += "To install all the packages above use the parameter `full`\n\n"
     ret += '`pip install ".[full]"`\n\n'
     ret += "To install from git, specifying the options, prepend `nlsnnebula[your options] @`\n\n"

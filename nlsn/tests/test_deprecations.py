@@ -3,7 +3,7 @@
 import pytest
 
 from nlsn.nebula.deprecations import deprecate_transformer
-from nlsn.nebula.shared_transformers import RoundValues
+from nlsn.nebula.transformers.numerical import RoundValues
 
 
 @pytest.mark.parametrize("msg", ["RoundDecimalValues", ""])

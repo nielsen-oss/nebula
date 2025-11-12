@@ -1,6 +1,7 @@
 """Test fixtures."""
 
 import os
+import sys
 
 import pytest
 
@@ -21,6 +22,10 @@ def start_spark():
     if os.environ.get("LOCAL_TESTS_NO_SPARK"):
         return
 
+    venv_python = sys.executable
+    os.environ['PYSPARK_PYTHON'] = venv_python
+    os.environ['PYSPARK_DRIVER_PYTHON'] = venv_python
+
     from pyspark.sql import SparkSession
 
     spark = (
@@ -28,8 +33,8 @@ def start_spark():
         .config("spark.executor.cores", "2")
         .config("spark.driver.memory", "4G")
         .config("spark.sql.shuffle.partitions", 10)
-        # .config("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
-        # .config("spark.sql.execution.arrow.pyspark.enabled", "true")
+        .config("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
+        .config("spark.sql.execution.arrow.pyspark.enabled", "true")
         .getOrCreate()
     )
     yield spark

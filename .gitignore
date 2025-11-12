@@ -10,7 +10,7 @@ tmp/
 venv/
 venv*/
 .venv/
-spark*/
+/spark*
 .coverage
 .idea/
 .ipynb_checkpoints/

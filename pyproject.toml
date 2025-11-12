@@ -30,31 +30,19 @@ Homepage = "http://www.nielsen.com"
 Source = "https://github.com/nielsen-oss/nebula"
 
 
-[dependency-groups]
-dev = [
-    "pre-commit>=4.3.0",
-    "py-cpuinfo",
-    "holidays>=0.26",
-    "pyarrow"
-  ]
-
-test = [
+[project.optional-dependencies]
+full = [
     "chispa",
     "coverage",
-    "holidays>=0.26",
     "lxml",
     "numpy",
     "orjson",
-    "pyarrow",
+    "pre-commit>=4.3.0",
     "py-cpuinfo",
+    "pyarrow",
     "pytest",
     "pytest-cov",
     "pyyaml"
-]
-
-full = [
-  {include-group = "dev"},
-  {include-group = "test"}
 ]
 
 # TODO Discuss what to include in optionals
@@ -63,14 +51,12 @@ full = [
 # dev = [
 #     "pre-commit>=4.3.0",
 #     "py-cpuinfo",
-#     "holidays>=0.26",
 #     "pyarrow"
 # ]
 
 # test = [
 #     "chispa",
 #     "coverage",
-#     "holidays>=0.26",
 #     "lxml",
 #     "numpy",
 #     "orjson",

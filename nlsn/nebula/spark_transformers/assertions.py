@@ -4,13 +4,12 @@ They don't manipulate the data but may trigger eager evaluation.
 """
 
 import operator
-from typing import Any, Hashable, Iterable, List, Optional, Union
+from typing import Hashable, Iterable, List, Optional, Union
 
 from nlsn.nebula.auxiliaries import (
     assert_allowed,
     assert_is_integer,
     assert_only_one_non_none,
-    ensure_flat_list,
 )
 from nlsn.nebula.base import Transformer
 from nlsn.nebula.logger import logger
@@ -21,19 +20,17 @@ __all__ = [
     "AssertCount",
     "AssertNotEmpty",
     "AssertRowsAreDistinct",
-    "CompareStoredValues",
-    "DataFrameContainsColumns",
 ]
 
 
 class AssertCount(Transformer):
     def __init__(
-        self,
-        *,
-        number: Optional[int] = None,
-        store_key: Optional[Hashable] = None,
-        persist: bool = False,
-        comparison: str = "eq",
+            self,
+            *,
+            number: Optional[int] = None,
+            store_key: Optional[Hashable] = None,
+            persist: bool = False,
+            comparison: str = "eq",
     ):
         """Compare the number of rows with a reference value.
 
@@ -127,17 +124,17 @@ class AssertNotEmpty(Transformer):
 
 class AssertRowsAreDistinct(Transformer):
     def __init__(
-        self,
-        *,
-        columns: Optional[Union[str, List[str]]] = None,
-        regex: Optional[str] = None,
-        glob: Optional[str] = None,
-        startswith: Optional[Union[str, Iterable[str]]] = None,
-        endswith: Optional[Union[str, Iterable[str]]] = None,
-        persist: bool = False,
-        raise_error: bool = True,
-        log_level: str = "",
-        log_message: str = "",
+            self,
+            *,
+            columns: Optional[Union[str, List[str]]] = None,
+            regex: Optional[str] = None,
+            glob: Optional[str] = None,
+            startswith: Optional[Union[str, Iterable[str]]] = None,
+            endswith: Optional[Union[str, Iterable[str]]] = None,
+            persist: bool = False,
+            raise_error: bool = True,
+            log_level: str = "",
+            log_message: str = "",
     ):
         """Raise AssertionError if there are duplicate rows in the specified column(s).
 
@@ -212,111 +209,5 @@ class AssertRowsAreDistinct(Transformer):
             if self._raise:
                 msg = f"AssertDistinct: rows are not distinct: {n_orig} vs {n_dist}"
                 raise AssertionError(msg)
-
-        return df
-
-
-class CompareStoredValues(Transformer):
-    def __init__(
-        self,
-        *,
-        key_a: Hashable,
-        key_b: Optional[Hashable] = None,
-        value: Optional[Any] = None,
-        comparison: str,
-    ):
-        """Compare the value associated with the key 'key_a' with another value.
-
-        'key_a' <compare> 'key_b' | 'value'
-
-        Only one among 'key_b' or 'value' must be provided.
-
-        Args:
-            key_a (str):
-                Storage key associated with the left member of the comparison.
-            key_b (int | None):
-                Storage key associated with the right member of the comparison.
-                If provided, 'value' should be None.
-            value (Any | None):
-                The right member of the comparison.
-                If provided, 'key_b' should be None.
-            comparison (str):
-                The comparison operator to use for asserting the count.
-                Valid values:
-                    'eq': == (equal)
-                    'ne': != (not equal)
-                    'ge': >= (greater or equal)
-                    'gt': > (greater than)
-                    'le': <= (less equal)
-                    'lt': < (less than)
-                    'isin': 'a' is in 'b'
-
-        Raises:
-        - AssertionError: If both 'value' and 'key_b' are provided or
-            if neither is provided.
-        - AssertionError: If 'comparison' is not a valid comparison operator.
-        """
-        assert_only_one_non_none(value, key_b)
-
-        self._d_sym = {
-            "eq": "==",
-            "ne": "!=",
-            "ge": ">=",
-            "gt": ">",
-            "le": "<=",
-            "lt": "<=",
-            "isin": "isin",
-        }
-        comparison = comparison.strip().lower()
-        assert_allowed(comparison, set(self._d_sym), "comparison")
-
-        super().__init__()
-        self._key_a: Hashable = key_a
-        self._key_b: Optional[Hashable] = key_b
-        self._value: Optional[Any] = value
-        self._cmp: str = comparison
-
-    def _transform(self, df):
-        a = ns.get(self._key_a)
-        if self._key_b is not None:
-            b = ns.get(self._key_b)
-        else:
-            b = self._value
-
-        sym: str = self._d_sym[self._cmp]
-        msg = f"CompareStoredValues: {a} {sym} {b}."
-
-        if self._cmp == "isin":
-            if a not in b:
-                raise AssertionError(msg)
-        else:
-            cmp = getattr(operator, self._cmp)
-            if not cmp(a, b):
-                raise AssertionError(msg)
-
-        return df
-
-
-class DataFrameContainsColumns(Transformer):
-    def __init__(self, *, columns: Union[str, List[str]]):
-        """Raise AssertionError if the dataframe does not contain the expected columns.
-
-        Args:
-            columns (str | list(str)):
-                The column or list of columns to check for existence.
-
-        Raises:
-            AssertionError if the dataframe does not contain the expected columns.
-        """
-        super().__init__()
-        self._cols: List[str] = ensure_flat_list(columns)
-
-    def _transform(self, df):
-        actual_cols = set(df.columns)
-        missing_cols = [i for i in self._cols if i not in actual_cols]
-
-        if missing_cols:
-            logger.info(f"Missing columns: {missing_cols}")
-            raise AssertionError("Some expected columns are missing")
 
         return df

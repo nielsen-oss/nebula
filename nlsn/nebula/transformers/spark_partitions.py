@@ -1,19 +1,23 @@
-"""Transformers that act on whole datasets, whole tables or spark internals."""
+"""Spark transformers related to the partitioning."""
 
-from typing import List, Optional, Set, Union
+from typing import Hashable
 
 from nlsn.nebula.auxiliaries import assert_is_bool, ensure_flat_list
 from nlsn.nebula.base import Transformer
 from nlsn.nebula.logger import logger
-from nlsn.nebula.spark_util import get_default_spark_partitions, get_spark_session
+from nlsn.nebula.spark_util import get_default_spark_partitions, get_spark_session, cache_if_needed, get_data_skew
+from nlsn.nebula.storage import assert_is_hashable
+from nlsn.nebula.storage import nebula_storage as ns
 
 __all__ = [
     "Cache",  # alias Persist
+    "ClearCache",
     "CoalescePartitions",
+    "GetNumPartitions",
+    "LogDataSkew",
     "Persist",  # alias Cache
     "Repartition",
     "UnPersist",
-    "ClearCache",
 ]
 
 
@@ -25,11 +29,11 @@ def _assert_valid_partitions(value: int, name: str):
 
 class _Partitions(Transformer):
     def __init__(
-        self,
-        *,
-        num_partitions: Optional[int] = None,
-        to_default: bool = False,
-        rows_per_partition: Optional[int] = None,
+            self,
+            *,
+            num_partitions: int | None = None,
+            to_default: bool = False,
+            rows_per_partition: int | None = None,
     ):
         assert_is_bool(to_default, "to_default")
 
@@ -49,9 +53,9 @@ class _Partitions(Transformer):
 
         super().__init__()
 
-        self._num_part: Optional[int] = num_partitions
+        self._num_part: int | None = num_partitions
         self._to_default: bool = to_default  # not used
-        self._rows_per_part: Optional[int] = rows_per_partition
+        self._rows_per_part: int | None = rows_per_partition
 
     def _get_requested_partitions(self, df, op: str) -> int:
         if self._rows_per_part:
@@ -69,30 +73,29 @@ class _Partitions(Transformer):
 
         return n_part
 
-    def _transform(self, df):
+    def _transform_spark(self, df):
         raise NotImplementedError
 
 
-class Persist(Transformer):
+class ClearCache(Transformer):
     def __init__(self):
-        """Cache dataframe if not already cached."""
+        """Remove all cached tables from the in-memory cache."""
         super().__init__()
 
-    def _transform(self, df):
-        if df.is_cached:
-            logger.info("DataFrame was already cached, no need to persist.")
-            return df
-        logger.info("Caching dataframe")
-        return df.cache()
+    def _transform_spark(self, df):
+        logger.info("Removing all cached tables from the in-memory cache.")
+        spark_session = get_spark_session(df)
+        spark_session.catalog.clearCache()
+        return df
 
 
 class CoalescePartitions(_Partitions):
     def __init__(
-        self,
-        *,
-        num_partitions: Optional[int] = None,
-        to_default: bool = False,
-        rows_per_partition: Optional[int] = None,
+            self,
+            *,
+            num_partitions: int | None = None,
+            to_default: bool = False,
+            rows_per_partition: int | None = None,
     ):
         """Coalesce a dataframe according to the inputs.
 
@@ -114,19 +117,95 @@ class CoalescePartitions(_Partitions):
             rows_per_partition=rows_per_partition,
         )
 
-    def _transform(self, df):
+    def _transform_spark(self, df):
         n_part: int = self._get_requested_partitions(df, "Coalesce")
         return df.coalesce(n_part)
 
 
+class GetNumPartitions(Transformer):
+    """Spark transformer."""
+
+    def __init__(self, *, store_key: Hashable | None = None):
+        """Count and log the number of partitions in RDD.
+
+        Args:
+            store_key (hashable | None):
+                If provided, store the value (int) in the Nebula Cache.
+                It must be a hashable value. Default to None.
+        """
+        if store_key is not None:
+            assert_is_hashable(store_key)
+
+        super().__init__()
+        self._store: Hashable | None = store_key
+
+    def _transform_spark(self, df):
+        n: int = df.rdd.getNumPartitions()
+        logger.info(f"Number of partitions: {n}")
+        if self._store:
+            ns.set(self._store, n)
+        return df
+
+
+
+class LogDataSkew(Transformer):
+    """Spark transformer."""
+    def __init__(self, *, persist: bool = False):
+        """Describe the partition distribution of the dataframe.
+
+        - Number of partitions.
+        - Distribution: mean | std | min | 25% | 50% | 75% | max
+
+        The input dataframe is not modified.
+
+        Args:
+            persist (bool):
+                Persist the dataframe if not already cached.
+        """
+        try:  # pragma: no cover
+            import pandas  # noqa: F401
+        except ImportError:  # pragma: no cover
+            msg = "'pandas' optional package not installed. \n"
+            msg += "Run 'pip install pandas' or 'install nebula[pandas]'"
+            raise ImportError(msg)
+
+        super().__init__()
+        self._persist: bool = persist
+
+    def _transform_spark(self, df):
+        df = cache_if_needed(df, self._persist)
+
+        dict_skew = get_data_skew(df, as_dict=True)
+        n_part: int = dict_skew["partitions"]
+        desc: str = dict_skew["skew"]
+
+        logger.info(f"Number of partitions: {n_part}")
+        logger.info("Rows distribution in partitions:")
+        logger.info(desc)
+
+        return df
+
+class Persist(Transformer):
+    def __init__(self):
+        """Cache dataframe if not already cached."""
+        super().__init__()
+
+    def _transform_spark(self, df):
+        if df.is_cached:
+            logger.info("DataFrame was already cached, no need to persist.")
+            return df
+        logger.info("Caching dataframe")
+        return df.cache()
+
+
 class Repartition(_Partitions):
     def __init__(
-        self,
-        *,
-        num_partitions: Optional[int] = None,
-        to_default: bool = False,
-        rows_per_partition: Optional[int] = None,
-        columns: Optional[Union[str, List[str]]] = None,
+            self,
+            *,
+            num_partitions: int | None = None,
+            to_default: bool = False,
+            rows_per_partition: int | None = None,
+            columns: str | list[str] | None = None,
     ):
         """Return a new DataFrame partitioned by the given partitioning expressions.
 
@@ -152,7 +231,7 @@ class Repartition(_Partitions):
             rows_per_partition=rows_per_partition,
         )
 
-        self._columns: Optional[List[str]] = None
+        self._columns: list[str] | None = None
 
         msg = '"columns" must be <str> or <list> of <str>'
         if columns is not None:
@@ -166,12 +245,12 @@ class Repartition(_Partitions):
 
             self._columns = ensure_flat_list(columns)
 
-    def _transform(self, df):
+    def _transform_spark(self, df):
         n_part: int = self._get_requested_partitions(df, "Repartition")
         args = [n_part]
 
         if self._columns:
-            set_cols: Set[str] = set(self._columns)
+            set_cols: set[str] = set(self._columns)
             diff = set_cols.difference(df.columns)
             if diff:
                 raise AssertionError(f"{diff} not in columns")
@@ -197,21 +276,9 @@ class UnPersist(Transformer):
         super().__init__()
         self._blocking: bool = blocking
 
-    def _transform(self, df):
+    def _transform_spark(self, df):
         logger.info("Un-persist the dataframe")
         return df.unpersist(blocking=self._blocking)
-
-
-class ClearCache(Transformer):
-    def __init__(self):
-        """Remove all cached tables from the in-memory cache."""
-        super().__init__()
-
-    def _transform(self, df):
-        logger.info("Removing all cached tables from the in-memory cache.")
-        spark_session = get_spark_session(df)
-        spark_session.catalog.clearCache()
-        return df
 
 
 # ---------------------- ALIASES ----------------------

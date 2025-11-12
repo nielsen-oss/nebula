@@ -18,35 +18,14 @@ from nlsn.nebula.spark_util import assert_col_type, get_column_data_type_name
 from nlsn.nebula.ts_util import py2java_format
 
 __all__ = [
-    "CurrentUtcTimestamp",
     "DayOfWeek",
     "FromUtcTimestamp",
-    "IsHoliday",
     "IsWeekend",
     "Timedelta",
     "TimeOfDay",
-    "ToUnixTimestamp",
     "ToUtcTimestamp",
 ]
 
-
-class CurrentUtcTimestamp(Transformer):
-    def __init__(self, *, column: str):
-        """Add the current UTC timestamp at the start of query evaluation.
-
-         All calls of current_timestamp within the same query return the
-         same value as a TimestampType column.
-
-        Args:
-            column (str):
-                Name of the new column to create.
-        """
-        assert_is_string(column, "column")
-        super().__init__()
-        self._column: str = column
-
-    def _transform(self, df):
-        return df.withColumn(self._column, F.current_timestamp())
 
 
 class DayOfWeek(Transformer):
@@ -137,67 +116,6 @@ class FromUtcTimestamp(Transformer):
         out = F.from_utc_timestamp(self._input_col, tz)
         return df.withColumn(self._output_col, out)
 
-
-class IsHoliday(Transformer):
-    def __init__(
-        self,
-        *,
-        input_col: str,
-        country: str,
-        output_col: Optional[str] = None,
-        persist: bool = False,
-    ):
-        """Mark holidays rows.
-
-        It takes into consideration the years found in the column input_col,
-        and to do this the input column must be collected, so the user has
-        also the option to persist the df.
-        Saturday and Sunday are not considered holidays.
-
-        Args:
-            input_col (str):
-                Input column.
-            country (str):
-                Example of formats accepted: DE / DEU / Germany.
-            output_col (str | None):
-                If None, the result will replace the input_col.
-            persist (bool):
-                If True, persist the input dataframe.
-        """
-        try:  # pragma: no cover
-            from holidays.utils import list_supported_countries
-        except ImportError as exc:  # pragma: no cover
-            msg = "'holidays' optional package not installed. \n"
-            msg += "Run 'pip install holidays' or 'install nebula[holidays]'"
-            raise exc
-
-        if country not in list_supported_countries():
-            raise KeyError(f"Unknown Country: {country}")
-
-        super().__init__()
-        self._input_col: str = input_col
-        self._country: str = country
-        self._output_col: str = output_col if output_col else self._input_col
-        self._persist: bool = persist
-
-    def _transform(self, df):
-        from holidays.utils import country_holidays
-
-        if self._persist and (not df.is_cached):
-            df = df.cache()
-
-        date_col = F.col(self._input_col).cast(DateType())
-
-        # Extract the years
-        year_col = F.year(date_col)
-        min_: int
-        max_: int
-        min_, max_ = df.agg(F.min(year_col), F.max(year_col)).collect()[0]
-        list_years: List[int] = [*range(min_, max_ + 1)]
-
-        list_holidays = set(country_holidays(self._country, years=list_years).keys())
-
-        return df.withColumn(self._output_col, date_col.isin(list_holidays))
 
 
 class IsWeekend(Transformer):
@@ -444,54 +362,6 @@ class TimeOfDay(Transformer):
 
         return df.withColumn(self._output_col, time_func[self._unit])
 
-
-class ToUnixTimestamp(Transformer):
-    def __init__(
-        self,
-        *,
-        input_col: str,
-        dt_format: Optional[str] = None,
-        output_col: Optional[str] = None,
-    ):
-        """Convert a column to unix timestamp (in seconds).
-
-        If the input column is a string, it will cast to TimestampType before
-        casting to unix timestamp.
-        It uses the default timezone and the default locale.
-        Return null if failed.
-
-        Args:
-            input_col (str):
-                Input column.
-            dt_format (str | None):
-                Specify the datetime format for conversion, which is
-                mandatory when the input column type is <StringType>.
-                This argument is not considered if the input columns
-                type is <TimestampType>.
-            output_col (str | None):
-                If None, the result will replace the 'input_col'.
-        """
-        super().__init__()
-        self._input_col: str = input_col
-        self._format: Optional[str] = dt_format
-        self._output_col: Optional[str] = output_col
-
-    def _transform(self, df):
-        output_col: str
-        output_col = self._output_col if self._output_col else self._input_col
-
-        input_type: str = get_column_data_type_name(df, self._input_col)
-
-        # If the input column is a <StringType> cast to <TimestampType>.
-        if input_type == "string":
-            if self._format is None:
-                msg = '"dt_format" must be provided if the input column is <string>'
-                raise AssertionError(msg)
-            unix_ts = F.unix_timestamp(self._input_col, format=self._format)
-        else:
-            unix_ts = F.unix_timestamp(self._input_col, format=None)
-
-        return df.withColumn(output_col, unix_ts)
 
 
 class ToUtcTimestamp(Transformer):

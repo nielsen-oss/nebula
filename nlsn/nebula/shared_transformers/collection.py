@@ -10,7 +10,6 @@ from nlsn.nebula.base import Transformer
 __all__ = [
     "CreateDataFrame",
     "StoreColumnNames",
-    "StoreColumnValues",
     "WithColumn",
 ]
 
@@ -123,88 +122,6 @@ class StoreColumnNames(Transformer):
         ns.set(self._key, columns)
         return df
 
-
-class StoreColumnValues(Transformer):
-    backends = {"pandas", "polars", "spark"}
-
-    def __init__(
-        self,
-        *,
-        column: str,
-        key: str,
-        as_type: str = "list",
-        sort: bool = False,
-    ):
-        """Store a specified column's data into nebula storage under a given key.
-
-        It extracts a column from the input DataFrame, converts it to a
-        specified Python type (list, array, set, frozenset), and then
-        stores it in the nebula storage.
-        Optionally, the stored data can be sorted.
-        The input dataframe returns unchanged.
-
-        Args:
-            column (str):
-                The name of the column to be extracted and stored.
-            key (str):
-                The key under which the extracted data will be stored in the namespace.
-            as_type (str, optional):
-                The desired Python type for the stored data.
-                Must be one of "list", "array" (for numpy array),
-                "set", or "frozenset". Defaults to "list".
-            sort (bool, optional):
-                If True, the stored data will be sorted.
-                Sorting is not supported for "set" or "frozenset" types.
-                Defaults to False.
-
-        Raises:
-            ValueError: If `as_type` is not one of the allowed types.
-            ValueError: If `sort` is True and `as_type` is "set" or "frozenset".
-        """
-        assert_allowed(as_type, {"array", "list", "set", "frozenset"}, "as_type")
-
-        if sort and (as_type in {"set", "frozenset"}):
-            raise ValueError("Cannot sort a set.")
-
-        super().__init__()
-        self._column: str = column
-        self._key: str = key
-        self._as_type: str = as_type
-        self._sort: bool = sort
-
-    def __store(self, s) -> None:
-        if self._as_type == "array":
-            store = s.to_numpy()
-        else:
-            store = s.to_list()
-        if self._as_type == "array":
-            if self._sort:
-                import numpy as np
-
-                store = np.sort(store)
-        else:
-            if self._sort:
-                store = sorted(store)
-            elif self._as_type == "set":
-                store = set(store)
-            elif self._as_type == "frozenset":
-                store = frozenset(store)
-
-        ns.set(self._key, store)
-
-    def _transform(self, df):
-        series = self._select_transform(df)
-        self.__store(series)
-        return df
-
-    def _transform_pandas(self, df):
-        return df[self._column]
-
-    def _transform_polars(self, df):
-        return df.select(self._column).to_series()
-
-    def _transform_spark(self, df):
-        return df.select(self._column).toPandas()[self._column]
 
 
 class WithColumn(Transformer):

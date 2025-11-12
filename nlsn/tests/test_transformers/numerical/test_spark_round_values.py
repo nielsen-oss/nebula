@@ -14,7 +14,7 @@ from pyspark.sql.types import (
     StructType,
 )
 
-from nlsn.nebula.spark_transformers import RoundDecimalValues, RoundValues
+from nlsn.nebula.transformers.numerical import RoundValues
 
 # Do not use FloatType, precision is too low, and the test can fail.
 
@@ -109,15 +109,7 @@ def _test_round_values(t, df_input, input_columns, precision, output_column):
 def test_round_values(df_input, input_columns, precision, output_column):
     """Unit-test RoundValues."""
     t = RoundValues(
-        input_columns=input_columns, precision=precision, output_column=output_column
+        input_columns=input_columns, decimals=precision, output_column=output_column
     )
     _test_round_values(t, df_input, input_columns, precision, output_column)
 
-
-def test_round_decimal_values(df_input):
-    """Unit-test for the deprecated RoundDecimalValues transformer."""
-    input_columns, precision, output_column = random.choice(_params[1:3])
-    t = RoundDecimalValues(
-        input_columns=input_columns, precision=precision, output_column=output_column
-    )
-    _test_round_values(t, df_input, input_columns, precision, output_column)

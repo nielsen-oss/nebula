@@ -1,7 +1,7 @@
 """Transformers for Managing Columns without Affecting Row Values."""
 
 import re
-from typing import Any, Iterable, Optional, Union
+from typing import Any, Iterable
 
 import narwhals as nw
 
@@ -18,6 +18,7 @@ __all__ = [
     "DropColumns",
     "RenameColumns",
     "SelectColumns",
+    "SortColumnNames",
 ]
 
 
@@ -25,13 +26,13 @@ class AddPrefixSuffixToColumnNames(Transformer):
     def __init__(
             self,
             *,
-            columns: Optional[Union[str, list[str]]] = None,
-            regex: Optional[str] = None,
-            glob: Optional[str] = None,
-            startswith: Optional[Union[str, Iterable[str]]] = None,
-            endswith: Optional[Union[str, Iterable[str]]] = None,
-            prefix: Optional[str] = None,
-            suffix: Optional[str] = None,
+            columns: str | list[str] | None = None,
+            regex: str | None = None,
+            glob: str | None = None,
+            startswith: str | Iterable[str] | None = None,
+            endswith: str | Iterable[str] | None = None,
+            prefix: str | None  = None,
+            suffix: str | None  = None,
             allow_excess_columns: bool = False,
     ):
         """Add the prefix and / or suffix to column names.
@@ -94,7 +95,7 @@ class AddTypedColumns(Transformer):
     def __init__(
             self,
             *,
-            columns: Optional[Union[list[tuple[str, str]], dict[str, Any]]],
+            columns: list[tuple[str, str]] | dict[str, Any] | None,
     ):
         """Add typed columns if they do not exist in the DF.
 
@@ -205,11 +206,11 @@ class DropColumns(Transformer):
     def __init__(
             self,
             *,
-            columns: Optional[Union[str, list[str]]] = None,
-            regex: Optional[str] = None,
-            glob: Optional[str] = None,
-            startswith: Optional[Union[str, Iterable[str]]] = None,
-            endswith: Optional[Union[str, Iterable[str]]] = None,
+            columns: str | list[str] | None = None,
+            regex: str | None  = None,
+            glob: str | None = None,
+            startswith: str | Iterable[str] | None = None,
+            endswith: str | Iterable[str] | None = None,
             allow_excess_columns: bool = True,
     ):
         """Drop a subset of columns.
@@ -265,11 +266,11 @@ class RenameColumns(Transformer):
     def __init__(
             self,
             *,
-            columns: Optional[Union[str, list[str]]] = None,
-            columns_renamed: Optional[Union[str, list[str]]] = None,
-            mapping: Optional[dict[str, str]] = None,
-            regex_pattern: Optional[str] = None,
-            regex_replacement: Optional[str] = None,
+            columns: str | list[str] | None = None,
+            columns_renamed: str | list[str] | None = None,
+            mapping: dict[str, str] | None = None,
+            regex_pattern: str | None = None,
+            regex_replacement: str | None = None,
             fail_on_missing_columns: bool = True,
     ):
         """Transformer to rename DataFrame columns.
@@ -311,8 +312,8 @@ class RenameColumns(Transformer):
             raise AssertionError(
                 "'replacement' must be provided when 'regex_pattern' is used."
             )
-        self._regex_pattern: Optional[str] = regex_pattern
-        self._regex_repl: Optional[str] = regex_replacement
+        self._regex_pattern: str | None = regex_pattern
+        self._regex_repl: str | None = regex_replacement
         self._fail_on_missing_columns: bool = fail_on_missing_columns
 
         if bool(columns) != bool(columns_renamed):
@@ -355,11 +356,11 @@ class SelectColumns(Transformer):
     def __init__(
             self,
             *,
-            columns: Optional[Union[str, list[str]]] = None,
-            regex: Optional[str] = None,
-            glob: Optional[str] = None,
-            startswith: Optional[Union[str, Iterable[str]]] = None,
-            endswith: Optional[Union[str, Iterable[str]]] = None,
+            columns: str | list[str] | None = None,
+            regex: str | None = None,
+            glob: str | None = None,
+            startswith: str | list[str] | None = None,
+            endswith: str | Iterable[str] | None = None,
     ):
         """Select a subset of columns.
 
@@ -392,3 +393,14 @@ class SelectColumns(Transformer):
     def _transform_nw(self, nw_df):
         selection: list[str] = self._get_selected_columns(nw_df)
         return nw_df.select(selection)
+
+
+class SortColumnNames(Transformer):
+
+    def __init__(self):
+        """Sort the columns alphabetically."""
+        super().__init__()
+
+    @staticmethod
+    def _transform_nw(nw_df):
+        return nw_df.select(sorted(nw_df.columns))

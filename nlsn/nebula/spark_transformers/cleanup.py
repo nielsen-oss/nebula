@@ -21,7 +21,6 @@ from nlsn.nebula.spark_util import ensure_spark_condition, get_spark_condition
 
 __all__ = [
     "ClipOrNull",
-    "FillColumnWithMode",
     "NanToNull",
 ]
 
@@ -110,125 +109,6 @@ class ClipOrNull(Transformer):
 
         return df.withColumn(self._output_col, out_clause)
 
-
-class FillColumnWithMode(Transformer):
-    def __init__(
-        self,
-        *,
-        to_fill_cols: Union[str, List[str]],
-        groupby_columns: Union[str, List[str], None] = None,
-        groupby_regex: Optional[str] = None,
-        groupby_glob: Optional[str] = None,
-        groupby_startswith: Optional[Union[str, Iterable[str]]] = None,
-        groupby_endswith: Optional[Union[str, Iterable[str]]] = None,
-        replace: bool = False,
-        df_mode_to_pandas: bool = False,
-    ):
-        """Fill missing values with mode after grouping by the "groupby_cols".
-
-        If the 'replace' parameter is True, all the values will be replaced
-        with the mode, otherwise only the missing values are filled.
-
-        It does *NOT* ensure that all values are filled, as if in a grouped
-        set all the values are null, there are no valid values to use.
-
-        Args:
-            to_fill_cols (str | list(str)):
-                Columns to be replaced with the mode.
-            groupby_columns (str | list(str) | None):
-                A list of the objective columns to groupby. Defaults to None.
-            groupby_regex (str | None):
-                Select the objective columns to groupby by using a regex pattern.
-                Defaults to None.
-            groupby_glob (str | None):
-                Select the objective columns to groupby by using a bash-like pattern.
-                Defaults to None.
-            groupby_startswith (str | iterable(str) | None):
-                Select all the columns whose names start with the provided
-                string(s). Defaults to None.
-            groupby_endswith (str | iterable(str) | None):
-                Select all the columns whose names end with the provided
-                string(s). Defaults to None.
-            replace (bool):
-                True to replace all the values with the mode, otherwise use
-                the mode to fill null values only.
-            df_mode_to_pandas (bool):
-                Convert the df of the mode (small subset) to pandas before
-                rejoining it into the original DF, to break the physical plan.
-
-        Returns (pyspark.sql.DataFrame):
-            DataFrame filled with the mode values in the "to_fill_cols" columns.
-        """
-        assert_only_one_non_none(groupby_columns, groupby_regex, groupby_glob)
-
-        super().__init__()
-        self._to_fill_cols: List[str] = ensure_flat_list(to_fill_cols)
-        self._set_columns_selections(
-            columns=groupby_columns,
-            regex=groupby_regex,
-            glob=groupby_glob,
-            startswith=groupby_startswith,
-            endswith=groupby_endswith,
-        )
-        self._replace: bool = replace
-        self._df_mode_to_pandas: bool = df_mode_to_pandas
-
-    def _transform(self, df):
-        input_cols = df.columns
-        groupby_cols = self._get_selected_columns(df)
-        tot_cols = groupby_cols[:] + self._to_fill_cols
-
-        # Create not null condition
-        not_null_cond = [F.col(c).isNotNull() for c in tot_cols]
-
-        # The windowing is done by count descending since we want the most
-        # occurring value for that group.
-        # Also, order by the 'groupby_cols' just for repeatability (for cases
-        # with the same number of occurrences, where the mode could be more
-        # than one value).
-        win = Window.partitionBy(*groupby_cols).orderBy(
-            F.desc("_count_"), *[F.desc(c) for c in tot_cols]
-        )
-
-        # Compute mode
-        df_mode = (
-            df.filter(reduce(and_, not_null_cond))
-            .groupBy(*tot_cols)
-            .agg(F.count("*").alias("_count_"))
-            .withColumn("_row_number_", F.row_number().over(win))
-            .filter(F.col("_row_number_") == 1)
-            .select(
-                *groupby_cols,
-                *[F.col(c).alias(f"_mode_{c}_") for c in self._to_fill_cols],
-            )
-        )
-
-        if self._df_mode_to_pandas:
-            ss = df.sql_ctx.sparkSession
-            schema = df_mode.schema
-            logger.info("Converting df mode to pandas before rejoining ...")
-            df_mode_pd = df_mode.toPandas()
-            logger.info(f"df mode converted to pandas. Shape: {df_mode_pd.shape}")
-            logger.info("Converting back df mode to spark ...")
-            df_mode = ss.createDataFrame(df_mode_pd, schema=schema)
-
-        # Add the mode of the column to the dataframe
-        df = df.join(df_mode, on=groupby_cols, how="left")
-
-        output_cols = []
-        set_filled = set(self._to_fill_cols)
-        for c in input_cols:
-            if c in set_filled:
-                if self._replace:
-                    new_col = F.coalesce(F.col(f"_mode_{c}_"), F.col(c))
-                else:
-                    new_col = F.coalesce(F.col(c), F.col(f"_mode_{c}_"))
-
-                output_cols.append(new_col.alias(c))
-            else:
-                output_cols.append(c)
-
-        return df.select(*output_cols)
 
 
 class NanToNull(Transformer):

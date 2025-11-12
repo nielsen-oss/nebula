@@ -1,4 +1,4 @@
-"""Spark TemporaryView and Nebula Storage Utilities."""
+"""Spark Transformers for handling TemporaryViews and Nebula Storage."""
 
 from nlsn.nebula.base import Transformer
 from nlsn.nebula.spark_util import get_spark_session, table_is_registered
@@ -28,7 +28,7 @@ def _check_is_registered(table: str, nebula_cache: bool, df):
 
 class DropTable(Transformer):
     def __init__(
-        self, *, table: str, ignore_error: bool = True, nebula_cache: bool = True
+            self, *, table: str, ignore_error: bool = True, nebula_cache: bool = True
     ):
         """Drop a stored dataframe and return the input dataframe untouched.
 
@@ -47,7 +47,7 @@ class DropTable(Transformer):
         self._ignore_error: bool = ignore_error
         self._nebula_cache: bool = nebula_cache
 
-    def _transform(self, df):
+    def _transform_spark(self, df):
         if not self._ignore_error:
             _check_is_registered(self._table, self._nebula_cache, df)
 
@@ -77,7 +77,7 @@ class GetTable(Transformer):
         self._table: str = table
         self._nebula_cache: bool = nebula_cache
 
-    def _transform(self, df):
+    def _transform_spark(self, df):
         _check_is_registered(self._table, self._nebula_cache, df)
 
         if self._nebula_cache:
@@ -98,7 +98,7 @@ class RegisterTable(Transformer):
                 Specifies the behavior when data or table already exists.
                 - overwrite: Overwrite existing data.
                 - error: Throw an exception if data already exists.
-                Defaults to "mode".
+                Defaults to "error".
             nebula_cache (bool):
                 If True register the dataframe to nebula cache, otherwise
                 to spark temporary views. Defaults to True.
@@ -108,7 +108,7 @@ class RegisterTable(Transformer):
         self._mode: str = mode
         self._nebula_cache: bool = nebula_cache
 
-    def _transform(self, df):
+    def _transform_spark(self, df):
         msg_err = f"{self._table} is already registered"
 
         if self._nebula_cache:
@@ -144,7 +144,7 @@ class SparkTableToStorage(Transformer):
         self._input_table: str = input_table
         self._store_key: str = store_key
 
-    def _transform(self, df):
+    def _transform_spark(self, df):
         spark_session = get_spark_session(df)
         df_registered = spark_session.table(tableName=self._input_table)
         ns.set(self._store_key, df_registered)

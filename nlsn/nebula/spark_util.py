@@ -2,6 +2,7 @@
 
 import operator as py_operator
 import sys
+import narwhals as nw
 import warnings
 from collections import Counter
 from io import StringIO
@@ -1056,9 +1057,18 @@ def to_pandas_to_spark(df):
     return spark_session.createDataFrame(df.toPandas(), schema=schema)
 
 
+def nw_to_spark(df) -> tuple[bool, "pyspark.sql.DataFrame"]:
+    if isinstance(df, (nw.DataFrame, nw.LazyFrame)):
+        return True, df.to_native()
+    return False, df
+
+
 def cache_if_needed(df, do_cache: bool):
     """Cache the dataframe if is not already cached."""
     if not do_cache:
+        return df
+    if not isinstance(df, _psql.DataFrame):
+
         return df
     if df.is_cached:
         logger.info("DataFrame was already cached, no need to persist.")

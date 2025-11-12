@@ -1,10 +1,9 @@
 """Transformers for numerical operations."""
 
-from typing import Optional, Union
-
 from nlsn.nebula.auxiliaries import assert_is_integer, ensure_list
 from nlsn.nebula.base import Transformer
 from nlsn.nebula.deprecations import deprecate_transformer
+import narwhals as nw
 
 __all__ = [
     "RoundDecimalValues",  # Deprecated; alias RoundValues
@@ -12,15 +11,23 @@ __all__ = [
 ]
 
 
-class RoundValues(Transformer):
-    backends = {"pandas", "polars", "spark"}
+{
+    "method": "round",
+    "columns": [],
+    "args": [],
+    "kwargs": {}
 
+}
+
+
+
+class RoundValues(Transformer):  # FIXME: I dont like these inputs
     def __init__(
         self,
         *,
-        input_columns: Union[str, list[str]],
-        precision: int = 2,
-        output_column: Optional[str] = None,
+        input_columns: str | list[str],
+        decimals: int,
+        output_column: str | None = None,
     ):
         """Round to decimal values when precision <= 0, or at integral part otherwise.
 
@@ -32,7 +39,7 @@ class RoundValues(Transformer):
                 Name of the input column containing decimal values.
                 If it is a list with len > 1, the `output_column` must be None
                 and the round occurs in place.
-            precision (int):
+            decimals (int):
                 Number of decimal places to round to (default: 2).
             output_column (str | None):
                 Name of the output column, if not provided, the output columns
@@ -43,11 +50,34 @@ class RoundValues(Transformer):
         Raises:
             ValueError: If `input_column` is not an integer.
         """
-        assert_is_integer(precision, "precision")
+        assert_is_integer(decimals, "decimals")
+        if decimals < 0:
+            msg = "'decimals' must be a non-negative integer."
+            raise AssertionError(msg)
+
+        _input_cols: list[str] = ensure_list(input_columns)
+        is_multiple: bool = len(_input_cols) > 1
+
+        if is_multiple:
+            if output_column is not None:
+                msg = "If 2+ columns are passed as input 'output_column' must be None."
+                raise AssertionError(msg)
+            if len(_input_cols) != len(set(_input_cols)):
+                raise AssertionError("Input columns not unique.")
+            params = {c: nw.col(c).round(decimals) for c in _input_cols}
+        else:
+            self._output_col = output_column or self._input_cols[0]
+        self._scale: int = int(decimals)
+
+
+
 
         super().__init__()
+
+
+
         self._input_cols: list[str] = ensure_list(input_columns)
-        self._output_col: Optional[str] = None
+        self._output_col: str | None= None
         self._is_multiple: bool = len(self._input_cols) > 1
 
         if self._is_multiple:
@@ -58,12 +88,12 @@ class RoundValues(Transformer):
                 raise AssertionError("Input columns not unique.")
         else:
             self._output_col = output_column or self._input_cols[0]
-        self._scale: int = int(precision)
+        self._scale: int = int(decimals)
 
-        self._allowed_dtypes: tuple
+    def _transform_nw(self, df_nw):
+        return df_nw.with_columns(a_rounded=nw.col("a").round(1))
 
-    def _transform(self, df):
-        return self._select_transform(df)
+
 
     def _check_spark_dtype(self, df, columns: list[str]):
         msg_err = "Input column '{}' is '{}'. Must be numeric type."

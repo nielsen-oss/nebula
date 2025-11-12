@@ -221,6 +221,12 @@ class TestCacheIfNeeded:
         schema = StructType(fields)
         return spark.createDataFrame(data, schema=schema)
 
+    def test_non_spark(self):
+        """Ensure no errors when the DF is not a spark one."""
+        df = pd.DataFrame([[1, 2], [3, 4]], columns=["a", "b"])
+        df_chk = cache_if_needed(df, True)
+        assert df_chk is df
+
     @pytest.mark.parametrize("cached", [False, True])
     @pytest.mark.parametrize("do_cache", [False, True])
     def test_cache_if_needed(self, spark, do_cache, cached):

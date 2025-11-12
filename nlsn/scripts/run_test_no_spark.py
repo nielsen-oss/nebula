@@ -33,8 +33,6 @@ if __name__ == "__main__":
         path_test / "test_ts_util.py",
         # pandas transformers
         *list_test_trf_pandas,
-        # spark transformers with local tests
-        path_trf / "assertions" / "test_compare_stored_values.py",
         # pipeline w/o spark
         path_pipe / "test_pandas_polars_pipelines",
         *list_tests_pipe_no_spark,

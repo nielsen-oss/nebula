@@ -6,7 +6,6 @@ from nlsn.nebula.pipelines.transformer_type_util import (
     is_generic_transformer,
     is_transformer,
 )
-from nlsn.nebula.spark_transformers import ToPandasToSpark
 
 # ---------------------------- VALID TRANSFORMERS -----------------------------
 
@@ -164,7 +163,7 @@ def test_not_valid_transformer_type(cls):
 
 
 @pytest.mark.parametrize(
-    "o, exp", [(TransformerOk(), True), (ToPandasToSpark(), True), ([1], False)]
+    "o, exp", [(TransformerOk(), True), (Cache(), True), ([1], False)]
 )
 def test_is_transformer(o, exp: bool):
     """Test 'is_transformer' function."""
