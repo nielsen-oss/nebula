@@ -10,7 +10,7 @@ authors = [
     { name = "DSci Global Platform Support Team", email = "dscigps@nielsen.com" },
 ]
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 keywords = ["nielsen"]
 classifiers = [
     "License :: OSI Approved :: Apache Software License",
@@ -22,7 +22,7 @@ dependencies = [
     "pandas>=1.2.5",
     "pytest>=7.4.4",
     "setuptools>=61.0.0",
-    "narwhals>=1.0.0",
+    "narwhals>=2.0.0",
 ]
 
 [project.urls]
