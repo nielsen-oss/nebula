@@ -36,13 +36,11 @@ __all__ = [
     "Explode",
     "FillNa",
     "HashDataFrame",
-    "IterableSize",
     "Join",
     "LogicalOperator",
     "MapWithFallback",
     "Melt",
     "MonotonicallyIncreasingIndexColumn",
-    "MultipleBooleanMarker",
     "MultipleLiterals",
     "ReplaceWithMap",
     "RowWiseGreatestOrLeast",
@@ -67,7 +65,7 @@ def _assert_no_null_keys(d: dict) -> None:
 
 
 def validate_args_kwargs(
-    args: Optional[list] = None, kwargs: Optional[Dict[str, Any]] = None
+        args: Optional[list] = None, kwargs: Optional[Dict[str, Any]] = None
 ) -> None:
     """Validate args and kwargs."""
     if (args is not None) and (not isinstance(args, (tuple, list))):
@@ -81,13 +79,13 @@ def validate_args_kwargs(
 
 class BooleanMarker(Transformer):
     def __init__(
-        self,
-        *,
-        input_col: str,
-        operator: str,
-        value: Optional[Any] = None,
-        comparison_column: Optional[str] = None,
-        output_col: Optional[str] = None,
+            self,
+            *,
+            input_col: str,
+            operator: str,
+            value: Optional[Any] = None,
+            comparison_column: Optional[str] = None,
+            output_col: Optional[str] = None,
     ):
         """Mark True rows according to the given condition.
 
@@ -150,13 +148,13 @@ class BooleanMarker(Transformer):
 
 class Coalesce(Transformer):
     def __init__(
-        self,
-        *,
-        output_col: str,
-        columns: Optional[Union[str, List[str]]] = None,
-        drop_input_cols: bool = False,
-        treat_nan_as_null: bool = False,
-        treat_blank_string_as_null: bool = False,
+            self,
+            *,
+            output_col: str,
+            columns: Optional[Union[str, List[str]]] = None,
+            drop_input_cols: bool = False,
+            treat_nan_as_null: bool = False,
+            treat_blank_string_as_null: bool = False,
     ):
         """Coalesce given input_cols in the output_col and drop input_cols if needed.
 
@@ -210,13 +208,13 @@ class Coalesce(Transformer):
 
 class ColumnMethod(Transformer):
     def __init__(
-        self,
-        *,
-        input_column: str,
-        output_column: Optional[str] = None,
-        method: str,
-        args: Optional[List[Any]] = None,
-        kwargs: Optional[Dict[str, Any]] = None,
+            self,
+            *,
+            input_column: str,
+            output_column: Optional[str] = None,
+            method: str,
+            args: Optional[List[Any]] = None,
+            kwargs: Optional[Dict[str, Any]] = None,
     ):
         """Call a pyspark.sql.Column method with the provided args/kwargs.
 
@@ -271,14 +269,14 @@ class ColumnMethod(Transformer):
 
 class ConcatColumns(Transformer):
     def __init__(
-        self,
-        *,
-        cols_to_concat: Optional[List[str]] = None,
-        new_col_name: Optional[str] = None,
-        separator: Optional[str] = None,
-        null_if_any_null: bool = True,
-        drop_initial_cols: bool = False,
-        concat_strategy: Optional[List[dict]] = None,
+            self,
+            *,
+            cols_to_concat: Optional[List[str]] = None,
+            new_col_name: Optional[str] = None,
+            separator: Optional[str] = None,
+            null_if_any_null: bool = True,
+            drop_initial_cols: bool = False,
+            concat_strategy: Optional[List[dict]] = None,
     ):
         """Concatenate multiple columns with a given separator in a new one.
 
@@ -342,9 +340,9 @@ class ConcatColumns(Transformer):
 
         if concat_strategy is not None:
             if not (
-                (cols_to_concat is None)
-                and (new_col_name is None)
-                and (separator is None)
+                    (cols_to_concat is None)
+                    and (new_col_name is None)
+                    and (separator is None)
             ):
                 msg = 'If "concat_strategy" is provided, '
                 msg += "the other arguments must not be passed."
@@ -431,12 +429,12 @@ class ConcatColumns(Transformer):
 
 class Explode(Transformer):
     def __init__(
-        self,
-        *,
-        input_col: str,
-        output_cols: Optional[Union[List[str], str]] = None,
-        outer: bool = True,
-        drop_after: bool = False,
+            self,
+            *,
+            input_col: str,
+            output_cols: Optional[Union[List[str], str]] = None,
+            outer: bool = True,
+            drop_after: bool = False,
     ):
         """Explode an array column into multiple rows.
 
@@ -510,12 +508,12 @@ class Explode(Transformer):
 
 class FillNa(Transformer):
     def __init__(
-        self,
-        *,
-        value: Union[int, float, str, bool, Dict[str, Union[int, float, str, bool]]],
-        columns: Optional[Union[str, List[str]]] = None,
-        regex: Optional[str] = None,
-        glob: Optional[str] = None,
+            self,
+            *,
+            value: Union[int, float, str, bool, Dict[str, Union[int, float, str, bool]]],
+            columns: Optional[Union[str, List[str]]] = None,
+            regex: Optional[str] = None,
+            glob: Optional[str] = None,
     ):
         """Replace null values.
 
@@ -562,16 +560,16 @@ class FillNa(Transformer):
 
 class HashDataFrame(Transformer):
     def __init__(
-        self,
-        *,
-        output_col: str,
-        columns: Optional[Union[str, List[str]]] = None,
-        regex: Optional[str] = None,
-        glob: Optional[str] = None,
-        startswith: Optional[Union[str, Iterable[str]]] = None,
-        endswith: Optional[Union[str, Iterable[str]]] = None,
-        hash_name: str = "md5",
-        num_bits: int = 256,
+            self,
+            *,
+            output_col: str,
+            columns: Optional[Union[str, List[str]]] = None,
+            regex: Optional[str] = None,
+            glob: Optional[str] = None,
+            startswith: Optional[Union[str, Iterable[str]]] = None,
+            endswith: Optional[Union[str, Iterable[str]]] = None,
+            hash_name: str = "md5",
+            num_bits: int = 256,
     ):
         """Hash each dataframe row and store the result in a new column.
 
@@ -641,35 +639,14 @@ class HashDataFrame(Transformer):
         return df.withColumn(self._output_col, hashed_col)
 
 
-class IterableSize(Transformer):
-    def __init__(self, *, input_col: str, output_col: str):
-        """Return the length of the array or map stored in a column.
-
-        Alias (deprecated): ArraySize.
-
-        Args:
-            input_col (str):
-                Name of the array column to compute size.
-                If the value is null, the output is -1 by default.
-            output_col (str):
-                Name of the output column containing the size of the input column.
-        """
-        super().__init__()
-        self._input_col: str = input_col
-        self._output_col: str = output_col
-
-    def _transform(self, df):
-        return df.withColumn(self._output_col, F.size(self._input_col))
-
-
 class Join(Transformer):
     def __init__(
-        self,
-        *,
-        table: str,
-        on: Union[List[str], str],
-        how: str,
-        broadcast: bool = False,
+            self,
+            *,
+            table: str,
+            on: Union[List[str], str],
+            how: str,
+            broadcast: bool = False,
     ):
         """Joins with another DataFrame, using the given join expression.
 
@@ -727,14 +704,14 @@ class Join(Transformer):
 
 class LogicalOperator(Transformer):
     def __init__(
-        self,
-        *,
-        operator: str,
-        output_col: str,
-        columns: Optional[Union[str, List[str]]] = None,
-        regex: Optional[str] = None,
-        glob: Optional[str] = None,
-        allow_excess_columns: bool = True,
+            self,
+            *,
+            operator: str,
+            output_col: str,
+            columns: Optional[Union[str, List[str]]] = None,
+            regex: Optional[str] = None,
+            glob: Optional[str] = None,
+            allow_excess_columns: bool = True,
     ):
         """Combine columns using logical operators AND or OR.
 
@@ -796,12 +773,12 @@ class LogicalOperator(Transformer):
 
 class MapWithFallback(Transformer):
     def __init__(
-        self,
-        *,
-        input_col: str,
-        mapping: dict,
-        default: Any,
-        output_col: Optional[str] = None,
+            self,
+            *,
+            input_col: str,
+            mapping: dict,
+            default: Any,
+            output_col: Optional[str] = None,
     ):
         """Maps a column using a dictionary and sets all unmapped values to a default value.
 
@@ -850,14 +827,14 @@ class MapWithFallback(Transformer):
 
 class Melt(Transformer):
     def __init__(
-        self,
-        *,
-        id_cols: Optional[Union[str, List[str]]] = None,
-        id_regex: Optional[str] = None,
-        melt_cols: Optional[Union[str, List[str]]] = None,
-        melt_regex: Optional[str] = None,
-        variable_col: str,
-        value_col: str,
+            self,
+            *,
+            id_cols: Optional[Union[str, List[str]]] = None,
+            id_regex: Optional[str] = None,
+            melt_cols: Optional[Union[str, List[str]]] = None,
+            melt_regex: Optional[str] = None,
+            variable_col: str,
+            value_col: str,
     ):
         """Perform a melt operation, converting specified columns from wide to long format (Unpivot).
 
@@ -918,11 +895,11 @@ class Melt(Transformer):
 
 class MonotonicallyIncreasingIndexColumn(Transformer):
     def __init__(
-        self,
-        *,
-        output_col: str,
-        sequential: bool = False,
-        start_index: int = 0,
+            self,
+            *,
+            output_col: str,
+            sequential: bool = False,
+            start_index: int = 0,
     ):
         """Add a monotonically increasing index column.
 
@@ -950,115 +927,6 @@ class MonotonicallyIncreasingIndexColumn(Transformer):
             return df.withColumn(self._output_col, value)
 
         return df.withColumn(self._output_col, F.monotonically_increasing_id())
-
-
-class MultipleBooleanMarker(Transformer):
-    def __init__(
-        self,
-        *,
-        output_col: str,
-        conditions: List[Dict[str, Any]],
-        logical_operators: Optional[List[str]] = None,
-    ):
-        """Create a boolean column based on multiple conditions.
-
-        Args:
-            output_col (str):
-                Output column name.
-            conditions (list(dict(str, any))):
-                List of dictionaries containing conditions, eg:
-                [
-                    {
-                        "column": "c1",
-                        "operator": "ne", # Not equal
-                        "value": 2,
-                    },
-                    {
-                        "column": "c2",
-                        "operator": "isNotNull",
-                    },
-                    {
-                        "column": "c3",
-                        "operator": "le", # Less or equal
-                        "comparison_column": "c_x",
-                    },
-                ]
-                See Filter - 'operator' argument for more detailed information.
-            logical_operators (list(str)):
-                List of logical operator to compound the 'conditions',
-                therefore a list of "and" (or "&") and "or" (or "|"), like:
-                ["and", "or", "|"].
-                The number of 'logical_operators' should be one less than the
-                number of 'conditions'.
-                Note: The conditions are compound from left to right:
-
-        Example:
-            conditions = [
-                {
-                    "column": "c1",
-                    "operator": "ne", # Not equal
-                    "value": 2,
-                },
-                {
-                    "column": "c2",
-                    "operator": "isNotNull",
-                },
-                {
-                    "column": "c3",
-                    "operator": "le", # Less or equal
-                    "comparison_column": "c_x",
-                },
-            ]
-            logical_operators = ["or", "&"]
-
-            1. Compare 'c1' and 'c2' using the "or" operator.
-            2. Compare the previous result and 'c3' using the "and" operator.
-            -> (("c1" OR "c2") AND "c3")
-        """
-        super().__init__()
-
-        self._operators = {
-            "&": py_operator.and_,
-            "|": py_operator.or_,
-            "and": py_operator.and_,
-            "or": py_operator.or_,
-        }
-
-        # Sanity checks
-        logical_operators = logical_operators or []
-        n_cond = len(conditions)
-        n_ops = len(logical_operators)
-        if n_cond != (n_ops + 1):
-            msg = "The number of ‘logical_operators’ should be one less "
-            msg += "than the number of ‘conditions’."
-            msg += f"Found {n_cond} 'conditions' and {n_ops} 'logical_operators'"
-            raise ValueError(msg)
-
-        for el in conditions:
-            operator = el["operator"]
-            value = el.get("value")
-            compare_col = el.get("comparison_column")
-            ensure_spark_condition(operator, value, compare_col)
-
-        self._conditions: List[dict] = conditions
-        self._assembly = iter([self._operators[i.lower()] for i in logical_operators])
-        self._output_col: str = output_col
-
-    def _transform(self, df):
-        spark_conds = []
-        for el in self._conditions:
-            cond = get_spark_condition(
-                df,
-                el["column"],
-                el["operator"],
-                value=el.get("value"),
-                compare_col=el.get("comparison_column"),
-            )
-            spark_conds.append(cond)
-
-        main_cond = reduce(lambda a, b: next(self._assembly)(a, b), spark_conds)
-        main_cond = null_cond_to_false(main_cond)
-        return df.withColumn(self._output_col, main_cond)
 
 
 class MultipleLiterals(Transformer):
@@ -1121,7 +989,7 @@ class MultipleLiterals(Transformer):
 
 class ReplaceWithMap(Transformer):
     def __init__(
-        self, *, input_col: str, replace: dict, output_col: Optional[str] = None
+            self, *, input_col: str, replace: dict, output_col: Optional[str] = None
     ):
         """Replace the column values using the provided dictionary.
 
@@ -1155,13 +1023,13 @@ class ReplaceWithMap(Transformer):
 
 class RowWiseGreatestOrLeast(Transformer):
     def __init__(
-        self,
-        *,
-        columns: Optional[Union[List[str]]] = None,
-        regex: Optional[str] = None,
-        glob: Optional[str] = None,
-        output_col: str,
-        operation: str,
+            self,
+            *,
+            columns: Optional[Union[List[str]]] = None,
+            regex: Optional[str] = None,
+            glob: Optional[str] = None,
+            output_col: str,
+            operation: str,
     ):
         """Create a new column with the row-wise greatest/least value of the input columns.
 
@@ -1232,12 +1100,12 @@ class RowWiseGreatestOrLeast(Transformer):
 
 class SqlFunction(Transformer):
     def __init__(
-        self,
-        *,
-        column: str,
-        function: str,
-        args: Optional[List[Any]] = None,
-        kwargs: Optional[Dict[str, Any]] = None,
+            self,
+            *,
+            column: str,
+            function: str,
+            args: Optional[List[Any]] = None,
+            kwargs: Optional[Dict[str, Any]] = None,
     ):
         """Call a pyspark.sql.function with the provided args/kwargs.
 
@@ -1289,14 +1157,14 @@ class ToDF(Transformer):
 
 class UnionByName(Transformer):
     def __init__(
-        self,
-        *,
-        temp_view: Optional[str] = None,
-        store_key: Optional[str] = None,
-        select_before_union: Optional[Union[str, List[str]]] = None,
-        drop_before_union: Optional[Union[str, List[str]]] = None,
-        drop_excess_columns: bool = False,
-        allow_missing_columns: bool = False,
+            self,
+            *,
+            temp_view: Optional[str] = None,
+            store_key: Optional[str] = None,
+            select_before_union: Optional[Union[str, List[str]]] = None,
+            drop_before_union: Optional[Union[str, List[str]]] = None,
+            drop_excess_columns: bool = False,
+            allow_missing_columns: bool = False,
     ):
         """Append a dataframe to the main one in the pipeline.
 
@@ -1375,13 +1243,13 @@ class UnionByName(Transformer):
 
 class When(Transformer):
     def __init__(
-        self,
-        *,
-        output_column: str,
-        conditions: List[Dict],
-        otherwise_constant: Any = None,
-        otherwise_column: Optional[str] = None,
-        cast_output: Optional[str] = None,
+            self,
+            *,
+            output_column: str,
+            conditions: List[Dict],
+            otherwise_constant: Any = None,
+            otherwise_column: Optional[str] = None,
+            cast_output: Optional[str] = None,
     ):
         """Apply conditional logic to create a column based on specified conditions.
 
