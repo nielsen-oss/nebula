@@ -1,10 +1,6 @@
 """Row Filtering Operations."""
 
-from functools import reduce
-from operator import and_
 from typing import Any, Iterable, List, Optional, Union
-
-from pyspark.sql import functions as F
 
 from nlsn.nebula.auxiliaries import assert_allowed
 from nlsn.nebula.base import Transformer
@@ -17,8 +13,6 @@ from nlsn.nebula.spark_util import (
 
 __all__ = [
     "DiscardNulls",
-    "DropAnyNullOrEmptyArray",
-    "DropAnyNullOrEmptyString",
     "DropDuplicates",
     "Filter",
 ]
@@ -26,14 +20,14 @@ __all__ = [
 
 class DiscardNulls(Transformer):
     def __init__(
-        self,
-        *,
-        how: str,
-        columns: Optional[Union[str, List[str]]] = None,
-        regex: Optional[str] = None,
-        glob: Optional[str] = None,
-        startswith: Optional[Union[str, Iterable[str]]] = None,
-        endswith: Optional[Union[str, Iterable[str]]] = None,
+            self,
+            *,
+            how: str,
+            columns: Optional[Union[str, List[str]]] = None,
+            regex: Optional[str] = None,
+            glob: Optional[str] = None,
+            startswith: Optional[Union[str, Iterable[str]]] = None,
+            endswith: Optional[Union[str, Iterable[str]]] = None,
     ):
         """Drop rows with null values.
 
@@ -76,119 +70,15 @@ class DiscardNulls(Transformer):
         return df.dropna(self._how)
 
 
-class DropAnyNullOrEmptyArray(Transformer):
-    def __init__(
-        self,
-        *,
-        columns: Optional[Union[str, List[str]]] = None,
-        regex: Optional[str] = None,
-        glob: Optional[str] = None,
-        startswith: Optional[Union[str, Iterable[str]]] = None,
-        endswith: Optional[Union[str, Iterable[str]]] = None,
-    ):
-        """Drop any rows where the arrays in the considered columns are empty or null.
-
-        Args:
-            columns (str | list(str) | None):
-                A list of the columns. Defaults to None.
-            regex (str | None):
-                Select the columns by using a regex pattern.
-                Defaults to None.
-            glob (str | None):
-                Select the columns by using a bash-like pattern.
-                Defaults to None.
-            startswith (str | iterable(str) | None):
-                Select all the columns whose names start with the provided
-                string(s). Defaults to None.
-            endswith (str | iterable(str) | None):
-                Select all the columns whose names end with the provided
-                string(s). Defaults to None.
-        """
-        super().__init__()
-        self._set_columns_selections(
-            columns=columns,
-            regex=regex,
-            glob=glob,
-            startswith=startswith,
-            endswith=endswith,
-        )
-
-    def _transform(self, df):
-        selection: List[str] = self._get_selected_columns(df)
-        array_types = {c.name for c in df.schema if c.dataType.typeName() == "array"}
-        subset: List[str] = [i for i in selection if i in array_types]
-
-        li_size = [F.size(c) for c in subset]
-
-        # keep non empty array and non null
-        li_cond = [(c.isNotNull() & (c > 0)) for c in li_size]
-        return df.filter(reduce(and_, li_cond))
-
-
-class DropAnyNullOrEmptyString(Transformer):
-    def __init__(
-        self,
-        *,
-        trim: bool = False,
-        columns: Optional[Union[str, List[str]]] = None,
-        regex: Optional[str] = None,
-        glob: Optional[str] = None,
-        startswith: Optional[Union[str, Iterable[str]]] = None,
-        endswith: Optional[Union[str, Iterable[str]]] = None,
-    ):
-        """Drop any rows where the strings in the considered columns are empty or null.
-
-        Args:
-            trim (bool):
-                If True strips blank spaces before checking if there is an empty string.
-                The trimming is just for checking; the string itself in the
-                resulting dataframe is NOT trimmed.
-            columns (str | list(str) | None):
-                List of columns to select. Defaults to None.
-            regex (str | None):
-                Select the columns by using a regex pattern.
-                Defaults to None.
-            glob (str | None):
-                Select the columns by using a bash-like pattern.
-                Defaults to None.
-            startswith (str | iterable(str) | None):
-                Select all the columns whose names start with the provided
-                string(s). Defaults to None.
-            endswith (str | iterable(str) | None):
-                Select all the columns whose names end with the provided
-                string(s). Defaults to None.
-        """
-        super().__init__()
-        self._trim: bool = trim
-        self._set_columns_selections(
-            columns=columns,
-            regex=regex,
-            glob=glob,
-            startswith=startswith,
-            endswith=endswith,
-        )
-
-    def _transform(self, df):
-        selection: List[str] = self._get_selected_columns(df)
-        str_types = {c.name for c in df.schema if c.dataType.typeName() == "string"}
-        subset: List[str] = [i for i in selection if i in str_types]
-
-        li_prepared = [F.trim(c) if self._trim else F.col(c) for c in subset]
-
-        # keep str != "" and non null
-        li_cond = [((c != "") & c.isNotNull()) for c in li_prepared]
-        return df.filter(reduce(and_, li_cond))
-
-
 class DropDuplicates(Transformer):
     def __init__(
-        self,
-        *,
-        columns: Optional[Union[str, List[str]]] = None,
-        regex: Optional[str] = None,
-        glob: Optional[str] = None,
-        startswith: Optional[Union[str, Iterable[str]]] = None,
-        endswith: Optional[Union[str, Iterable[str]]] = None,
+            self,
+            *,
+            columns: Optional[Union[str, List[str]]] = None,
+            regex: Optional[str] = None,
+            glob: Optional[str] = None,
+            startswith: Optional[Union[str, Iterable[str]]] = None,
+            endswith: Optional[Union[str, Iterable[str]]] = None,
     ):
         """Perform spark `drop_duplicates` operation.
 
@@ -231,13 +121,13 @@ class DropDuplicates(Transformer):
 
 class Filter(Transformer):
     def __init__(
-        self,
-        *,
-        input_col: str,
-        perform: str,
-        operator: str,
-        value: Optional[Any] = None,
-        comparison_column: Optional[str] = None,
+            self,
+            *,
+            input_col: str,
+            perform: str,
+            operator: str,
+            value: Optional[Any] = None,
+            comparison_column: Optional[str] = None,
     ):
         """Keep or remove rows according to the given conditions.
 
