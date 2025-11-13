@@ -35,7 +35,6 @@ from nlsn.nebula.storage import nebula_storage as ns
 
 __all__ = [
     "CpuInfo",
-    # "GetNumPartitions",
     # "LogDataSkew",
 ]
 
