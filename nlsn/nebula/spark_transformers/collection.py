@@ -15,7 +15,6 @@ from nlsn.nebula.auxiliaries import (
 from nlsn.nebula.base import Transformer
 from nlsn.nebula.spark_util import (
     ensure_spark_condition,
-    get_column_data_type_name,
     get_spark_condition,
     get_spark_session,
 )
@@ -28,7 +27,6 @@ __all__ = [
     "FillNa",
     "Join",
     "Melt",
-    "RowWiseGreatestOrLeast",
     "SqlFunction",
     "UnionByName",
     "When",
@@ -442,83 +440,6 @@ class Melt(Transformer):
             for x in [self._variable_col, self._value_col]
         ]
         return melted_df.select(*cols)
-
-
-class RowWiseGreatestOrLeast(Transformer):
-    def __init__(
-            self,
-            *,
-            columns: Optional[Union[List[str]]] = None,
-            regex: Optional[str] = None,
-            glob: Optional[str] = None,
-            output_col: str,
-            operation: str,
-    ):
-        """Create a new column with the row-wise greatest/least value of the input columns.
-
-        NaN will be treated as null for the following types:
-        - ‘FloatType’
-        - 'DecimalType'
-        - ‘DoubleType’
-
-        Args:
-            columns (list(str) | None):
-                A list of columns to select. Defaults to None.
-            regex (str | None):
-                Take the columns to select by using a regex pattern.
-                Defaults to None.
-            glob (str | None):
-                Take the columns to select by using a bash-like pattern.
-                Defaults to None.
-            output_col (str):
-                The name of the output column that will contain the row-wise
-                greatest or least value.
-            operation (str):
-                The operation to perform. Must be either 'least' or 'greatest'.
-
-        Raises:
-            ValueError: If `operation` is not 'least' or 'greatest'.
-            ValueError: If both `input_cols` and `input_regex` are not provided.
-            ValueError: If no matching columns are found for the given input
-                columns or regex.
-        """
-        assert_allowed(operation, {"least", "greatest"}, "operation")
-
-        assert_at_least_one_non_null(columns, regex, glob)
-
-        if columns:
-            if isinstance(columns, str) or len(set(columns)) < 2:
-                msg = "columns must be a list of unique strings "
-                msg += "with 2 or more elements."
-                raise AssertionError(msg)
-
-        super().__init__()
-        self._set_columns_selections(columns=columns, regex=regex, glob=glob)
-        self._output_col = output_col
-        self._operation = operation
-
-    def _transform(self, df):
-        cols: List[str] = self._get_selected_columns(df)
-
-        if not cols:
-            raise ValueError("no columns matched columns in the DF")
-
-        types = set(df.schema[col].dataType for col in cols)
-        if len(types) > 1:
-            raise TypeError(f"Input columns have mixed data types. Found: {types}")
-
-        df_selection = df.select(cols)
-        clean_cols: List[Union[str, F.col]] = []
-        for c in cols:
-            data_type_name: str = get_column_data_type_name(df_selection, c)
-            if data_type_name in {"decimal", "double", "float"}:
-                clause = F.when(F.isnan(c), F.lit(None)).otherwise(F.col(c))
-                clean_cols.append(clause.alias(c))
-            else:
-                clean_cols.append(c)
-
-        func = {"greatest": F.greatest(*clean_cols), "least": F.least(*clean_cols)}
-        return df.withColumn(self._output_col, func[self._operation])
 
 
 class SqlFunction(Transformer):
