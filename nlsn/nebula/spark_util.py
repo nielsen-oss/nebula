@@ -2,19 +2,14 @@
 
 import operator as py_operator
 import sys
-import narwhals as nw
 import warnings
-from collections import Counter
 from io import StringIO
 from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 
+import narwhals as nw
 import pyspark.sql
 import pyspark.sql.functions as F
-from pyspark.sql import Window
 from pyspark.sql.types import (
-    DataType,
-    DoubleType,
-    FloatType,
     StructField,
     StructType,
     _parse_datatype_string,
@@ -30,7 +25,6 @@ from nlsn.nebula.logger import logger
 
 __all__ = [
     "ALLOWED_SPARK_HASH",
-    "assert_col_type",
     "cache_if_needed",
     "cast_to_schema",
     "compare_dfs",
@@ -41,18 +35,12 @@ __all__ = [
     "get_default_spark_partitions",
     "get_schema_as_str",
     "get_spark_condition",
-    "get_spark_full_conf",
     "get_spark_session",
-    "get_registered_tables",
     "hash_dataframe",
     "is_broadcast",
     "is_valid_number",
     "null_cond_to_false",
     "split_df_bool_condition",
-    "string_schema_to_datatype",
-    "table_is_registered",
-    "take_min_max_over_window",
-    "to_pandas_to_spark",
 ]
 
 ALLOWED_SPARK_HASH = {"md5", "crc32", "sha1", "sha2", "xxhash64"}
@@ -99,22 +87,6 @@ def _string_schema_to_datatype(li: List[Iterable[str]]) -> List[StructField]:
         li_join.append(" ".join(el))
     s = ", ".join(li_join)
     return list(_parse_datatype_string(s))
-
-
-def assert_col_type(
-    df: "pyspark.sql.DataFrame", col_name: str, col_type: Union[str, Iterable[str]]
-):
-    """Assert that a spark column is of the expected type."""
-    dtype: str = get_column_data_type_name(df, col_name)
-    if isinstance(col_type, str):
-        set_col_type = {col_type}
-    else:
-        set_col_type = set(col_type)
-
-    if dtype not in set_col_type:
-        valid_types = " | ".join([f'"{i}"' for i in sorted(set_col_type)])
-        msg = f'Input column must be "{valid_types}" type. Found "{dtype}"'
-        raise TypeError(msg)
 
 
 def cast_to_schema(
@@ -511,17 +483,6 @@ def get_default_spark_partitions(df: "pyspark.sql.DataFrame") -> int:
     return int(partitions)
 
 
-def get_spark_full_conf(df: "pyspark.sql.DataFrame") -> List[Tuple[str, str]]:
-    """Get the full spark configuration as list(tuple((str, str))."""
-    ss = get_spark_session(df)
-    return ss.sparkContext.getConf().getAll()
-
-
-def get_registered_tables(spark: "pyspark.sql.SparkSession") -> List[str]:
-    """Get the registered spark tables."""
-    return [i.name for i in spark.catalog.listTables()]
-
-
 def get_schema_as_str(
     df: "pyspark.sql.DataFrame", full_type_name: bool
 ) -> List[Tuple[str, str]]:
@@ -914,149 +875,6 @@ def split_df_bool_condition(
     return ret_1, ret_2
 
 
-def string_schema_to_datatype(li: List[Iterable[str]]) -> List[StructField]:
-    """Convert a string diamond notation schema into a spark schema.
-
-    Given a list of columns / types like:
-    [
-        ['col_1', 'map<string, double>'],
-        ['col_2', 'string']
-    ]
-
-    return a spark schema like:
-    [
-        StructField(col_1, MapType(StringType, DoubleType, true), true),
-        StructField(col_2, StringType, true)
-    ]
-    """
-    li_join = []
-    el: str
-
-    for el in li:
-        li_join.append(" ".join(el))
-
-    s: str = ", ".join(li_join)
-
-    return list(_parse_datatype_string(s))
-
-
-def table_is_registered(t: str, spark: "pyspark.sql.SparkSession") -> bool:
-    """Check whether a table is registered as a Spark temporary view.
-
-    Args:
-        t (str): Table name.
-        spark (SparkSession): The current spark session.
-
-    Returns (bool):
-        If the table is already registered in spark
-    """
-    tables = get_registered_tables(spark)
-    return t in tables
-
-
-def take_min_max_over_window(
-    df: "pyspark.sql.DataFrame",
-    windowing_columns: Union[str, List[str]],
-    column: str,
-    operator: str,
-    perform: str,
-) -> "pyspark.sql.DataFrame":
-    """Window over windowing_cols and keep rows where column col_op is min/max.
-
-    All the NaN / null-values in 'col_op' are discarded.
-
-    E.g.
-    First column = 'windowing_cols'
-    Second column = 'col_op'
-    [
-        # a
-        ["a", 0.0],  # keep for min
-        ["a", 0.0],  # keep for min
-        ["a", 1.0],  # never keep
-        ["a", 1.0],  # never keep
-        ["a", 2.0],  # keep for max
-        # b
-        ["b", 10.0],  # keep for min / max
-        ["b", 10.0],  # keep for min / max
-        ["b", 10.0],  # keep for min / max
-        # c
-        ["c", 11.0],  # keep for min / max
-        # d
-        ["d", 12.0],  # keep for min / max
-        ["d", None],  # never keep
-        # e
-        ["e", 12.0],  # keep for min / max
-        ["e", _nan],  # never keep
-        # f
-        ["f", None],  # never keep
-        # g
-        ["g", _nan],  # never keep
-        # h
-        ["h", 5.0],
-        ["h", None],  # never keep
-        ["h", _nan],  # never keep
-        # None
-        [None, 3.0],  # keep for min / max
-        [None, _nan],  # never keep
-    ]
-
-    Args:
-        df (pyspark.sql.dataframe):
-            Input dataframe.
-        windowing_columns (str | list(str)):
-            Column(s) used to define the window partitions.
-        column (str):
-            Specifies the operation to perform, either "min" or "max".
-        operator (str):
-            "min" or "max".
-        perform (str):
-            Specifies the action to take, either "filter" or "replace".
-            - "filter": Retains only the rows where the values are the
-                computed min/max, discarding all NaN/null values in the
-                input column.
-            - "replace": Replaces all values that are not the computed
-                min/max with the min/max value, replacing all NaN/null
-                values in the input column. If a window contains only
-                    None / NaN, the outcome for such a window will be None.
-
-    Returns: (pyspark.sql.dataframe)
-        Spark DataFrame with only the rows where the min/max condition is met.
-    """
-    assert_allowed(operator, {"min", "max"}, "operator")
-    assert_allowed(perform, {"filter", "replace"}, "perform")
-
-    fun = getattr(F, operator)
-    w = Window.partitionBy(windowing_columns)
-
-    col_op_type: DataType = df.select(column).schema[0].dataType
-    nan_types = [FloatType(), DoubleType()]
-    is_real_number = col_op_type in nan_types
-
-    if is_real_number:
-        c_op = F.when(F.isnan(column), F.lit(None)).otherwise(F.col(column))
-    else:
-        c_op = F.col(column)
-
-    df = df.withColumn("_no_nan_", c_op).withColumn("_op_", fun(c_op).over(w))
-    if perform == "replace":
-        df = df.withColumn(column, F.col("_op_"))
-    else:
-        df = df.filter(F.col("_no_nan_") == F.col("_op_"))
-    return df.drop("_op_", "_no_nan_")
-
-
-def to_pandas_to_spark(df):
-    """Convert a pyspark dataframe to Pandas and revert to Spark."""
-    cols = df.columns
-    if len(cols) != len(set(cols)):
-        more = sorted([k for k, v in Counter(cols).items() if v > 1])
-        msg = f"Duplicated columns, cannot execute the dataframe conversion: {more}"
-        raise AssertionError(msg)
-    spark_session = df.sql_ctx.sparkSession
-    schema = df.schema
-    return spark_session.createDataFrame(df.toPandas(), schema=schema)
-
-
 def nw_to_spark(df) -> tuple[bool, "pyspark.sql.DataFrame"]:
     if isinstance(df, (nw.DataFrame, nw.LazyFrame)):
         return True, df.to_native()
@@ -1068,7 +886,6 @@ def cache_if_needed(df, do_cache: bool):
     if not do_cache:
         return df
     if not isinstance(df, _psql.DataFrame):
-
         return df
     if df.is_cached:
         logger.info("DataFrame was already cached, no need to persist.")

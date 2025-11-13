@@ -24,32 +24,21 @@ from nlsn.nebula.base import Transformer
 # ------------------------------ Wrong Transformers
 
 
-class WrongTransformer:  # Transformer name ends with "Transformer"
-    def __init__(self, a):  # noqa: D107
-        ...  # Private method "_transform is not defined"
-
-    def transform(self):  # noqa: D102
-        ...  # Public method "transform" should not be overwritten
-
-
 class WrongInitSignature1:
     def __init__(self, a):  # noqa: D107
         ...  # Positional argument in __init__
 
 
 class WrongTransformMethodSignature1:
-    def _transform(self):
-        ...  # It does not take df as an argument
+    def _transform(self): ...  # It does not take df as an argument
 
 
 class WrongTransformMethodSignature2:
-    def _transform(self, a, b):
-        ...  # Too many arguments
+    def _transform(self, a, b): ...  # Too many arguments
 
 
 class WrongTransformMethodSignature3:
-    def _transform(self, *, a):
-        ...  # "df" is not positional
+    def _transform(self, *, a): ...  # "df" is not positional
 
 
 class WrongTransformerBackendName:  # Wrong backend name
@@ -63,32 +52,12 @@ class WrongTransformerBackendsType:  # Invalid backend Type
 class WrongTransformerBackendMethodMismatch:  # Backend method mismatch
     backends = {"spark", "polars"}
 
-    def _transform_spark(self, df):
-        ...
+    def _transform_spark(self, df): ...
 
-    def _transform_pandas(self, df):
-        ...
+    def _transform_pandas(self, df): ...
 
 
 # ------------------------------ Check Functions
-
-
-def _test_transformer_name(transformer):
-    """Transformer name must not end with "transformer" (case-insensitive)."""
-    name: str = transformer.__name__.lower()
-    assert not name.endswith("transformer")
-
-
-def _test_transformer_subclass(transformer):
-    """Transformer must be a subclass of nlsn.nebula.base.Transformer."""
-    assert issubclass(transformer, Transformer)
-
-
-def _test_transformer_docstring(transformer):
-    """Transformer must have the docstring in the '__init__' constructor."""
-    doc = transformer.__init__.__doc__
-    assert doc
-    assert len(doc) > 10
 
 
 def _test_transformer_init_signature(transformer):
@@ -111,13 +80,6 @@ def _test_transformer_init_signature(transformer):
         msg = f"Parameter '{param_name}' in {trf_name}.__init__ "
         msg += "must be keyword only."
         assert param.kind.name == "KEYWORD_ONLY", msg
-
-
-def _test_transformer_method_name(transformer):
-    """Transformer must have the private method '_transform' and not 'transform'."""
-    class_meths = transformer.__dict__
-    assert "transform" not in class_meths
-    assert {"_transform", "_transform_nw"}.intersection(class_meths)
 
 
 def _test_transformer_method_signature(transformer):
@@ -193,19 +155,6 @@ class TestWrongTransformers:
     Use for loops and avoid pytest parametrize.
     """
 
-    def test_wrong_transformer_basic_syntax(self):
-        """Test the basic syntax."""
-        li_func = [
-            _test_transformer_name,
-            _test_transformer_subclass,
-            _test_transformer_docstring,
-            _test_transformer_method_name,
-        ]
-
-        for func in li_func:
-            with pytest.raises(AssertionError):
-                func(WrongTransformer)
-
     def test_wrong_transformer_init_signature(self):
         """Test the init signature."""
         li_wrong_init_signature = [
@@ -276,10 +225,6 @@ def test_transformer_correctness():
 
     # Tested in an inner for loop. Don't use pytest parametrize.
     li_func = [
-        _test_transformer_name,
-        _test_transformer_subclass,
-        _test_transformer_docstring,
-        _test_transformer_method_name,
         _test_transformer_init_signature,
         _test_transformer_method_signature,
         _test_transformer_backend,

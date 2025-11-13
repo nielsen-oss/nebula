@@ -1,15 +1,12 @@
 """Unit-tests for 'spark_util' module."""
 
-import math
 import operator as py_operator
-from collections import defaultdict
 from datetime import datetime, timedelta
 from typing import List, Tuple
 
 import pandas as pd
 import pytest
 from chispa.dataframe_comparer import assert_df_equality
-from pyspark.sql import Window
 from pyspark.sql import functions as F
 from pyspark.sql.types import (
     ArrayType,
@@ -25,35 +22,14 @@ from pyspark.sql.types import (
     TimestampType,
 )
 
-from nlsn.nebula.helpers import assert_pandas_df_equal
 from nlsn.nebula.spark_util import *
 from nlsn.nebula.spark_util import (
     ALLOWED_SPARK_NULL_OPERATORS,
     ALLOWED_STANDARD_OPERATORS,
     _string_schema_to_datatype,
-    assert_col_type,
 )
 
 _nan = float("nan")
-
-
-def test_assert_col_type(spark):
-    """Test the 'assert_col_type' function."""
-    fmt = "yyyy-MM-dd HH:mm:ss"
-    data = [["2021-01-15 17:23:11"], ["2021-01-15 17:23:11"]]
-
-    df = spark.createDataFrame(data, schema="time_str: string").withColumn(
-        "time_dt", F.to_timestamp("time_str", format=fmt)
-    )
-
-    assert_col_type(df, "time_str", ["string", "boolean"])
-    assert_col_type(df, "time_dt", "timestamp")
-
-    with pytest.raises(TypeError):
-        assert_col_type(df, "time_str", "timestamp")
-
-    with pytest.raises(TypeError):
-        assert_col_type(df, "time_dt", {"string", "float"})
 
 
 def test_get_column_data_type_name(spark):
@@ -154,20 +130,6 @@ class TestSplitDfBoolCondition:
         cond_num = F.col("c2") == 2.0
         df1_num, df2_num = split_df_bool_condition(df_input, cond_num)
         self._check_split_df_bool_condition(df1_num, 1, df2_num, 3, row_count)
-
-
-def test_get_spark_full_conf(spark):
-    """Test the 'get_spark_full_conf' function."""
-    fields = [
-        StructField("c1", StringType(), True),
-    ]
-    schema = StructType(fields)
-    data = [["a"], ["b"]]
-    df = spark.createDataFrame(data, schema=schema)
-    chk = get_spark_full_conf(df)
-    assert isinstance(chk, list)
-    assert len(chk) > 5
-    assert all(isinstance(i, tuple) for i in chk)
 
 
 def test_string_schema_to_datatype():
@@ -749,10 +711,10 @@ class TestFunctionHashDataFrame:
         ]
 
         data = [
-                   ["a", 0.0, [1, 2]],
-                   ["  ", float("nan"), [None, 12]],
-                   [None, None, None],
-               ] * 100
+            ["a", 0.0, [1, 2]],
+            ["  ", float("nan"), [None, 12]],
+            [None, None, None],
+        ] * 100
 
         return spark.createDataFrame(data, schema=StructType(fields)).persist()
 
@@ -840,185 +802,3 @@ class TestSparkSchemaUtilities:
 
             type_name_exp: str = getattr(datatype, meth)()
             assert type_name_exp == datatype_str
-
-    def test_string_schema_to_datatype(self, df_input):
-        """Test string_schema_to_datatype."""
-        fields = df_input.schema.fields
-        li_fields_str: List[str] = [i.simpleString().split(":") for i in fields]
-
-        fields_chk = string_schema_to_datatype(li_fields_str)
-        assert fields_chk == fields
-
-
-class TestTakeMinMaxOverWindowFunction:
-    """Unit-Test for 'take_min_max_over_window' function."""
-
-    # comments are for perform="filter"
-    _input_data = [
-        # a
-        ["a", 0.0],  # keep for min
-        ["a", 0.0],  # keep for min
-        ["a", 1.0],  # never keep
-        ["a", 1.0],  # never keep
-        ["a", 2.0],  # keep for max
-        # b
-        ["b", 10.0],  # keep for min / max
-        ["b", 10.0],  # keep for min / max
-        ["b", 10.0],  # keep for min / max
-        # c
-        ["c", 11.0],  # keep for min / max
-        # d
-        ["d", 12.0],  # keep for min / max
-        ["d", None],  # never keep
-        # e
-        ["e", 12.0],  # keep for min / max
-        ["e", _nan],  # never keep
-        # f
-        ["f", None],  # never keep
-        # g
-        ["g", _nan],  # never keep
-        # h
-        ["h", 5.0],
-        ["h", None],  # never keep
-        ["h", _nan],  # never keep
-        # None
-        [None, 3.0],  # keep for min / max
-        [None, _nan],  # never keep
-    ]
-
-    @staticmethod
-    def _is_nan(x):
-        try:
-            if math.isnan(x):
-                return True
-        except TypeError:
-            pass
-        return False
-
-    def _get_clean_input_data(self, _data):
-        d_group = defaultdict(list)
-
-        for k, v in _data:
-            if v is None:
-                continue
-            if self._is_nan(v):
-                continue
-            d_group[k].append(v)
-        return dict(d_group)
-
-    @staticmethod
-    def _get_expected(d_group, op):
-        func = min if op == "min" else max
-
-        items = list(d_group.items())
-
-        dict_min_max = {k: func(v) for k, v in items}
-
-        ret = []
-        for k, li_values in items:
-            min_max = dict_min_max[k]
-            for v in li_values:
-                if v == min_max:
-                    ret.append((k, v))
-        return ret
-
-    @pytest.fixture(scope="class", name="df_input")
-    def _get_df_input(self, spark):
-        fields = [
-            StructField("windowing_col", StringType(), True),
-            StructField("cx", FloatType(), True),
-        ]
-        schema = StructType(fields)
-        return spark.createDataFrame(self._input_data, schema=schema).persist()
-
-    @pytest.mark.parametrize("op", ["min", "max"])
-    def test_take_min_max_over_window_function_filter(self, df_input, op):
-        """Test the 'take_min_max_over_window' function using perform="filter"."""
-        d_group = self._get_clean_input_data(self._input_data)
-
-        exp = self._get_expected(d_group, op)
-
-        df_chk = take_min_max_over_window(
-            df_input, ["windowing_col"], "cx", op, "filter"
-        )
-        chk = df_chk.rdd.map(tuple).collect()
-
-        # Convert to string to handle None and nan and sort
-        exp_str = sorted([f"{i}" for i in exp])
-        chk_str = sorted([f"{i}" for i in chk])
-
-        assert exp_str == chk_str, f'op = "{op}"'
-
-    @pytest.mark.parametrize("op", ["min", "max"])
-    def test_take_min_max_over_window_function_replace(self, df_input, op):
-        """Test the 'take_min_max_over_window' function using perform="replace"."""
-        nan_to_none = F.when(F.isnan("cx"), F.lit(None)).otherwise(F.col("cx"))
-        w = Window.partitionBy("windowing_col")
-        df_exp = df_input.withColumn("cx", nan_to_none).withColumn(
-            "cx", getattr(F, op)("cx").over(w)
-        )
-        df_chk = take_min_max_over_window(
-            df_input, ["windowing_col"], "cx", op, "replace"
-        )
-        assert_df_equality(df_chk, df_exp, ignore_row_order=True)
-
-
-class TestToPandasToSpark:
-    """Unit-Test for 'to_pandas_to_spark' function."""
-
-    @staticmethod
-    @pytest.fixture(scope="class", name="df_input")
-    def _get_input_df(spark):
-        # value | column name | datatype
-        input_data = [
-            (3, "col_3", IntegerType()),
-            ("string A", "col_1", StringType()),
-            (1.5, "col_2", FloatType()),
-            ([1, 2, 3], "col_4", ArrayType(IntegerType())),
-            ({"a": 1}, "col_5", MapType(StringType(), IntegerType())),
-            ([[1, 2], [2, 3]], "col_6", ArrayType(ArrayType(IntegerType()))),
-            (
-                {"a": {"b": 2}},
-                "col_7",
-                MapType(StringType(), MapType(StringType(), IntegerType())),
-            ),
-        ]
-
-        data = [[i[0] for i in input_data]]
-        # Add a row with null values to see if it is able to handle it.
-        # The first column is an integer and cannot accept None in pandas,
-        # just put a real integer
-        null_row = [1]
-        null_row += [None for _ in input_data][:-1]
-        data += [null_row]
-        fields = [StructField(*i[1:]) for i in input_data]
-        schema = StructType(fields)
-        return spark.createDataFrame(data, schema=schema)
-
-    def test_to_pandas_to_spark(self, df_input):
-        """Test to_pandas_to_spark function."""
-        df_chk = to_pandas_to_spark(df_input)
-
-        # Chispa cannot be used in this case because the DataFrames contain arrays
-        # and maps, which are not sortable or hashable.
-        # To address this, convert the DataFrames to Pandas and use
-        # 'assert_pandas_df_equal,' which is capable of handling complex data types.
-        df_chk_pd = df_chk.toPandas()
-        df_exp_pd = df_input.toPandas()
-
-        assert_pandas_df_equal(df_chk_pd, df_exp_pd, assert_not_deep=False)
-
-    def test_to_pandas_to_spark_duplicated_columns(self, spark):
-        """Test to_pandas_to_spark function with duplicated columns."""
-        fields = [
-            StructField("c1", StringType(), True),
-            StructField("c1", StringType(), True),
-        ]
-
-        data = [
-            ("a", "c"),
-            ("a", "d"),
-        ]
-        df = spark.createDataFrame(data, StructType(fields))
-        with pytest.raises(AssertionError):
-            to_pandas_to_spark(df)
