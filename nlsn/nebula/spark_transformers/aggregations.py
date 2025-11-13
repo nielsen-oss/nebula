@@ -17,21 +17,12 @@ from nlsn.nebula.spark_transformers._constants import (
     ALLOWED_GROUPBY_AGG,
     ALLOWED_WINDOW_AGG,
 )
-from nlsn.nebula.spark_util import (
-    assert_col_type,
-    null_cond_to_false,
-    take_min_max_over_window,
-)
 
 __all__ = [
-    "Aggregate",
-    "AggregateAndAddAsLiteral",
     "AggregateOverWindow",
     "GroupBy",
     "LagOverWindow",
-    "LogicalOperatorOverWindow",
     "Pivot",
-    "TakeMinMaxOverWindow",
 ]
 
 
@@ -102,12 +93,12 @@ _DOCSTRING_ARGS_WINDOW = """
 
 
 def validate_aggregations(
-    o: List[Dict[str, str]],
-    allowed_agg: Set[str],
-    *,
-    exact_keys: Optional[Set[str]] = None,
-    required_keys: Optional[Set[str]] = None,
-    allowed_keys: Optional[Set[str]] = None,
+        o: List[Dict[str, str]],
+        allowed_agg: Set[str],
+        *,
+        exact_keys: Optional[Set[str]] = None,
+        required_keys: Optional[Set[str]] = None,
+        allowed_keys: Optional[Set[str]] = None,
 ) -> None:
     """Validate the list of aggregations for groupBy and window functions."""
     for d in o:
@@ -168,7 +159,7 @@ def _make_aggregations(aggregations: List[Dict[str, str]]) -> List[F.col]:
 
 
 def _get_sanitized_aggregations(
-    aggregations: Union[Dict[str, str], List[Dict[str, str]]]
+        aggregations: Union[Dict[str, str], List[Dict[str, str]]]
 ) -> List[Dict[str, str]]:
     if isinstance(aggregations, dict):
         aggregations = [aggregations]
@@ -184,13 +175,13 @@ def _get_sanitized_aggregations(
 
 class _Window(Transformer):
     def __init__(
-        self,
-        *,
-        partition_cols: Union[str, List[str], None],
-        order_cols: Union[str, List[str], None],
-        ascending: Union[bool, List[bool]],
-        rows_between: Optional[Tuple[Union[str, int], Union[str, int]]],
-        range_between: Optional[Tuple[Union[str, int], Union[str, int]]],
+            self,
+            *,
+            partition_cols: Union[str, List[str], None],
+            order_cols: Union[str, List[str], None],
+            ascending: Union[bool, List[bool]],
+            rows_between: Optional[Tuple[Union[str, int], Union[str, int]]],
+            range_between: Optional[Tuple[Union[str, int], Union[str, int]]],
     ):
         if range_between and not order_cols:
             msg = "If 'range_between' is provided 'order_cols' must be set as well."
@@ -236,126 +227,16 @@ class _Window(Transformer):
         return window
 
 
-class Aggregate(Transformer):
-    def __init__(
-        self,
-        *,
-        aggregations: Union[Dict[str, str], List[Dict[str, str]]],
-    ):
-        """Aggregate a dataframe.
-
-        Args:
-            aggregations (dict(str, str) | list(dict(str, str))):
-                A list of aggregation dictionaries to be applied.
-                Each aggregation is defined with the following fields:
-                'col' (the column to aggregate)
-                'agg' (the aggregation operation)
-                'alias' (the alias for the aggregated column)
-                Eg:
-                [
-                    {"agg": "collect_list", "col": "time_bin"},
-                    {"agg": "sum", "col": "dollars", "alias": "tot_dollars"},
-                ]
-                The keys "agg" and "col" are mandatory, whereas the key
-                "alias" is optional.
-
-        Raises:
-            ValueError: if any aggregation is invalid.
-            TypeError: if any column or alias in the aggregation is not a string type.
-            ValueError: if no groupby selection is provided.
-        """
-        if isinstance(aggregations, dict):
-            aggregations = [aggregations]
-
-        validate_aggregations(
-            aggregations,
-            ALLOWED_GROUPBY_AGG,
-            required_keys={"agg", "col"},
-            allowed_keys={"agg", "col", "alias"},
-        )
-
-        super().__init__()
-        self._aggregations: List[Dict[str, str]]
-        self._aggregations = _get_sanitized_aggregations(aggregations)
-
-    def _transform(self, df):
-        list_agg: List[F.col] = _make_aggregations(self._aggregations)
-        return df.agg(*list_agg)
-
-
-class AggregateAndAddAsLiteral(Transformer):
-    def __init__(
-        self,
-        *,
-        input_col: str,
-        aggregation: str,
-        output_col: Optional[str] = None,
-        cast: Optional[str] = None,
-    ):
-        """Aggregate a column and add the result as a literal value.
-
-        Args:
-            input_col (str):
-                Name of the input column.
-            aggregation (str):
-                Aggregation function. Allowed values:
-                - 'approx_count_distinct'
-                - 'avg'
-                - 'collect_list'
-                - 'collect_set'
-                - 'countDistinct'
-                - 'count'
-                - 'grouping'
-                - 'first'
-                - 'last'
-                - 'kurtosis'
-                - 'max'
-                - 'min'
-                - 'mean'
-                - 'skewness'
-                - 'stddev'
-                - 'stddev_samp'
-                - 'stddev_pop'
-                - 'sum'
-                - 'sum_distinct'
-                - 'variance'
-                - 'var_samp'
-                - 'var_pop'
-            output_col (str | None):
-                Name of the output column. If not provided, the input column
-                will be replaced with the output value. Defaults to None.
-            cast (str | None):
-                Data type to cast the literal value (e.g., 'double', 'long').
-        """
-        allowed = ALLOWED_GROUPBY_AGG.copy()
-        allowed -= {"collect_list", "collect_set", "grouping"}
-        assert_allowed(aggregation, allowed, "aggregation")
-
-        super().__init__()
-        self._input_col: str = input_col
-        self._aggregation: str = aggregation
-        self._output_col: str = input_col if output_col is None else output_col
-        self._cast: Optional[str] = cast
-
-    def _transform(self, df):
-        func = getattr(F, self._aggregation)(self._input_col)
-        value = df.select(self._input_col).agg(func).collect()[0][0]
-
-        literal = F.lit(value) if self._cast is None else F.lit(value).cast(self._cast)
-
-        return df.withColumn(self._output_col, literal)
-
-
 class AggregateOverWindow(_Window):
     def __init__(
-        self,
-        *,
-        partition_cols: Union[str, List[str], None] = None,
-        aggregations: Union[List[Dict[str, str]], Dict[str, str]],
-        order_cols: Union[str, List[str], None] = None,
-        ascending: Union[bool, List[bool]] = True,
-        rows_between: Optional[Tuple[Union[str, int], Union[str, int]]] = None,
-        range_between: Optional[Tuple[Union[str, int], Union[str, int]]] = None,
+            self,
+            *,
+            partition_cols: Union[str, List[str], None] = None,
+            aggregations: Union[List[Dict[str, str]], Dict[str, str]],
+            order_cols: Union[str, List[str], None] = None,
+            ascending: Union[bool, List[bool]] = True,
+            rows_between: Optional[Tuple[Union[str, int], Union[str, int]]] = None,
+            range_between: Optional[Tuple[Union[str, int], Union[str, int]]] = None,
     ):  # noqa: D208, D209
         """Aggregate over a window.
 
@@ -442,16 +323,16 @@ class GroupBy(Transformer):
     )
 
     def __init__(
-        self,
-        *,
-        aggregations: Union[Dict[str, List[str]], Dict[str, str], List[Dict[str, str]]],
-        groupby_columns: Union[str, List[str], None] = None,
-        groupby_regex: Optional[str] = None,
-        groupby_glob: Optional[str] = None,
-        groupby_startswith: [Union[str, Iterable[str]], None] = None,
-        groupby_endswith: [Union[str, Iterable[str]], None] = None,
-        prefix: str = "",
-        suffix: str = "",
+            self,
+            *,
+            aggregations: Union[Dict[str, List[str]], Dict[str, str], List[Dict[str, str]]],
+            groupby_columns: Union[str, List[str], None] = None,
+            groupby_regex: Optional[str] = None,
+            groupby_glob: Optional[str] = None,
+            groupby_startswith: [Union[str, Iterable[str]], None] = None,
+            groupby_endswith: [Union[str, Iterable[str]], None] = None,
+            prefix: str = "",
+            suffix: str = "",
     ):
         """Performs a GroupBy operation.
 
@@ -529,7 +410,7 @@ class GroupBy(Transformer):
         )
 
     def _check_single_op(
-        self, o: dict, prefix: str, suffix: str
+            self, o: dict, prefix: str, suffix: str
     ) -> Union[Dict[str, str], List[Dict[str, str]]]:
         self._single_op = False
         values = list(o.values())
@@ -560,16 +441,16 @@ class GroupBy(Transformer):
 
 class LagOverWindow(_Window):
     def __init__(
-        self,
-        *,
-        partition_cols: Union[str, List[str], None] = None,
-        order_cols: Union[str, List[str], None] = None,
-        lag_col: str,
-        lag: int,
-        output_col: str,
-        ascending: Union[bool, List[bool]] = True,
-        rows_between: Optional[Tuple[Union[str, int], Union[str, int]]] = None,
-        range_between: Optional[Tuple[Union[str, int], Union[str, int]]] = None,
+            self,
+            *,
+            partition_cols: Union[str, List[str], None] = None,
+            order_cols: Union[str, List[str], None] = None,
+            lag_col: str,
+            lag: int,
+            output_col: str,
+            ascending: Union[bool, List[bool]] = True,
+            rows_between: Optional[Tuple[Union[str, int], Union[str, int]]] = None,
+            range_between: Optional[Tuple[Union[str, int], Union[str, int]]] = None,
     ):  # noqa: D208, D209
         """Aggregate over a window.
 
@@ -609,68 +490,18 @@ class LagOverWindow(_Window):
         )
 
 
-class LogicalOperatorOverWindow(Transformer):
-    def __init__(
-        self,
-        *,
-        partition_cols: Union[str, List[str]],
-        input_col: str,
-        operator: str,
-        output_col: Optional[str] = None,
-    ):
-        """Perform a logical operation AND or OR over a boolean column using a window.
-
-        !!!
-        Note that all None are replaced with False before applying the
-        logical operator to avoid ambiguity.
-        !!!
-
-        Args:
-            partition_cols (str | list(str)):
-                Column(s) used for partitioning the window.
-            input_col (str):
-                Input column for the logical operation.
-            operator (str):
-                Logical operator, "AND" or "OR".
-                Case-insensitive.
-            output_col (str):
-                Output column for the logical operation.
-                If not provided, the input column will be used to store
-                the output. Defaults to None.
-
-        Raises:
-            AssertionError: If `operator` is not "AND" or "OR".
-        """
-        op = operator.strip().lower()
-        assert_allowed(op, {"or", "and"}, "operator (case insensitive)")
-
-        super().__init__()
-        self._groupby: List[str] = ensure_flat_list(partition_cols)
-        self._input_col: str = input_col
-        self._agg = F.min if op == "and" else F.max
-        self._output_col: str = output_col if output_col else input_col
-
-    def _transform(self, df):
-        assert_col_type(df, self._input_col, "boolean")
-
-        col_bool: F.col = null_cond_to_false(F.col(self._input_col))
-        win = Window.partitionBy(*self._groupby)
-        output: F.col = self._agg(col_bool).over(win)
-        return df.withColumn(self._output_col, output)
-
-
 class Pivot(Transformer):
     def __init__(
-        self,
-        *,
-        pivot_col: str,
-        aggregations: Union[Dict[str, str], List[Dict[str, str]]],
-        groupby_columns: Union[str, List[str], None] = None,
-        distinct_values: Union[str, List[str], None] = None,
-        groupby_regex: Optional[str] = None,
-        groupby_glob: Optional[str] = None,
-        groupby_startswith: Union[str, Iterable[str], None] = None,
-        groupby_endswith: Union[str, Iterable[str], None] = None,
+            self,
+            *,
+            pivot_col: str,
+            aggregations: Union[Dict[str, str], List[Dict[str, str]]],
+            groupby_columns: Union[str, List[str], None] = None,
+            distinct_values: Union[str, List[str], None] = None,
+            groupby_regex: Optional[str] = None,
+            groupby_glob: Optional[str] = None,
+            groupby_startswith: Union[str, Iterable[str], None] = None,
+            groupby_endswith: Union[str, Iterable[str], None] = None,
     ):
         """Pivots a column of the current DataFrame and perform the specified aggregation.
 
@@ -747,49 +578,7 @@ class Pivot(Transformer):
         return df_pivoted.agg(*list_agg)
 
 
-class TakeMinMaxOverWindow(Transformer):
-    def __init__(
-        self,
-        *,
-        partition_cols: Union[str, List[str]],
-        column: str,
-        operator: str,
-        perform: str,
-    ):
-        """Find the min/max in a window and either retain only those or replace all the others with them.
-
-        Args:
-            partition_cols (str | list(str)):
-                Column(s) used to define the window partitions.
-            column (str):
-                Specifies the operation to perform, either "min" or "max".
-            operator (str):
-                "min" or "max".
-            perform (str):
-                Specifies the action to take, either "filter" or "replace".
-                - "filter": Retains only the rows where the values are the
-                    computed min/max, discarding all NaN/null values in the
-                    input column.
-                - "replace": Replaces all values that are not the computed
-                    min/max with the min/max value, replacing all NaN/null
-                    values in the input column. If a window contains only
-                    None / NaN, the outcome for that window will be None.
-        """
-        assert_allowed(perform, {"filter", "replace"}, "perform")
-
-        super().__init__()
-        self._win_cols: List[str] = ensure_flat_list(partition_cols)
-        self._input_col: str = column
-        self._op: str = operator
-        self._perform: str = perform
-
-    def _transform(self, df):
-        return take_min_max_over_window(
-            df, self._win_cols, self._input_col, self._op, self._perform
-        )
-
-
 AggregateOverWindow.__init__.__doc__ = (
-    AggregateOverWindow.__init__.__doc__ + _DOCSTRING_ARGS_WINDOW
+        AggregateOverWindow.__init__.__doc__ + _DOCSTRING_ARGS_WINDOW
 )
 LagOverWindow.__init__.__doc__ = LagOverWindow.__init__.__doc__ + _DOCSTRING_ARGS_WINDOW
