@@ -1,9 +1,8 @@
 """General Purposes Transformers."""
 
-import operator as py_operator
 from functools import reduce
 from itertools import chain
-from typing import Any, Dict, Iterable, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 from pyspark.sql import Window
 from pyspark.sql import functions as F
@@ -17,27 +16,19 @@ from nlsn.nebula.auxiliaries import (
 )
 from nlsn.nebula.base import Transformer
 from nlsn.nebula.spark_util import (
-    ALLOWED_SPARK_HASH,
-    assert_col_type,
     ensure_spark_condition,
     get_column_data_type_name,
     get_spark_condition,
     get_spark_session,
-    hash_dataframe,
-    null_cond_to_false,
 )
 from nlsn.nebula.storage import nebula_storage as ns
 
 __all__ = [
-    "BooleanMarker",
     "Coalesce",
     "ColumnMethod",
-    "ConcatColumns",
     "Explode",
     "FillNa",
-    "HashDataFrame",
     "Join",
-    "LogicalOperator",
     "MapWithFallback",
     "Melt",
     "MonotonicallyIncreasingIndexColumn",
@@ -74,75 +65,6 @@ def validate_args_kwargs(
             raise TypeError("'kwargs' must be a <dict>")
         if not all(isinstance(k, str) for k in kwargs):
             raise TypeError("All keys in 'kwargs' must be <str>")
-
-
-class BooleanMarker(Transformer):
-    def __init__(
-            self,
-            *,
-            input_col: str,
-            operator: str,
-            value: Optional[Any] = None,
-            comparison_column: Optional[str] = None,
-            output_col: Optional[str] = None,
-    ):
-        """Mark True rows according to the given condition.
-
-        Args:
-            input_col (str):
-                Input column.
-            operator (str):
-                Valid operators:
-                - "eq":             equal
-                - "ne":             not equal
-                - "le":             less equal
-                - "lt":             less than
-                - "ge":             greater equal
-                - "gt":             greater than
-                - "isin":           iterable of valid values
-                - "isnotin":           iterable of valid values
-                - "array_contains": has at least one instance of <value> in a <ArrayType> column
-                - "contains":       has at least one instance of <value> in a <StringType> column
-                - "startswith":     The row value starts with <value> in a <StringType> column
-                - "endswith":       The row value ends with <value> in a <StringType> column
-                - "between":        is between 2 values, inclusive
-                - "like":           matches a pattern with <_> or <%>
-                - "rlike":          matches a regex pattern
-                - "isNull"          *
-                - "isNotNull"       *
-                - "isNaN"           *
-                - "isNotNaN"        *
-
-                * Does not require the optional "value" argument
-
-            output_col (str):
-                If not provided, the replacement takes place in the input_col.
-            value (any | None):
-                Value used for the comparison.
-            comparison_column (str | None):
-                Name of column to be compared with `input_col`.
-
-            Either `value` or `comparison_column` (not both) must be provided
-            for python operators that require a comparison value.
-        """
-        ensure_spark_condition(operator, value=value, compare_col=comparison_column)
-        super().__init__()
-        self._input_col: str = input_col
-        self._op: str = operator
-        self._value: Optional[Any] = value
-        self._compare_col: Optional[Any] = comparison_column
-        self._output_col: str = input_col if output_col is None else output_col
-
-    def _transform(self, df):
-        cond: F.col = get_spark_condition(
-            df,
-            self._input_col,
-            self._op,
-            value=self._value,
-            compare_col=self._compare_col,
-        )
-        when_clause = F.when(cond, F.lit(True)).otherwise(F.lit(False))
-        return df.withColumn(self._output_col, when_clause)
 
 
 class Coalesce(Transformer):
@@ -264,166 +186,6 @@ class ColumnMethod(Transformer):
         self._assert_col_meth(True)
         func = getattr(F.col(self._input_col), self._meth)(*self._args, **self._kwargs)
         return df.withColumn(self._output_col, func)
-
-
-class ConcatColumns(Transformer):
-    def __init__(
-            self,
-            *,
-            cols_to_concat: Optional[List[str]] = None,
-            new_col_name: Optional[str] = None,
-            separator: Optional[str] = None,
-            null_if_any_null: bool = True,
-            drop_initial_cols: bool = False,
-            concat_strategy: Optional[List[dict]] = None,
-    ):
-        """Concatenate multiple columns with a given separator in a new one.
-
-        Two strategies can be used:
-        - A basic one, by providing the arguments:
-            - cols_to_concat
-            - new_col_name
-            - separator
-            - drop_initial_cols
-        - A more comprehensive one, that covers a wider range of features,
-            by providing only the argument 'concat_strategy'.
-
-        Only one set of parameters can be provided, not both.
-
-        Args:
-            cols_to_concat (list(str) | None):
-                Columns to be concatenated.
-            new_col_name (str | None):
-                Name of the new concatenated columns.
-            separator (str | None):
-                If provider, separate the column value with it.
-            null_if_any_null (bool | None):
-                If set to True, the output value is None if any null values
-                exist in that row. Otherwise, null values are simply skipped,
-                and if all the values are None, an empty string "" is returned.
-                Ignored if 'concat_strategy' is provided.
-            drop_initial_cols (bool):
-                If True, the original columns are dropped from the returned df.
-                Ignored if 'concat_strategy' is provided.
-            concat_strategy (list(dict) | None):
-                Strategy dictionary to concat columns:
-                Example -> [
-                    {
-                        'new_column_name': 'new_col',
-                        'separator': '_',
-                        'strategy': [{'column': 'hh_id'}, {'constant': 'WE'}, {'constant': 'WD'}]
-                    },
-                    {
-                        'new_column_name': 'new_col_2',
-                        'separator': '$',
-                        'strategy': [{'column': 'm5_agecat'}, {'constant': 'm5'}, {'column': 'm6_age_gap'}]
-                    }
-                ]
-
-                This configuration will create two extra columns:
-                    - new_col that is the concatenation between:
-                        column "hh_id", constant "WE" and constant "WD"
-                        separated by "_".
-                    - new_col_2 that is the concatenation between:
-                        column "m5_agecat", constant "m5" and column "m6_age_gap"
-                        separated by "$".
-
-                strategy list should contain dictionary of len == 1, and the keys
-                of those dictionaries called _dict in the implementation must be
-                'column' or 'constant'.
-                By using this functionality, input columns cannot be dropped
-                by this transformer and null values are treated as empty
-                strings "".
-        """
-        self._use_concat_strategy: bool
-
-        if concat_strategy is not None:
-            if not (
-                    (cols_to_concat is None)
-                    and (new_col_name is None)
-                    and (separator is None)
-            ):
-                msg = 'If "concat_strategy" is provided, '
-                msg += "the other arguments must not be passed."
-                raise AssertionError(msg)
-
-            self._check_concat_strategy(concat_strategy)
-            self._use_concat_strategy = True
-        else:
-            self._use_concat_strategy = False
-
-        super().__init__()
-        self._cols_to_concat: Optional[List[str]] = cols_to_concat
-        self._new_col_name: Optional[str] = new_col_name
-        self._separator: Optional[str] = separator
-        self._null_if_any_null: bool = null_if_any_null
-        self._drop_initial_cols: bool = drop_initial_cols
-        self._concat_strategy: Optional[List[dict]] = concat_strategy
-
-    def _check_concat_strategy(self, concat_strategy: List[dict]):
-        if not isinstance(concat_strategy, (list, tuple)):
-            msg = '"concat_strategy" must be <list> or <tuple>'
-            raise TypeError(msg)
-
-        mandatory_keys = {"new_column_name", "separator", "strategy"}
-
-        nd_outer: dict
-        nd_inner: dict
-        for nd_outer in concat_strategy:
-            outer_keys = set(nd_outer)
-            if outer_keys != mandatory_keys:
-                msg = 'Wrong keys in "concat_strategy". '
-                msg += f"Provided {outer_keys}, required: {mandatory_keys}."
-                raise KeyError(msg)
-
-            if not isinstance(nd_outer["new_column_name"], str):
-                raise ValueError('"new_column_name" must be <str>')
-            if not isinstance(nd_outer["separator"], str):
-                raise ValueError('"separator" must be <str>')
-
-            for nd_inner in nd_outer["strategy"]:
-                self._check_inner_strategy_dict(nd_inner)
-
-    @staticmethod
-    def _check_inner_strategy_dict(d: dict):
-        # Check len(d) == 1 and keys in {"column", "constant"}
-        if len(d) != 1:
-            raise ValueError(f"Len dict must be 1, found {d}")
-
-        if not set(d).issubset({"column", "constant"}):
-            msg = "Strategy lists should contain only column / constant as key"
-            raise KeyError(msg)
-
-    def _create_strategy_condition(self, d) -> F.col:
-        self._check_inner_strategy_dict(d)
-        key: str = list(d.keys())[0]
-        value: str = d[key]
-        return F.col(value) if key == "column" else F.lit(value)
-
-    def _transform(self, df):
-        if self._use_concat_strategy:
-            nd: dict
-            for nd in self._concat_strategy:
-                strat = [self._create_strategy_condition(i) for i in nd["strategy"]]
-                concat = F.concat_ws(nd["separator"], *strat)
-                df = df.withColumn(nd["new_column_name"], concat)
-            return df
-
-        if self._null_if_any_null:
-            _when_statement_cols = [c + " IS NOT NULL" for c in self._cols_to_concat]
-            _when_statement = " AND ".join(c for c in _when_statement_cols)
-
-            cond = F.expr(_when_statement)
-            concat = F.concat_ws(self._separator, *self._cols_to_concat)
-            out_col = F.when(cond, concat).otherwise(F.lit(None))
-        else:
-            out_col = F.concat_ws(self._separator, *self._cols_to_concat)
-
-        df = df.withColumn(self._new_col_name, out_col)
-
-        if self._drop_initial_cols:
-            df = df.drop(*self._cols_to_concat)
-        return df
 
 
 class Explode(Transformer):
@@ -557,87 +319,6 @@ class FillNa(Transformer):
         return df.na.fill(self._value, subset=subset)
 
 
-class HashDataFrame(Transformer):
-    def __init__(
-            self,
-            *,
-            output_col: str,
-            columns: Optional[Union[str, List[str]]] = None,
-            regex: Optional[str] = None,
-            glob: Optional[str] = None,
-            startswith: Optional[Union[str, Iterable[str]]] = None,
-            endswith: Optional[Union[str, Iterable[str]]] = None,
-            hash_name: str = "md5",
-            num_bits: int = 256,
-    ):
-        """Hash each dataframe row and store the result in a new column.
-
-        If no input columns to hash the dataframe are selected, all fields
-        are used. All the columns are sorted before being hashed to ensure
-        a repeatable result.
-
-        Valid 'hash_name' function:
-        - "md5"
-        - "crc32"
-        - "sha1"
-        - "sha2"
-        - "xxhash64"
-
-        Args:
-            output_col (str):
-                Name of the new column to store the hash values.
-            columns (str | list(str) | None):
-                A list of columns to select for hashing. Defaults to None.
-            regex (str | None):
-                Select the columns to select for hashing by using a regex
-                pattern. Defaults to None.
-            glob (str | None):
-                Select the columns to select for hashing by using a
-                bash-like pattern. Defaults to None.
-            startswith (str | iterable(str) | None):
-                Select the columns for hashing whose names start with the
-                provided string(s). Defaults to None.
-            endswith (str | iterable(str) | None):
-                Select the columns for hashing whose names end with the
-                provided string(s). Defaults to None.
-            hash_name (str):
-                Hash function name, allowed values: "md5", "crc32", "sha1",
-                "sha2", "xxhash64". Defaults to "md5".
-            num_bits (int):
-                Number of bits for the SHA-2 hash.
-                Permitted values: 0, 224, 256, 384, 512,
-                Ignored if hash_name is not "sha2". Defaults to 256.
-        """
-        assert_allowed(hash_name, ALLOWED_SPARK_HASH, "hash_name")
-        super().__init__()
-        self._output_col: str = output_col
-        self._hash_name: str = hash_name
-        self._num_bits: int = num_bits
-        self._set_columns_selections(
-            columns=columns,
-            regex=regex,
-            glob=glob,
-            startswith=startswith,
-            endswith=endswith,
-        )
-
-    def _transform(self, df):
-        selection: List[str] = self._get_selected_columns(df)
-        if selection:
-            df_input = df.select(selection)
-        else:
-            df_input = df
-
-        hashed_col = hash_dataframe(
-            df_input,
-            self._hash_name,
-            num_bits=self._num_bits,
-            return_func=True,
-        )
-
-        return df.withColumn(self._output_col, hashed_col)
-
-
 class Join(Transformer):
     def __init__(
             self,
@@ -699,75 +380,6 @@ class Join(Transformer):
         if self._broadcast:
             df_right = F.broadcast(df_right)
         return df.join(df_right, on=self._on, how=self._how)
-
-
-class LogicalOperator(Transformer):
-    def __init__(
-            self,
-            *,
-            operator: str,
-            output_col: str,
-            columns: Optional[Union[str, List[str]]] = None,
-            regex: Optional[str] = None,
-            glob: Optional[str] = None,
-            allow_excess_columns: bool = True,
-    ):
-        """Combine columns using logical operators AND or OR.
-
-        !!!
-        Note that all 'None' values are replaced with False before applying
-        the logical operator to avoid ambiguity.
-        !!!
-
-        Args:
-            operator (str):
-                Logical operator, "AND" or "OR".
-                Case-insensitive.
-            output_col (str):
-                Output column for the logical operation.
-            columns (str | list(str) | None):
-                A list of columns to use for the logical operator.
-                Defaults to None.
-            regex (str | None):
-                Select the columns to use for the logical operator
-                by using a regex pattern. Defaults to None.
-            glob (str | None):
-                Select the columns to use for the logical operator by
-                using a bash-like pattern. Defaults to None.
-            allow_excess_columns (bool):
-                Whether to allow 'columns' argument to list columns that are
-                not present in the dataframe. Default True.
-                If 'columns' contains columns that are not present in the
-                DataFrame and 'allow_excess_columns' is set to False, raise
-                an AssertionError.
-
-        Raises:
-            AssertionError: If `operator` is not "AND" or "OR".
-            AssertionError: If `allow_excess_columns` is False, and the column
-            list contains columns that are not present in the DataFrame.
-        """
-        op = operator.strip().lower()
-        assert_allowed(op, {"or", "and"}, "condition (case insensitive)")
-
-        super().__init__()
-        self._op = py_operator.and_ if op == "and" else py_operator.or_
-        self._output_col: str = output_col
-        self._set_columns_selections(
-            columns=columns,
-            regex=regex,
-            glob=glob,
-            allow_excess_columns=allow_excess_columns,
-        )
-
-    def _transform(self, df):
-        selection: List[str] = self._get_selected_columns(df)
-
-        for c in selection:
-            assert_col_type(df, c, "boolean")
-
-        input_cols = [null_cond_to_false(F.col(i)) for i in selection]
-        cond = reduce(self._op, input_cols)
-        return df.withColumn(self._output_col, cond)
 
 
 class MapWithFallback(Transformer):
