@@ -1,10 +1,8 @@
 """General Purposes Transformers."""
 
 from functools import reduce
-from itertools import chain
 from typing import Any, Dict, List, Optional, Union
 
-from pyspark.sql import Window
 from pyspark.sql import functions as F
 from pyspark.sql.types import ArrayType, DataType, MapType
 
@@ -29,11 +27,7 @@ __all__ = [
     "Explode",
     "FillNa",
     "Join",
-    "MapWithFallback",
     "Melt",
-    "MonotonicallyIncreasingIndexColumn",
-    "MultipleLiterals",
-    "ReplaceWithMap",
     "RowWiseGreatestOrLeast",
     "SqlFunction",
     "UnionByName",
@@ -382,60 +376,6 @@ class Join(Transformer):
         return df.join(df_right, on=self._on, how=self._how)
 
 
-class MapWithFallback(Transformer):
-    def __init__(
-            self,
-            *,
-            input_col: str,
-            mapping: dict,
-            default: Any,
-            output_col: Optional[str] = None,
-    ):
-        """Maps a column using a dictionary and sets all unmapped values to a default value.
-
-        Ensures that input and output types are the same. Values not found in
-        the "mapping" dictionary are replaced with the default value. None/null
-        values are not allowed as keys in the mapping dictionary.
-
-        Args:
-            input_col (str):
-                Input column.
-            mapping (dict):
-                Dictionary for replacing.
-            default (Any):
-                Fallback value for unmapped input values. It can be None
-            output_col (str | None):
-                If not provided, the replacement takes place in the input_col.
-        """
-        _assert_no_null_keys(mapping)
-        super().__init__()
-        self._input_col: str = input_col
-        self._map: dict = mapping
-        self._default: Any = default
-        self._output_col: Optional[str] = output_col
-
-    def _transform(self, df):
-        output_col_name: str
-        if self._output_col:
-            output_col_name = self._output_col
-            df = df.withColumn(output_col_name, F.col(self._input_col))
-        else:
-            output_col_name = self._input_col
-
-        output_col = F.col(output_col_name)
-        fallback = F.lit(self._default)
-
-        mapping_expr = F.create_map(*[F.lit(x) for x in chain(*self._map.items())])
-
-        if None in self._map.values():
-            cond = output_col.isin([*self._map.keys()])
-            result = F.when(cond, mapping_expr[output_col]).otherwise(fallback)
-        else:  # Faster, but cannot use it if None in dictionary values
-            result = F.coalesce(mapping_expr[output_col], fallback)
-
-        return df.withColumn(output_col_name, result)
-
-
 class Melt(Transformer):
     def __init__(
             self,
@@ -502,134 +442,6 @@ class Melt(Transformer):
             for x in [self._variable_col, self._value_col]
         ]
         return melted_df.select(*cols)
-
-
-class MonotonicallyIncreasingIndexColumn(Transformer):
-    def __init__(
-            self,
-            *,
-            output_col: str,
-            sequential: bool = False,
-            start_index: int = 0,
-    ):
-        """Add a monotonically increasing index column.
-
-        Args:
-            output_col (str):
-                Output column that will contain the monotonically increasing index.
-            sequential (bool):
-                Indicates whether the index should be sequential. Default False.
-                It is performed using a Window function without partitioning,
-                thus is slow.
-            start_index (int):
-                The starting index value. Default is `0`.
-                Only used if `sequential` is `True`.
-        """
-        super().__init__()
-        self._output_col: str = output_col
-        self._sequential: bool = sequential
-        self._start_index: int = start_index
-
-    def _transform(self, df):
-        if self._sequential:
-            start: int = self._start_index - 1
-            win = Window.orderBy(F.monotonically_increasing_id())
-            value = F.row_number().over(win) + start
-            return df.withColumn(self._output_col, value)
-
-        return df.withColumn(self._output_col, F.monotonically_increasing_id())
-
-
-class MultipleLiterals(Transformer):
-    def __init__(self, *, values: Dict[str, Dict[str, Any]]):
-        """Assign scalar literals to new columns.
-
-        If a specified column already exists, it will be overwritten with the new value.
-
-        Args:
-            values (dict[str, dict[str, any]]):
-                A dictionary containing the column names and their
-                corresponding values to be assigned. Example:
-                {
-                    "department": {"value": "finance"},
-                    "employees": {"value": 10, "cast": "bigint"},
-                    "active": {"value": True, "cast": "boolean"},
-                }
-                The "value" key is required, while the "cast" key is optional.
-        """
-        self._validate(values)
-        super().__init__()
-        self._values: Dict[str, Dict[str, str]] = values
-
-    @staticmethod
-    def _validate(values: Dict[str, Dict[str, str]]):
-        allowed_keys = {"value", "cast"}
-
-        for name, nd in values.items():
-            if not isinstance(name, str):
-                raise TypeError(
-                    f"Column name should be a <string>, found {name} <{type(name)}>"
-                )
-            if not isinstance(nd, dict):
-                raise AssertionError(
-                    f"Inner value for column specification must be <dict>. Found {name} <{type(nd)}"
-                )
-            keys = set(nd.keys())
-            if not keys.issubset(allowed_keys):
-                raise AssertionError(
-                    f"Allowed keys for column specification: {allowed_keys}. Found {keys}"
-                )
-            cast = nd.get("cast")
-            if cast:
-                if not isinstance(cast, (str, DataType)):
-                    msg = "If 'cast' is provided it must be <string> or <pyspark.sql.type.DataType>."
-                    raise AssertionError(f"{msg} Found {name} <{type(cast)}")
-
-    def _transform(self, df):
-        cur_cols = [i for i in df.columns if i not in self._values]
-        new_cols = []
-        for name, nd in self._values.items():
-            new_col = F.lit(nd["value"]).alias(name)
-            cast = nd.get("cast")
-            if cast:
-                new_col = new_col.cast(cast)
-            new_cols.append(new_col)
-
-        return df.select(cur_cols + new_cols)
-
-
-class ReplaceWithMap(Transformer):
-    def __init__(
-            self, *, input_col: str, replace: dict, output_col: Optional[str] = None
-    ):
-        """Replace the column values using the provided dictionary.
-
-        Input and output types must be the same. All the values that are not
-        mapped in "replace" remain untouched. None/null values are not
-        allowed as keys in the mapping dictionary.
-
-        Args:
-            input_col (str):
-                Input column.
-            replace (dict):
-                Dictionary for replacing.
-            output_col (str | None):
-                If not provided, the replacement takes place in the input_col.
-        """
-        _assert_no_null_keys(replace)
-        super().__init__()
-        self._input_col: str = input_col
-        self._map: dict = replace
-        self._output_col: Optional[str] = output_col
-
-    def _transform(self, df):
-        if self._output_col:
-            output_col = self._output_col
-            df = df.withColumn(output_col, F.col(self._input_col))
-        else:
-            output_col = self._input_col
-
-        return df.replace(to_replace=self._map, subset=[output_col])
 
 
 class RowWiseGreatestOrLeast(Transformer):
