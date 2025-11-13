@@ -5,7 +5,6 @@ from chispa import assert_df_equality
 from pyspark.sql.types import IntegerType, StringType, StructField, StructType
 
 from nlsn.nebula.spark_util import get_default_spark_partitions
-from nlsn.nebula.storage import nebula_storage as ns
 from nlsn.nebula.transformers.spark_partitions import *
 from nlsn.nebula.transformers.spark_partitions import _Partitions
 
@@ -33,18 +32,6 @@ def _get_df_input(spark):
     return spark.createDataFrame(data, schema=schema).repartition(50).persist()
 
 
-def test_clear_cache(spark, df_input):
-    """Test ClearCache."""
-    spark.sql("DROP TABLE IF EXISTS tbl1")
-    spark.sql("CREATE TABLE tbl1 (name STRING, age INT) USING parquet")
-    ClearCache().transform(df_input)
-
-    tables = [i.name for i in spark.catalog.listTables()]
-
-    for tbl in tables:
-        assert not spark.catalog.isCached(tbl)
-
-
 @pytest.mark.parametrize("kwargs, exp_partitions", _PARAMS)
 def test_coalesce_partitions(df_input, kwargs, exp_partitions):
     """Test CoalescePartitions transformer."""
@@ -59,28 +46,6 @@ def test_coalesce_partitions(df_input, kwargs, exp_partitions):
 
     # Assert the input dataframe is not modified
     assert_df_equality(df_chk, df_input, ignore_row_order=True)
-
-
-def test_get_num_partitions(spark):
-    """Test GetNumPartitions transformer."""
-    ns.clear()
-    ns.allow_overwriting()
-
-    store_key = "test_num_partitions"
-
-    num_partitions = 2
-    schema = StructType([StructField("c1", IntegerType(), True)])
-    data = [[i] for i in range(num_partitions * 10)]
-    df = spark.createDataFrame(data, schema=schema).repartition(num_partitions)
-
-    t = GetNumPartitions(store_key=store_key)
-    df_out = t.transform(df)
-
-    assert df is df_out
-
-    n_chk = ns.get(store_key)
-    ns.clear()
-    assert n_chk == num_partitions
 
 
 def test_log_data_skew(spark):
@@ -165,12 +130,3 @@ class TestRepartition:
         t = Repartition(num_partitions=10, columns="wrong")
         with pytest.raises(AssertionError):
             t.transform(df_input)
-
-
-@pytest.mark.parametrize("blocking", [True, False])
-def test_un_persist(df_input, blocking: bool):
-    """Test Unpersist."""
-    t = UnPersist(blocking=blocking)
-    df_out = t.transform(df_input.persist())
-    assert not df_input.is_cached
-    assert not df_out.is_cached

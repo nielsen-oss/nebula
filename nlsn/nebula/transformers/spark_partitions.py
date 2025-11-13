@@ -1,23 +1,16 @@
 """Spark transformers related to the partitioning."""
 
-from typing import Hashable
-
 from nlsn.nebula.auxiliaries import assert_is_bool, ensure_flat_list
 from nlsn.nebula.base import Transformer
 from nlsn.nebula.logger import logger
-from nlsn.nebula.spark_util import get_default_spark_partitions, get_spark_session, cache_if_needed, get_data_skew
-from nlsn.nebula.storage import assert_is_hashable
-from nlsn.nebula.storage import nebula_storage as ns
+from nlsn.nebula.spark_util import get_default_spark_partitions, cache_if_needed, get_data_skew
 
 __all__ = [
     "Cache",  # alias Persist
-    "ClearCache",
     "CoalescePartitions",
-    "GetNumPartitions",
     "LogDataSkew",
     "Persist",  # alias Cache
     "Repartition",
-    "UnPersist",
 ]
 
 
@@ -77,19 +70,6 @@ class _Partitions(Transformer):
         raise NotImplementedError
 
 
-class ClearCache(Transformer):
-    def __init__(self):
-        """Remove all cached tables from the in-memory cache."""
-        super().__init__()
-
-    @staticmethod
-    def _transform_spark(df):
-        logger.info("Removing all cached tables from the in-memory cache.")
-        spark_session = get_spark_session(df)
-        spark_session.catalog.clearCache()
-        return df
-
-
 class CoalescePartitions(_Partitions):
     def __init__(
             self,
@@ -123,34 +103,9 @@ class CoalescePartitions(_Partitions):
         return df.coalesce(n_part)
 
 
-class GetNumPartitions(Transformer):
-    """Spark transformer."""
-
-    def __init__(self, *, store_key: Hashable | None = None):
-        """Count and log the number of partitions in RDD.
-
-        Args:
-            store_key (hashable | None):
-                If provided, store the value (int) in the Nebula Cache.
-                It must be a hashable value. Default to None.
-        """
-        if store_key is not None:
-            assert_is_hashable(store_key)
-
-        super().__init__()
-        self._store: Hashable | None = store_key
-
-    def _transform_spark(self, df):
-        n: int = df.rdd.getNumPartitions()
-        logger.info(f"Number of partitions: {n}")
-        if self._store:
-            ns.set(self._store, n)
-        return df
-
-
-
 class LogDataSkew(Transformer):
     """Spark transformer."""
+
     def __init__(self, *, persist: bool = False):
         """Describe the partition distribution of the dataframe.
 
@@ -185,6 +140,7 @@ class LogDataSkew(Transformer):
         logger.info(desc)
 
         return df
+
 
 class Persist(Transformer):
     def __init__(self):
@@ -260,27 +216,6 @@ class Repartition(_Partitions):
             args += self._columns
 
         return df.repartition(*args)
-
-
-class UnPersist(Transformer):
-    def __init__(self, *, blocking: bool = False):
-        """Unpersist a Spark DataFrame.
-
-        Args:
-            blocking (bool):
-                If set to True, the 'unpersist' operation will block your
-                computation pipeline at the moment it reaches that instruction
-                until it has finished removing the contents of the dataframe.
-                Otherwise, it will just put a mark on the dataframe which
-                tells spark it can safely delete it whenever it needs to.
-                Defaults to False
-        """
-        super().__init__()
-        self._blocking: bool = blocking
-
-    def _transform_spark(self, df):
-        logger.info("Un-persist the dataframe")
-        return df.unpersist(blocking=self._blocking)
 
 
 # ---------------------- ALIASES ----------------------
