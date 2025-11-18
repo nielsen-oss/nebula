@@ -29,7 +29,6 @@ from nlsn.nebula.logger import logger
 
 __all__ = [
     "ALLOWED_SPARK_HASH",
-    "assert_col_type",
     "cache_if_needed",
     "cast_to_schema",
     "compare_dfs",
@@ -49,7 +48,6 @@ __all__ = [
     "null_cond_to_false",
     "split_df_bool_condition",
     "string_schema_to_datatype",
-    "table_is_registered",
     "take_min_max_over_window",
 ]
 
@@ -97,22 +95,6 @@ def _string_schema_to_datatype(li: List[Iterable[str]]) -> List[StructField]:
         li_join.append(" ".join(el))
     s = ", ".join(li_join)
     return list(_parse_datatype_string(s))
-
-
-def assert_col_type(
-        df: "pyspark.sql.DataFrame", col_name: str, col_type: Union[str, Iterable[str]]
-):
-    """Assert that a spark column is of the expected type."""
-    dtype: str = get_column_data_type_name(df, col_name)
-    if isinstance(col_type, str):
-        set_col_type = {col_type}
-    else:
-        set_col_type = set(col_type)
-
-    if dtype not in set_col_type:
-        valid_types = " | ".join([f'"{i}"' for i in sorted(set_col_type)])
-        msg = f'Input column must be "{valid_types}" type. Found "{dtype}"'
-        raise TypeError(msg)
 
 
 def cast_to_schema(
@@ -936,20 +918,6 @@ def string_schema_to_datatype(li: List[Iterable[str]]) -> List[StructField]:
     s: str = ", ".join(li_join)
 
     return list(_parse_datatype_string(s))
-
-
-def table_is_registered(t: str, spark: "pyspark.sql.SparkSession") -> bool:
-    """Check whether a table is registered as a Spark temporary view.
-
-    Args:
-        t (str): Table name.
-        spark (SparkSession): The current spark session.
-
-    Returns (bool):
-        If the table is already registered in spark
-    """
-    tables = get_registered_tables(spark)
-    return t in tables
 
 
 def take_min_max_over_window(
