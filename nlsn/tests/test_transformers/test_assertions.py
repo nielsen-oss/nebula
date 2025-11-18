@@ -7,6 +7,7 @@ from nlsn.nebula.transformers.assertions import *
 
 
 class TestDataFrameContainsColumns:
+    """Test DataFrameContainsColumns transformer."""
 
     @staticmethod
     @pytest.fixture(scope="class", name="df_input")
@@ -26,8 +27,7 @@ class TestDataFrameContainsColumns:
             (["col3"], True),
         ],
     )
-    def test_dataframe_contains_columns(df_input, columns, error: bool):
-        """Test DataFrameContainsColumns transformer."""
+    def test_dataframe_contains_columns(self, df_input, columns, error: bool):
         t = DataFrameContainsColumns(columns=columns)
         if error:
             with pytest.raises(AssertionError):

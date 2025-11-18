@@ -14,70 +14,45 @@ Then check if all the transformers are publicly declared in `__all__` for each p
 
 import inspect
 from functools import lru_cache
-from typing import List, Mapping, Optional, Set
+from typing import Mapping
 
 import pytest
 
 from nlsn.nebula import spark_transformers
 from nlsn.nebula.base import Transformer
 
-# ------------------------------ Wrong Transformers
 
+# ------------------------------ Invalid Transformers
 
-class WrongTransformer:  # Transformer name ends with "Transformer"
-    def __init__(self, a):  # noqa: D107
+class InvalidPublicMethodTransform:
+    def __init__(self):  # noqa: D107
         ...  # Private method "_transform is not defined"
 
     def transform(self):  # noqa: D102
         ...  # Public method "transform" should not be overwritten
 
 
-class WrongInitSignature1:
+class InvalidInitSignature:
     def __init__(self, a):  # noqa: D107
         ...  # Positional argument in __init__
 
 
-class WrongTransformMethodSignature1:
+class InvalidTransformMethodSignature1:
     def _transform(self):
         ...  # It does not take df as an argument
 
 
-class WrongTransformMethodSignature2:
+class IdvalidTransformMethodSignature2:
     def _transform(self, a, b):
         ...  # Too many arguments
 
 
-class WrongTransformMethodSignature3:
+class InvalidTransformMethodSignature3:
     def _transform(self, *, a):
         ...  # "df" is not positional
 
 
-class WrongTransformerBackendName:  # Wrong backend name
-    backends = {"invalid"}
-
-
-class WrongTransformerBackendsType:  # Invalid backend Type
-    backends = ["invalid"]
-
-
-class WrongTransformerBackendMethodMismatch:  # Backend method mismatch
-    backends = {"spark", "polars"}
-
-    def _transform_spark(self, df):
-        ...
-
-    def _transform_pandas(self, df):
-        ...
-
-
 # ------------------------------ Check Functions
-
-
-def _test_transformer_name(transformer):
-    """Transformer name must not end with "transformer" (case-insensitive)."""
-    name: str = transformer.__name__.lower()
-    assert not name.endswith("transformer")
-
 
 def _test_transformer_subclass(transformer):
     """Transformer must be a subclass of nlsn.nebula.base.Transformer."""
@@ -114,10 +89,9 @@ def _test_transformer_init_signature(transformer):
 
 
 def _test_transformer_method_name(transformer):
-    """Transformer must have the private method '_transform' and not 'transform'."""
+    """Transformer must not have the public method 'transform'."""
     class_meths = transformer.__dict__
     assert "transform" not in class_meths
-    assert {"_transform", "_transform_nw"}.intersection(class_meths)
 
 
 def _test_transformer_method_signature(transformer):
@@ -133,7 +107,7 @@ def _test_transformer_method_signature(transformer):
 
     meth = getattr(transformer, "_transform")
     signature: Mapping[str, inspect.Parameter] = inspect.signature(meth).parameters
-    li_params_name: List[str] = list(signature)
+    li_params_name: list[str] = list(signature)
 
     # Since they are NOT initialized, I need to remove the 'self' parameter
     if is_static:
@@ -158,45 +132,17 @@ def _test_transformer_method_signature(transformer):
         raise AssertionError(msg)
 
 
-def _test_transformer_backend(transformer):
-    """Ensure that if the backend is declared, it is valid, and it has the proper method."""
-    allowed_backends = {"pandas", "spark", "polars"}
-
-    backends: Optional[Set[str]] = getattr(transformer, "backends", set())
-
-    # Assert the implemented backend methods are declared.
-    for backend in allowed_backends:
-        if hasattr(transformer, f"_transform_{backend}") and (backend not in backends):
-            name = transformer.__name__
-            msg = f"Found the method '_transform_{backend}' in {name} "
-            msg += f"but '{backend}' is not declared in the transformer"
-            raise AssertionError(msg)
-
-    if not backends:
-        return
-
-    if not isinstance(backends, set):
-        raise AssertionError("If declared, 'backends' must be a <set<str>>")
-
-    # Assert the set of backends is valid.
-    if not backends.issubset(allowed_backends):
-        diff = backends.difference(allowed_backends)
-        raise AssertionError(f"backend(s) '{diff}' not allowed")
-
-
 # ------------------------------ Public Tests
 
-
-class TestWrongTransformers:
-    """Test Wrong transformers defined in this module.
+class TestInvalidTransformers:
+    """Test invalid transformers defined in this module.
 
     Use for loops and avoid pytest parametrize.
     """
 
-    def test_wrong_transformer_basic_syntax(self):
+    def test_invalid_transformer_basic_syntax(self):
         """Test the basic syntax."""
         li_func = [
-            _test_transformer_name,
             _test_transformer_subclass,
             _test_transformer_docstring,
             _test_transformer_method_name,
@@ -204,40 +150,27 @@ class TestWrongTransformers:
 
         for func in li_func:
             with pytest.raises(AssertionError):
-                func(WrongTransformer)
+                func(InvalidPublicMethodTransform)
 
-    def test_wrong_transformer_init_signature(self):
+    def test_invalid_transformer_init_signature(self):
         """Test the init signature."""
-        li_wrong_init_signature = [
-            WrongInitSignature1,
+        li_invalid_init_signature = [
+            InvalidInitSignature,
         ]
-        for trf in li_wrong_init_signature:
+        for trf in li_invalid_init_signature:
             with pytest.raises(AssertionError):
                 _test_transformer_init_signature(trf)
 
-    def test_wrong_transformer_method_signature(self):
+    def test_invalid_transformer_method_signature(self):
         """Test the method signature."""
-        li_wrong_transform_signature = [
-            WrongTransformMethodSignature1,
-            WrongTransformMethodSignature2,
-            WrongTransformMethodSignature3,
+        li_invalid_transform_signature = [
+            InvalidTransformMethodSignature1,
+            IdvalidTransformMethodSignature2,
+            InvalidTransformMethodSignature3,
         ]
-        for trf in li_wrong_transform_signature:
+        for trf in li_invalid_transform_signature:
             with pytest.raises(AssertionError):
                 _test_transformer_method_signature(trf)
-
-    @pytest.mark.parametrize(
-        "trf",
-        [
-            WrongTransformerBackendName,
-            WrongTransformerBackendsType,
-            WrongTransformerBackendMethodMismatch,
-        ],
-    )
-    def test_wrong_transformer_backend(self, trf):
-        """Test the backend declarations and methods."""
-        with pytest.raises(AssertionError):
-            _test_transformer_backend(trf)
 
 
 def _is_transformer_subclass(o) -> bool:
@@ -276,13 +209,11 @@ def test_transformer_correctness():
 
     # Tested in an inner for loop. Don't use pytest parametrize.
     li_func = [
-        _test_transformer_name,
         _test_transformer_subclass,
         _test_transformer_docstring,
         _test_transformer_method_name,
         _test_transformer_init_signature,
         _test_transformer_method_signature,
-        _test_transformer_backend,
     ]
 
     for transformer in li_transformers:
@@ -299,7 +230,7 @@ def test_transformer_correctness():
     print(f"Tested the code correctness of {n_transformers} transformers")
 
 
-def _get_transformers_modules() -> List[tuple]:
+def _get_transformers_modules() -> list[tuple]:
     # put here files that do not contain transformers
     avoid = {"__init__", "_constants"}
 

@@ -4,7 +4,6 @@ import math
 import operator as py_operator
 from collections import defaultdict
 from datetime import datetime, timedelta
-from typing import List, Tuple
 
 import pandas as pd
 import pytest
@@ -185,7 +184,7 @@ def test_string_schema_to_datatype():
         ["col_8 ", " array<array<   float>> "],
     ]
 
-    res: List[StructField]
+    res: list[StructField]
     res = _string_schema_to_datatype(li_input)
 
     assert len(res) == len(li_input)
@@ -826,7 +825,7 @@ class TestSparkSchemaUtilities:
     @pytest.mark.parametrize("full_type_name", [True, False])
     def test_get_schema_as_str(self, df_input, full_type_name: bool):
         """Test get_schema_as_str function."""
-        li_fields: List[Tuple[str, str]] = get_schema_as_str(df_input, full_type_name)
+        li_fields: list[tuple[str, str]] = get_schema_as_str(df_input, full_type_name)
 
         meth = "simpleString" if full_type_name else "typeName"
 
@@ -844,7 +843,7 @@ class TestSparkSchemaUtilities:
     def test_string_schema_to_datatype(self, df_input):
         """Test string_schema_to_datatype."""
         fields = df_input.schema.fields
-        li_fields_str: List[str] = [i.simpleString().split(":") for i in fields]
+        li_fields_str: list[str] = [i.simpleString().split(":") for i in fields]
 
         fields_chk = string_schema_to_datatype(li_fields_str)
         assert fields_chk == fields
@@ -961,64 +960,3 @@ class TestTakeMinMaxOverWindowFunction:
             df_input, ["windowing_col"], "cx", op, "replace"
         )
         assert_df_equality(df_chk, df_exp, ignore_row_order=True)
-
-
-class TestToPandasToSpark:
-    """Unit-Test for 'to_pandas_to_spark' function."""
-
-    @staticmethod
-    @pytest.fixture(scope="class", name="df_input")
-    def _get_input_df(spark):
-        # value | column name | datatype
-        input_data = [
-            (3, "col_3", IntegerType()),
-            ("string A", "col_1", StringType()),
-            (1.5, "col_2", FloatType()),
-            ([1, 2, 3], "col_4", ArrayType(IntegerType())),
-            ({"a": 1}, "col_5", MapType(StringType(), IntegerType())),
-            ([[1, 2], [2, 3]], "col_6", ArrayType(ArrayType(IntegerType()))),
-            (
-                {"a": {"b": 2}},
-                "col_7",
-                MapType(StringType(), MapType(StringType(), IntegerType())),
-            ),
-        ]
-
-        data = [[i[0] for i in input_data]]
-        # Add a row with null values to see if it is able to handle it.
-        # The first column is an integer and cannot accept None in pandas,
-        # just put a real integer
-        null_row = [1]
-        null_row += [None for _ in input_data][:-1]
-        data += [null_row]
-        fields = [StructField(*i[1:]) for i in input_data]
-        schema = StructType(fields)
-        return spark.createDataFrame(data, schema=schema)
-
-    def test_to_pandas_to_spark(self, df_input):
-        """Test to_pandas_to_spark function."""
-        df_chk = to_pandas_to_spark(df_input)
-
-        # Chispa cannot be used in this case because the DataFrames contain arrays
-        # and maps, which are not sortable or hashable.
-        # To address this, convert the DataFrames to Pandas and use
-        # 'assert_pandas_df_equal,' which is capable of handling complex data types.
-        df_chk_pd = df_chk.toPandas()
-        df_exp_pd = df_input.toPandas()
-
-        assert_pandas_df_equal(df_chk_pd, df_exp_pd, assert_not_deep=False)
-
-    def test_to_pandas_to_spark_duplicated_columns(self, spark):
-        """Test to_pandas_to_spark function with duplicated columns."""
-        fields = [
-            StructField("c1", StringType(), True),
-            StructField("c1", StringType(), True),
-        ]
-
-        data = [
-            ("a", "c"),
-            ("a", "d"),
-        ]
-        df = spark.createDataFrame(data, StructType(fields))
-        with pytest.raises(AssertionError):
-            to_pandas_to_spark(df)

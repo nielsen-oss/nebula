@@ -2,12 +2,11 @@
 
 import operator as py_operator
 import sys
-import narwhals as nw
 import warnings
-from collections import Counter
 from io import StringIO
 from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 
+import narwhals as nw
 import pyspark.sql
 import pyspark.sql.functions as F
 from pyspark.sql import Window
@@ -52,7 +51,6 @@ __all__ = [
     "string_schema_to_datatype",
     "table_is_registered",
     "take_min_max_over_window",
-    "to_pandas_to_spark",
 ]
 
 ALLOWED_SPARK_HASH = {"md5", "crc32", "sha1", "sha2", "xxhash64"}
@@ -102,7 +100,7 @@ def _string_schema_to_datatype(li: List[Iterable[str]]) -> List[StructField]:
 
 
 def assert_col_type(
-    df: "pyspark.sql.DataFrame", col_name: str, col_type: Union[str, Iterable[str]]
+        df: "pyspark.sql.DataFrame", col_name: str, col_type: Union[str, Iterable[str]]
 ):
     """Assert that a spark column is of the expected type."""
     dtype: str = get_column_data_type_name(df, col_name)
@@ -118,8 +116,8 @@ def assert_col_type(
 
 
 def cast_to_schema(
-    df: "pyspark.sql.DataFrame",
-    schema: StructType,
+        df: "pyspark.sql.DataFrame",
+        schema: StructType,
 ) -> "pyspark.sql.DataFrame":
     """Cast the columns of a DataFrame to a given schema.
 
@@ -167,12 +165,12 @@ def cast_to_schema(
 
 
 def compare_dfs(
-    df1: "pyspark.sql.DataFrame",
-    df2: "pyspark.sql.DataFrame",
-    *,
-    columns: Optional[List[str]] = None,
-    raise_if_row_number_mismatch: bool = True,
-    return_mismatched_rows: bool = False,
+        df1: "pyspark.sql.DataFrame",
+        df2: "pyspark.sql.DataFrame",
+        *,
+        columns: Optional[List[str]] = None,
+        raise_if_row_number_mismatch: bool = True,
+        return_mismatched_rows: bool = False,
 ) -> Tuple[Optional["pyspark.sql.DataFrame"], Optional["pyspark.sql.DataFrame"]]:
     """Compare two DFs for equality based on schema, row count, and content.
 
@@ -297,9 +295,9 @@ def compare_dfs(
 
 
 def drop_duplicates_no_randomness(
-    df: "pyspark.sql.DataFrame",
-    subset: Union[str, List[str]],
-    agg_func: str = "max",
+        df: "pyspark.sql.DataFrame",
+        subset: Union[str, List[str]],
+        agg_func: str = "max",
 ) -> "pyspark.sql.DataFrame":
     """Drop duplicated rows considering a subset of columns and remove the randomness when possible.
 
@@ -370,9 +368,9 @@ def drop_duplicates_no_randomness(
 
 
 def ensure_spark_condition(
-    operator: str,
-    value: Optional[Any] = None,
-    compare_col: Optional[str] = None,
+        operator: str,
+        value: Optional[Any] = None,
+        compare_col: Optional[str] = None,
 ) -> None:
     """Validate the input parameters for a Spark condition.
 
@@ -523,7 +521,7 @@ def get_registered_tables(spark: "pyspark.sql.SparkSession") -> List[str]:
 
 
 def get_schema_as_str(
-    df: "pyspark.sql.DataFrame", full_type_name: bool
+        df: "pyspark.sql.DataFrame", full_type_name: bool
 ) -> List[Tuple[str, str]]:
     """Return the dataframe schema as a List of 2-string tuples.
 
@@ -570,12 +568,12 @@ def get_schema_as_str(
 
 
 def hash_dataframe(
-    df: "pyspark.sql.DataFrame",
-    hash_name: str = "md5",
-    *,
-    new_col: Optional[str] = None,
-    num_bits: int = 256,
-    return_func: bool = False,
+        df: "pyspark.sql.DataFrame",
+        hash_name: str = "md5",
+        *,
+        new_col: Optional[str] = None,
+        num_bits: int = 256,
+        return_func: bool = False,
 ) -> Union["pyspark.sql.DataFrame", F.col]:
     """Hash each dataframe row.
 
@@ -715,12 +713,12 @@ def get_data_skew(df, as_dict: bool = False) -> Optional[Dict[str, Any]]:
 
 
 def get_spark_condition(
-    df: "pyspark.sql.DataFrame",
-    col_str: str,
-    operator: str,
-    *,
-    value: Optional[Any] = None,
-    compare_col: Optional[str] = None,
+        df: "pyspark.sql.DataFrame",
+        col_str: str,
+        operator: str,
+        *,
+        value: Optional[Any] = None,
+        compare_col: Optional[str] = None,
 ) -> F.col:
     """Verify if a condition is met.
 
@@ -845,8 +843,8 @@ def is_broadcast(df) -> bool:
 
 
 def split_df_bool_condition(
-    df: "pyspark.sql.DataFrame",
-    cond: F.col,
+        df: "pyspark.sql.DataFrame",
+        cond: F.col,
 ) -> Tuple["pyspark.sql.DataFrame", "pyspark.sql.DataFrame"]:
     """Split a dataframe into two dataframes given a certain condition.
 
@@ -955,11 +953,11 @@ def table_is_registered(t: str, spark: "pyspark.sql.SparkSession") -> bool:
 
 
 def take_min_max_over_window(
-    df: "pyspark.sql.DataFrame",
-    windowing_columns: Union[str, List[str]],
-    column: str,
-    operator: str,
-    perform: str,
+        df: "pyspark.sql.DataFrame",
+        windowing_columns: Union[str, List[str]],
+        column: str,
+        operator: str,
+        perform: str,
 ) -> "pyspark.sql.DataFrame":
     """Window over windowing_cols and keep rows where column col_op is min/max.
 
@@ -1045,18 +1043,6 @@ def take_min_max_over_window(
     return df.drop("_op_", "_no_nan_")
 
 
-def to_pandas_to_spark(df):
-    """Convert a pyspark dataframe to Pandas and revert to Spark."""
-    cols = df.columns
-    if len(cols) != len(set(cols)):
-        more = sorted([k for k, v in Counter(cols).items() if v > 1])
-        msg = f"Duplicated columns, cannot execute the dataframe conversion: {more}"
-        raise AssertionError(msg)
-    spark_session = df.sql_ctx.sparkSession
-    schema = df.schema
-    return spark_session.createDataFrame(df.toPandas(), schema=schema)
-
-
 def nw_to_spark(df) -> tuple[bool, "pyspark.sql.DataFrame"]:
     if isinstance(df, (nw.DataFrame, nw.LazyFrame)):
         return True, df.to_native()
@@ -1068,7 +1054,6 @@ def cache_if_needed(df, do_cache: bool):
     if not do_cache:
         return df
     if not isinstance(df, _psql.DataFrame):
-
         return df
     if df.is_cached:
         logger.info("DataFrame was already cached, no need to persist.")
