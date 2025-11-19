@@ -147,7 +147,7 @@ def test_string_schema_to_datatype():
         ["col_8 ", " array<array<   float>> "],
     ]
 
-    res: List[StructField]
+    res: list[StructField]
     res = _string_schema_to_datatype(li_input)
 
     assert len(res) == len(li_input)
@@ -788,7 +788,7 @@ class TestSparkSchemaUtilities:
     @pytest.mark.parametrize("full_type_name", [True, False])
     def test_get_schema_as_str(self, df_input, full_type_name: bool):
         """Test get_schema_as_str function."""
-        li_fields: List[Tuple[str, str]] = get_schema_as_str(df_input, full_type_name)
+        li_fields: list[tuple[str, str]] = get_schema_as_str(df_input, full_type_name)
 
         meth = "simpleString" if full_type_name else "typeName"
 
