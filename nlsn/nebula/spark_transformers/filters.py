@@ -1,6 +1,6 @@
 """Row Filtering Operations."""
 
-from typing import Any, Iterable, List, Optional, Union
+from typing import Iterable
 
 from nlsn.nebula.auxiliaries import assert_allowed
 from nlsn.nebula.base import Transformer
@@ -23,11 +23,11 @@ class DiscardNulls(Transformer):
             self,
             *,
             how: str,
-            columns: Optional[Union[str, List[str]]] = None,
-            regex: Optional[str] = None,
-            glob: Optional[str] = None,
-            startswith: Optional[Union[str, Iterable[str]]] = None,
-            endswith: Optional[Union[str, Iterable[str]]] = None,
+            columns: str | list[str] | None = None,
+            regex: str | None = None,
+            glob: str | None = None,
+            startswith: str | Iterable[str] | None = None,
+            endswith: str | Iterable[str] | None = None,
     ):
         """Drop rows with null values.
 
@@ -64,7 +64,7 @@ class DiscardNulls(Transformer):
         )
 
     def _transform(self, df):
-        subset: List[str] = self._get_selected_columns(df)
+        subset: list[str] = self._get_selected_columns(df)
         if subset and set(subset) != set(list(df.columns)):
             return df.dropna(self._how, subset=subset)
         return df.dropna(self._how)
@@ -74,11 +74,11 @@ class DropDuplicates(Transformer):
     def __init__(
             self,
             *,
-            columns: Optional[Union[str, List[str]]] = None,
-            regex: Optional[str] = None,
-            glob: Optional[str] = None,
-            startswith: Optional[Union[str, Iterable[str]]] = None,
-            endswith: Optional[Union[str, Iterable[str]]] = None,
+            columns: str | list[str] | None = None,
+            regex: str | None = None,
+            glob: str | None = None,
+            startswith: str | Iterable[str] | None = None,
+            endswith: str | Iterable[str] | None = None,
     ):
         """Perform spark `drop_duplicates` operation.
 
@@ -113,7 +113,7 @@ class DropDuplicates(Transformer):
         )
 
     def _transform(self, df):
-        subset: List[str] = self._get_selected_columns(df)
+        subset: list[str] = self._get_selected_columns(df)
         if subset and (set(subset) != set(list(df.columns))):
             return drop_duplicates_no_randomness(df, subset)
         return df.drop_duplicates()
@@ -126,8 +126,8 @@ class Filter(Transformer):
             input_col: str,
             perform: str,
             operator: str,
-            value: Optional[Any] = None,
-            comparison_column: Optional[str] = None,
+            value=None,
+            comparison_column: str | None = None,
     ):
         """Keep or remove rows according to the given conditions.
 
@@ -180,8 +180,8 @@ class Filter(Transformer):
         self._input_col: str = input_col
         self._perform: str = perform
         self._op: str = operator
-        self._value: Optional[Any] = value
-        self._compare_col: Optional[str] = comparison_column
+        self._value = value
+        self._compare_col: str | None = comparison_column
 
     def _transform(self, df):
         cond = get_spark_condition(

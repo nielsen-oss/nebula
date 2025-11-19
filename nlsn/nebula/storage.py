@@ -1,6 +1,6 @@
 """Nebula storage module."""
 
-from typing import Any, Dict, Hashable
+from typing import Any, Hashable
 
 from nlsn.nebula.logger import logger
 
@@ -60,7 +60,7 @@ class _NebulaStorage:
             isin(key: str): Check if an object is stored.
         """
         self._n: int = 0
-        self._cache: Dict[str, Any] = {}
+        self._cache: dict[str, Any] = {}
         self._allow_overwrite: bool = True
         self._debug_active: bool = False
 

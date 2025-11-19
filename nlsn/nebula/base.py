@@ -17,7 +17,7 @@ Input: Native DF (pandas/polars/spark)
 from copy import deepcopy
 from functools import partial
 from types import FunctionType
-from typing import Any, Callable, Dict, Iterable, List, Optional, Union
+from typing import Any, Callable, Iterable
 
 import narwhals as nw
 
@@ -40,18 +40,18 @@ class Transformer(metaclass=InitParamsStorage):
 
     def __init__(self):
         """Initialize the base transformer."""
-        self._transformer_init_params: Dict[str, Any] = {}
+        self._transformer_init_params: dict[str, Any] = {}
         self.__columns_selector: Callable
-        self._desc: Optional[str] = None
+        self._desc: str | None = None
 
     def _set_columns_selections(
             self,
             *,
-            columns: Optional[Union[Iterable[str], str]] = None,
-            regex: Optional[str] = None,
-            glob: Optional[str] = None,
-            startswith: Optional[Union[str, Iterable[str]]] = None,
-            endswith: Optional[Union[str, Iterable[str]]] = None,
+            columns: str | Iterable[str] | None = None,
+            regex: str | None = None,
+            glob: str | None = None,
+            startswith: str | Iterable[str] | None = None,
+            endswith: str | Iterable[str] | None = None,
             allow_excess_columns: bool = False,
     ) -> None:
         """Prepare the input for the function 'auxiliaries.select_columns'."""
@@ -73,7 +73,7 @@ class Transformer(metaclass=InitParamsStorage):
         """Get the transformer description."""
         return self._desc
 
-    def _get_selected_columns(self, df) -> List[str]:
+    def _get_selected_columns(self, df) -> list[str]:
         """Return the dataframe requested columns."""
         return self.__columns_selector(list(df.columns))
 

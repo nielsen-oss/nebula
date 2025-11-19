@@ -1,6 +1,6 @@
 """GroupBy and Window Operations."""
 
-from typing import Dict, Iterable, List, Optional, Set, Tuple, Union
+from typing import Iterable
 
 from pyspark.sql import Window
 from pyspark.sql import functions as F
@@ -26,7 +26,7 @@ __all__ = [
 ]
 
 
-def _expand_ascending_windowing_cols(ascending, order_cols) -> List[str]:
+def _expand_ascending_windowing_cols(ascending, order_cols) -> list[str]:
     """Expand ascending to fill the missing orders."""
     n_ascending = len(ascending)
     n_order_cols = len(order_cols)
@@ -93,12 +93,12 @@ _DOCSTRING_ARGS_WINDOW = """
 
 
 def validate_aggregations(
-        o: List[Dict[str, str]],
-        allowed_agg: Set[str],
+        o: list[dict[str, str]],
+        allowed_agg: set[str],
         *,
-        exact_keys: Optional[Set[str]] = None,
-        required_keys: Optional[Set[str]] = None,
-        allowed_keys: Optional[Set[str]] = None,
+        exact_keys: set[str] = None,
+        required_keys: set[str] = None,
+        allowed_keys: set[str] = None,
 ) -> None:
     """Validate the list of aggregations for groupBy and window functions."""
     for d in o:
@@ -120,7 +120,7 @@ def validate_aggregations(
         assert_allowed(d["agg"], allowed_agg, "aggregation")
 
 
-def validate_window_frame_boundaries(start, end) -> Tuple[int, int]:
+def validate_window_frame_boundaries(start, end) -> tuple[int, int]:
     """Validate the window frame boundaries."""
     if (start is None) or (end is None):
         raise ValueError("'start' and 'end' cannot be None")
@@ -135,7 +135,7 @@ def validate_window_frame_boundaries(start, end) -> Tuple[int, int]:
     return start, end
 
 
-def _make_aggregations(aggregations: List[Dict[str, str]]) -> List[F.col]:
+def _make_aggregations(aggregations: list[dict[str, str]]) -> list[F.col]:
     """Creates a list of Spark SQL column expressions for aggregations.
 
     Args:
@@ -148,7 +148,7 @@ def _make_aggregations(aggregations: List[Dict[str, str]]) -> List[F.col]:
         A list of Spark SQL column expressions with the specified aggregations
         and aliases.
     """
-    list_agg: List[F.col] = []
+    list_agg: list[F.col] = []
     for el in aggregations:
         agg: F.col = getattr(F, el["agg"])(el["col"])
         alias: str = el.get("alias")
@@ -159,8 +159,8 @@ def _make_aggregations(aggregations: List[Dict[str, str]]) -> List[F.col]:
 
 
 def _get_sanitized_aggregations(
-        aggregations: Union[Dict[str, str], List[Dict[str, str]]]
-) -> List[Dict[str, str]]:
+        aggregations: dict[str, str] | list[dict[str, str]]
+) -> list[dict[str, str]]:
     if isinstance(aggregations, dict):
         aggregations = [aggregations]
 
@@ -177,35 +177,35 @@ class _Window(Transformer):
     def __init__(
             self,
             *,
-            partition_cols: Union[str, List[str], None],
-            order_cols: Union[str, List[str], None],
-            ascending: Union[bool, List[bool]],
-            rows_between: Optional[Tuple[Union[str, int], Union[str, int]]],
-            range_between: Optional[Tuple[Union[str, int], Union[str, int]]],
+            partition_cols: str | list[str] | None,
+            order_cols: str | list[str] | None,
+            ascending: bool | list[bool],
+            rows_between: tuple[str | int, str | int],
+            range_between: tuple[str | int, str | int],
     ):
         if range_between and not order_cols:
             msg = "If 'range_between' is provided 'order_cols' must be set as well."
             raise AssertionError(msg)
 
         super().__init__()
-        self._partition_cols: List[str] = ensure_flat_list(partition_cols)
+        self._partition_cols: list[str] = ensure_flat_list(partition_cols)
 
-        self._list_order_cols: List[str] = ensure_flat_list(order_cols)
+        self._list_order_cols: list[str] = ensure_flat_list(order_cols)
 
-        self._ascending: List[str] = _expand_ascending_windowing_cols(
+        self._ascending: list[str] = _expand_ascending_windowing_cols(
             ensure_flat_list(ascending), self._list_order_cols
         )
 
-        self._order_cols: List[F.col] = [
+        self._order_cols: list[F.col] = [
             F.col(i).asc() if j else F.col(i).desc()
             for i, j in zip(self._list_order_cols, self._ascending)
         ]
 
-        self._rows_between: Optional[Tuple[int, int]] = None
+        self._rows_between: tuple[int, int] | None = None
         if rows_between:
             self._rows_between = validate_window_frame_boundaries(*rows_between)
 
-        self._range_between: Optional[Tuple[int, int]] = None
+        self._range_between: tuple[int, int] | None = None
         if range_between:
             self._range_between = validate_window_frame_boundaries(*range_between)
 
@@ -231,12 +231,12 @@ class AggregateOverWindow(_Window):
     def __init__(
             self,
             *,
-            partition_cols: Union[str, List[str], None] = None,
-            aggregations: Union[List[Dict[str, str]], Dict[str, str]],
-            order_cols: Union[str, List[str], None] = None,
-            ascending: Union[bool, List[bool]] = True,
-            rows_between: Optional[Tuple[Union[str, int], Union[str, int]]] = None,
-            range_between: Optional[Tuple[Union[str, int], Union[str, int]]] = None,
+            partition_cols: str | list[str] | None = None,
+            aggregations: list[dict[str, str]] | dict[str, str],
+            order_cols: str | list[str] | None = None,
+            ascending: bool | list[bool] = True,
+            rows_between: tuple[str | int, str | int] = None,
+            range_between: tuple[str | int, str | int] = None,
     ):  # noqa: D208, D209
         """Aggregate over a window.
 
@@ -285,18 +285,18 @@ class AggregateOverWindow(_Window):
             range_between=range_between,
         )
 
-        self._aggregations: List[Dict[str, str]] = aggregations
-        self._aliases: Set[str] = {i["alias"] for i in self._aggregations}
+        self._aggregations: list[dict[str, str]] = aggregations
+        self._aliases: set[str] = {i["alias"] for i in self._aggregations}
         self._check_alias_override(self._partition_cols, "partition_cols")
         self._check_alias_override(self._list_order_cols, "order_cols")
 
-    def _check_alias_override(self, cols: List[str], name: str):
+    def _check_alias_override(self, cols: list[str], name: str):
         ints = self._aliases.intersection(cols)
         if ints:
             raise AssertionError(f'Some aliased override "{name}": {ints}')
 
     def _transform(self, df):
-        list_agg: List[Tuple[F.col, str]] = []
+        list_agg: list[tuple[F.col, str]] = []
         for el in self._aggregations:
             agg: F.col = getattr(F, el["agg"])(el["col"])
             alias: str = el["alias"]
@@ -325,12 +325,12 @@ class GroupBy(Transformer):
     def __init__(
             self,
             *,
-            aggregations: Union[Dict[str, List[str]], Dict[str, str], List[Dict[str, str]]],
-            groupby_columns: Union[str, List[str], None] = None,
-            groupby_regex: Optional[str] = None,
-            groupby_glob: Optional[str] = None,
-            groupby_startswith: [Union[str, Iterable[str]], None] = None,
-            groupby_endswith: [Union[str, Iterable[str]], None] = None,
+            aggregations: dict[str, list[str]] | dict[str, str] | list[dict[str, str]],
+            groupby_columns: str | list[str] | None = None,
+            groupby_regex: str | None = None,
+            groupby_glob: str | None = None,
+            groupby_startswith: str | Iterable[str] | None = None,
+            groupby_endswith: str | Iterable[str] | None = None,
             prefix: str = "",
             suffix: str = "",
     ):
@@ -390,7 +390,7 @@ class GroupBy(Transformer):
         assert_only_one_non_none(groupby_columns, groupby_regex, groupby_glob)
         super().__init__()
 
-        self._aggregations: List[Dict[str, str]]
+        self._aggregations: list[dict[str, str]]
 
         if isinstance(aggregations, list) and len(aggregations) == 1:
             aggregations = self._check_single_op(aggregations[0], prefix, suffix)
@@ -411,7 +411,7 @@ class GroupBy(Transformer):
 
     def _check_single_op(
             self, o: dict, prefix: str, suffix: str
-    ) -> Union[Dict[str, str], List[Dict[str, str]]]:
+    ) -> dict[str, str] | list[dict[str, str]]:
         self._single_op = False
         values = list(o.values())
         n = len(values)
@@ -434,8 +434,8 @@ class GroupBy(Transformer):
         return o
 
     def _transform(self, df):
-        groupby_cols: List[str] = self._get_selected_columns(df)
-        list_agg: List[F.col] = _make_aggregations(self._aggregations)
+        groupby_cols: list[str] = self._get_selected_columns(df)
+        list_agg: list[F.col] = _make_aggregations(self._aggregations)
         return df.groupBy(groupby_cols).agg(*list_agg)
 
 
@@ -443,14 +443,14 @@ class LagOverWindow(_Window):
     def __init__(
             self,
             *,
-            partition_cols: Union[str, List[str], None] = None,
-            order_cols: Union[str, List[str], None] = None,
+            partition_cols: str | list[str] | None = None,
+            order_cols: str | list[str] | None = None,
             lag_col: str,
             lag: int,
             output_col: str,
-            ascending: Union[bool, List[bool]] = True,
-            rows_between: Optional[Tuple[Union[str, int], Union[str, int]]] = None,
-            range_between: Optional[Tuple[Union[str, int], Union[str, int]]] = None,
+            ascending: bool | list[bool] = True,
+            rows_between: tuple[str | int, str | int] = None,
+            range_between: tuple[str | int, str | int] = None,
     ):  # noqa: D208, D209
         """Aggregate over a window.
 
@@ -495,13 +495,13 @@ class Pivot(Transformer):
             self,
             *,
             pivot_col: str,
-            aggregations: Union[Dict[str, str], List[Dict[str, str]]],
-            groupby_columns: Union[str, List[str], None] = None,
-            distinct_values: Union[str, List[str], None] = None,
-            groupby_regex: Optional[str] = None,
-            groupby_glob: Optional[str] = None,
-            groupby_startswith: Union[str, Iterable[str], None] = None,
-            groupby_endswith: Union[str, Iterable[str], None] = None,
+            aggregations: dict[str, str] | list[dict[str, str]],
+            groupby_columns: str | list[str] | None = None,
+            distinct_values: str | list[str] | None = None,
+            groupby_regex: str | None = None,
+            groupby_glob: str | None = None,
+            groupby_startswith: str | Iterable[str] | None = None,
+            groupby_endswith: str | Iterable[str] | None = None,
     ):
         """Pivots a column of the current DataFrame and perform the specified aggregation.
 
@@ -555,9 +555,9 @@ class Pivot(Transformer):
 
         super().__init__()
         self._pivot_col: str = pivot_col
-        self._aggregations: List[Dict[str, str]]
+        self._aggregations: list[dict[str, str]]
         self._aggregations = _get_sanitized_aggregations(aggregations)
-        self._distinct_values: List[str] = ensure_flat_list(distinct_values)
+        self._distinct_values: list[str] = ensure_flat_list(distinct_values)
         self._set_columns_selections(
             columns=groupby_columns,
             regex=groupby_regex,
@@ -567,14 +567,14 @@ class Pivot(Transformer):
         )
 
     def _transform(self, df):
-        group_by_cols: List[str] = self._get_selected_columns(df)
+        group_by_cols: list[str] = self._get_selected_columns(df)
         df_grouped = df.groupby(group_by_cols)
         if self._distinct_values:
             df_pivoted = df_grouped.pivot(self._pivot_col, self._distinct_values)
         else:
             df_pivoted = df_grouped.pivot(self._pivot_col)
 
-        list_agg: List[F.col] = _make_aggregations(self._aggregations)
+        list_agg: list[F.col] = _make_aggregations(self._aggregations)
         return df_pivoted.agg(*list_agg)
 
 

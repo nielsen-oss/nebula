@@ -1,40 +1,20 @@
 """Auxiliaries functions that are not related to spark.
 
-To avoid circular import, don't import anything from nlsn.nebula into this file.
+To avoid circular import, don't import anything from nebula into this file.
 """
 
 import inspect
-import operator as py_operator
 import re
 from collections import Counter
 from fnmatch import fnmatch
 from itertools import chain
-from typing import (
-    Callable,
-    Dict,
-    Generator,
-    Iterable,
-    List,
-    Optional,
-    Set,
-    Tuple,
-    Union,
-)
-
-import pytz
+from typing import Callable, Generator, Iterable
 
 __all__ = [
     "assert_allowed",
     "assert_at_least_one_non_null",
     "assert_at_most_one_args",
-    "assert_cmp",
-    "assert_is_bool",
-    "assert_is_integer",
-    "assert_is_numeric",
-    "assert_is_string",
     "assert_only_one_non_none",
-    "assert_valid_timezone",
-    "check_if_columns_are_present",
     "compare_lists_of_string",
     "ensure_flat_list",
     "ensure_list",
@@ -50,8 +30,6 @@ __all__ = [
     "validate_regex_pattern",
 ]
 
-_ALL_TIMEZONES: Set[str] = set(pytz.all_timezones)
-
 
 def assert_allowed(value, allowed: set, name: str) -> None:
     """Assert that the provided value is in the allowed set."""
@@ -60,10 +38,10 @@ def assert_allowed(value, allowed: set, name: str) -> None:
         raise ValueError(msg)
 
 
-def _assert_args(frame, args, func) -> Tuple[int, str, str]:
+def _assert_args(frame, args, func) -> tuple[int, str, str]:
     frame = inspect.getouterframes(frame)[1]
     string = inspect.getframeinfo(frame[0]).code_context[0].strip()
-    full_names = string[string.find("(") + 1 : -1].split(",")
+    full_names = string[string.find("(") + 1: -1].split(",")
     full_names = [i.strip() for i in full_names]
 
     s: int = 0
@@ -102,45 +80,6 @@ def assert_at_most_one_args(*args):
         raise AssertionError(msg)
 
 
-def assert_cmp(value, op: str, value_cmp, name: str) -> None:
-    """Assert that a value satisfies a given comparison operation against another value.
-
-    This function dynamically performs a comparison (e.g., equality, greater than)
-    between `value` and `value_cmp` based on the `op` string. If the comparison
-    does not evaluate to True, a ValueError is raised with a descriptive message.
-
-    Args:
-        value: The first operand for the comparison.
-        op (str): The comparison operator as a string.
-                  Supported operators:
-                  - "eq" for equality (==)
-                  - "ne" for inequality (!=)
-                  - "ge" for greater than or equal to (>=)
-                  - "gt" for greater than (>)
-                  - "le" for less than or equal to (<=)
-                  - "lt" for less than (<)
-        value_cmp: The second operand for the comparison.
-        name (str): The name of the `value` variable, used in the error message
-                    for clarity.
-
-    Raises:
-        ValueError: If the comparison between `value` and `value_cmp` is False.
-        KeyError: If the provided `op` string is not a supported operator.
-    """
-    symbols = {
-        "eq": "==",
-        "ne": "!=",
-        "ge": ">=",
-        "gt": ">",
-        "le": "<=",
-        "lt": "<=",
-    }
-    flag: bool = getattr(py_operator, op)(value, value_cmp)
-    if not flag:
-        msg = f"'{name}' must be {symbols[op]} {value_cmp}, found {value}"
-        raise ValueError(msg)
-
-
 def assert_only_one_non_none(*args):
     """Assert that only one variable in '*args' is not None."""
     # Get the variable names in args
@@ -154,127 +93,9 @@ def assert_only_one_non_none(*args):
         raise AssertionError(msg)
 
 
-def assert_is_bool(value, name: str) -> None:
-    """Assert that the provided value is a boolean.
-
-    This function checks if a given value can be considered an integer.
-    It raises a TypeError if the value is not an integer.
-    Note that it handles float representations of integers (e.g., 5.0).
-
-    Args:
-        value:
-            The value to be checked
-        name (str):
-            The name of the variable being checked, used in the error message
-            for better clarity.
-
-    Raises:
-        TypeError: If the 'value' is not a boolean.
-    """
-    if not isinstance(value, bool):
-        raise TypeError(f"'{name}' must be a boolean, found {type(value)}")
-
-
-def assert_is_integer(value, name: str) -> None:
-    """Assert that the provided value is an integer.
-
-    This function checks if a given value can be considered an integer.
-    It raises a TypeError if the value is not an integer.
-    Note that it handles float representations of integers (e.g., 5.0).
-
-    Args:
-        value:
-            The value to be checked. This can be any type that can be
-            converted to a float (e.g.: 5.0).
-        name (str):
-            The name of the variable being checked, used in the error message
-            for better clarity.
-
-    Raises:
-        TypeError: If the 'value' is not an integer (including float values
-                   that are not whole numbers).
-    """
-    pre = f"'{name}' must be an integer-like"
-    if not isinstance(value, (int, float)):
-        raise TypeError(f"{pre}, got non-numeric value '{value}'")
-
-    if not float(value).is_integer():
-        raise TypeError(f"{pre}, got {value}")
-
-
-def assert_is_numeric(value, name: str) -> None:
-    """Assert that the provided value is an integer or a float.
-
-    Args:
-        value:
-            The value to be checked.
-        name (str):
-            The name of the variable being checked, used in the error message
-            for better clarity.
-
-    Raises:
-        TypeError: If the 'value' is not an integer / float.
-    """
-    if not isinstance(value, (int, float)):
-        raise TypeError(f"'{name}' must be <int> or <float>, got {type(value)}")
-
-
-def assert_is_string(value, name: str) -> None:
-    """Assert that the provided value is a string.
-
-    Args:
-        value:
-            The value to be checked.
-        name (str):
-            The name of the variable being checked, used in the error message
-            for better clarity.
-
-    Raises:
-        TypeError: If the 'value' is not a string.
-    """
-    if not isinstance(value, str):
-        raise TypeError(f"'{name}' must be <string>, got {type(value)}")
-
-
-def assert_valid_timezone(timezone: str):
-    """Assert timezone validity."""
-    if timezone not in _ALL_TIMEZONES:
-        raise ValueError(f'Unknown timezone "{timezone}"')
-
-
-def check_if_columns_are_present(
-    request: Iterable[str], input_cols: Iterable[str]
-) -> None:
-    """Checks if the specified columns are present in the input columns.
-
-    Parameters:
-        request (Iterable(str)):
-            List of column names to check for.
-        input_cols (Iterable(str)):
-            List of input column names.
-
-    Raises:
-        AssertionError:
-            If any of the requested columns are not present
-            in the input columns.
-
-    Example:
-        >>> check_if_columns_are_present(['col1', 'col2'], ['col1', 'col2', 'col3'])
-        # No exception is raised.
-
-        >>> check_if_columns_are_present(['col1', 'col4'], ['col1', 'col2', 'col3'])
-        # Raises AssertionError: Selected columns ['col1', 'col4'] are not a subset
-        # of the input columns ['col1', 'col2', 'col3'].
-    """
-    if not set(request).issubset(input_cols):
-        msg = f"Selected column(s) {request} are not a subset "
-        msg += f"of the input columns {input_cols}"
-        raise AssertionError(msg)
-
-
 def compare_lists_of_string(
-    *lists: List[str], names: Optional[List[str]] = None
-) -> List[str]:
+        *lists: list[str], names: list[str] | None = None
+) -> list[str]:
     """Compare lists of strings and represent the differences in a tabular format.
 
      Args:
@@ -306,7 +127,7 @@ def compare_lists_of_string(
           'cc   | ##   | cc',
           'dd   | ##   | ##']
     """
-    chained: List[str] = list(chain(*lists))
+    chained: list[str] = list(chain(*lists))
 
     max_len: int = max(len(i) for i in chained)
     n_cols: int = len(lists)
@@ -318,12 +139,12 @@ def compare_lists_of_string(
         max_len_headers = max(len(i) for i in names)
         max_len = max(max_len_headers, max_len)
 
-    sorted_set: List[str] = sorted(set(chained))
+    sorted_set: list[str] = sorted(set(chained))
     n_rows: int = len(sorted_set)
 
-    d_order: Dict[str, int] = {v: i for i, v in enumerate(sorted_set)}
+    d_order: dict[str, int] = {v: i for i, v in enumerate(sorted_set)}
     # d_len = {v: len(v) for v in sorted_set}
-    d_rows: Dict[int, List[str]] = {i: [] for i in range(n_rows)}
+    d_rows: dict[int, list[str]] = {i: [] for i in range(n_rows)}
 
     for li in lists:
         for el in sorted_set:
@@ -335,7 +156,7 @@ def compare_lists_of_string(
                 v = "#" * max_len
             d_rows[i_rows].append(v)
 
-    ret: List[str] = []
+    ret: list[str] = []
 
     if names:
         li_h_format = [i.ljust(max_len) for i in names]
@@ -412,7 +233,7 @@ def ensure_nested_length(o: Iterable, n: int) -> bool:
     return all(len(i) == n for i in o)
 
 
-def extract_kwarg_names(o: Union[Callable, type]) -> List[str]:
+def extract_kwarg_names(o: Callable | type) -> list[str]:
     """Extracts the names of keyword-only arguments from the given function or class.
 
     Args:
@@ -442,7 +263,7 @@ def flatten(lst: Iterable) -> Generator:
             yield el
 
 
-def get_class_name(o) -> Tuple[str, str]:
+def get_class_name(o) -> tuple[str, str]:
     """Get the name of the class or of the instantiated object.
 
     Convert it to snake-case and return both.
@@ -502,15 +323,15 @@ def is_list_uniform(o: Iterable, t: type) -> bool:
 
 
 def select_columns(
-    input_columns: Optional[Iterable[str]],
-    *,
-    columns: Optional[Iterable[str]] = None,
-    regex: Optional[str] = None,
-    glob: Optional[str] = None,
-    startswith: Optional[Union[str, Iterable[str]]] = None,
-    endswith: Optional[Union[str, Iterable[str]]] = None,
-    allow_excess_columns: bool = False,
-) -> List[str]:
+        input_columns: list[str] | None,
+        *,
+        columns: list[str] | None = None,
+        regex: str | None,
+        glob: str | None,
+        startswith: str | Iterable[str] | None = None,
+        endswith: str | Iterable[str] | None = None,
+        allow_excess_columns: bool = False,
+) -> list[str]:
     """Select a subset of columns given certain conditions.
 
     Given a data frame, a list of column names (optional),
@@ -569,10 +390,10 @@ def select_columns(
     if startswith or endswith:
         assert_only_one_non_none(columns, regex, glob, startswith, endswith)
         if startswith:
-            start: Tuple[str] = tuple(ensure_list(startswith))
+            start: tuple[str] = tuple(ensure_list(startswith))
             return [i for i in input_columns if i.startswith(start)]
         else:
-            end: Tuple[str] = tuple(ensure_list(endswith))
+            end: tuple[str] = tuple(ensure_list(endswith))
             return [i for i in input_columns if i.endswith(end)]
 
     # Handle regex and glob
@@ -582,7 +403,7 @@ def select_columns(
     pattern = re.compile(regex or "a^")
     glob_expr = glob or ""
 
-    columns_seen: Set[str] = set()
+    columns_seen: set[str] = set()
 
     def _regex_matches(_c):
         return bool(pattern.search(_c)) and _c not in columns_seen
@@ -590,7 +411,7 @@ def select_columns(
     def _glob_matches(_c):
         return fnmatch(_c, glob_expr) and _c not in columns_seen
 
-    ret: List[str] = column_list[:]
+    ret: list[str] = column_list[:]
     columns_seen.update(column_list)
 
     # ---- Appending regex
@@ -604,7 +425,7 @@ def select_columns(
     return ret
 
 
-def split_string_in_chunks(long_string: str, limit: int = 30) -> List[str]:
+def split_string_in_chunks(long_string: str, limit: int = 30) -> list[str]:
     """Split a long string in chunks."""
     if limit <= 0:
         raise ValueError("'limit' must be greater than or equal to 0.")
@@ -614,7 +435,7 @@ def split_string_in_chunks(long_string: str, limit: int = 30) -> List[str]:
         if len(split) <= limit:
             short_splits.append(split)
         else:
-            substrings = [split[i : i + limit] for i in range(0, len(split), limit)]
+            substrings = [split[i: i + limit] for i in range(0, len(split), limit)]
             short_splits.extend(substrings)
 
     tot = 0

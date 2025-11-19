@@ -1,6 +1,6 @@
 """Spark transformers related to the partitioning."""
 
-from nlsn.nebula.auxiliaries import assert_is_bool, ensure_flat_list
+from nlsn.nebula.auxiliaries import ensure_flat_list
 from nlsn.nebula.base import Transformer
 from nlsn.nebula.spark_util import get_default_spark_partitions, cache_if_needed, get_data_skew
 
@@ -153,7 +153,7 @@ class Persist(Transformer):
         return df.cache()
 
 
-class Repartition(_Partitions):
+class Repartition(_Partitions):  # FIXME: to default explicit or remove it
     def __init__(
             self,
             *,

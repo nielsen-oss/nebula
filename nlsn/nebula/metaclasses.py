@@ -3,18 +3,8 @@
 import inspect
 from copy import deepcopy
 
-# class Singleton:
-#     def __new__(cls):
-#         """Define the singleton for the first time."""
-#         if not hasattr(cls, "instance"):
-#             cls.instance = super(Singleton, cls).__new__(cls)
-#         return cls.instance
-
 
 class InitParamsStorage(type):
-    # def __new__(mcs, *args):
-    #     cls = super().__new__(mcs, *args)
-    #     return cls
 
     def __call__(cls, *args, **kwargs):
         """Store the initialization parameters."""
@@ -49,11 +39,13 @@ if __name__ == "__main__":  # pragma: no cover
             """Return the initialization parameters."""
             return deepcopy(self._transformer_init_params)
 
+
     class Child(Parent):  # pragma: no cover
         def __init__(self, *, my_param):
             """Emulate a generic Transformer class."""
             super().__init__()
             self._my_param = my_param
+
 
     a = Child(my_param="my_value")
     print(a.transformer_init_parameters)

@@ -2,7 +2,7 @@
 
 import operator as py_operator
 from functools import reduce
-from typing import Callable, List, Optional, Union
+from typing import Callable
 
 import pyspark.sql.functions as F
 
@@ -17,7 +17,7 @@ class MathOperator(Transformer):
     def __init__(
             self,
             *,
-            strategy: Union[dict, List[dict]],
+            strategy: dict | list[dict],
     ):
         """Apply a mathematical operator to columns and constants.
 
@@ -76,7 +76,7 @@ class MathOperator(Transformer):
             strategy = [strategy]
 
         super().__init__()
-        self._strategy: List[dict] = strategy
+        self._strategy: list[dict] = strategy
         self._operators_map: dict = {
             "add": py_operator.add,
             "sub": py_operator.sub,
@@ -132,7 +132,7 @@ class MathOperator(Transformer):
         el: dict
         for el in self._strategy:
             strat: F.col = self._get_aggregation_list(el)
-            to_cast: Optional[str] = el.get("cast")
+            to_cast: str | None = el.get("cast")
             if to_cast:
                 strat = strat.cast(to_cast)
             df = df.withColumn(el["new_column_name"], strat)

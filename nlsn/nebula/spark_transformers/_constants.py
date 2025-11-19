@@ -1,6 +1,4 @@
-from typing import Set
-
-ALLOWED_GROUPBY_AGG: Set[str] = {
+ALLOWED_GROUPBY_AGG: set[str] = {
     "approx_count_distinct",
     "avg",
     "collect_list",
@@ -25,7 +23,7 @@ ALLOWED_GROUPBY_AGG: Set[str] = {
     "var_pop",
 }
 
-ALLOWED_WINDOW_AGG: Set[str] = {
+ALLOWED_WINDOW_AGG: set[str] = {
     "avg",
     "collect_list",
     "collect_set",

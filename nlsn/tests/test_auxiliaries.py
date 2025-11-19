@@ -3,7 +3,6 @@
 import itertools
 import random
 from string import ascii_lowercase
-from typing import List, Optional
 
 import pytest
 
@@ -61,41 +60,6 @@ def test_assert_at_most_one_args():
         assert_at_most_one_args(l, m)
 
 
-class TestAssertCmp:
-    @pytest.mark.parametrize(
-        "value, op, value_cmp, name",
-        [
-            (10, "eq", 10, "ten"),
-            (5, "ne", 10, "five"),
-            (15, "ge", 10, "fifteen"),
-            (10, "ge", 10, "ten_ge"),
-            (20, "gt", 10, "twenty"),
-            (5, "le", 10, "five_le"),
-            (10, "le", 10, "ten_le"),
-            (9, "lt", 10, "nine"),
-        ],
-    )
-    def test_assert_cmp_valid(self, value, op, value_cmp, name):
-        """Valid cases."""
-        assert_cmp(value, op, value_cmp, name)
-
-    @pytest.mark.parametrize(
-        "value, op, value_cmp, name",
-        [
-            (10, "eq", 11, "ten"),
-            (10, "ne", 10, "ten"),
-            (5, "ge", 10, "five"),
-            (10, "gt", 10, "ten"),
-            (15, "le", 10, "fifteen"),
-            (10, "lt", 10, "ten"),
-        ],
-    )
-    def test_assert_cmp_value_error(self, value, op, value_cmp, name):
-        """Invalid cases."""
-        with pytest.raises(ValueError):
-            assert_cmp(value, op, value_cmp, name)
-
-
 def test_assert_only_one_not_none():
     """Test 'assert_only_one_non_none' function."""
     a, b, c = None, None, None
@@ -115,87 +79,6 @@ def test_assert_only_one_not_none():
 
     k, l = "letter", None
     assert_only_one_non_none(k, l)
-
-
-class TestAssertIsBool:
-    """Test suite for the 'assert_is_bool' function."""
-
-    @pytest.mark.parametrize("value", [True, False])
-    def test_valid(self, value):
-        """Tests for valid boolean values."""
-        assert_is_bool(value, "test_param")
-
-    @pytest.mark.parametrize("value", ["3.1", 1, 0])
-    def test_non_bool(self, value):
-        """Tests for non integer values."""
-        with pytest.raises(TypeError):
-            assert_is_bool(value, "test_param")
-
-
-class TestAssertIsInteger:
-    """Test suite for the 'assert_is_integer' function."""
-
-    @pytest.mark.parametrize("value", [10, 0, -5, -3.0])
-    def test_valid(self, value):
-        """Tests for valid integer-like values."""
-        assert_is_integer(value, "test_param")
-
-    @pytest.mark.parametrize("value", ["hello", None, [1, 2], {"a": 1}])
-    def test_non_numeric(self, value):
-        """Tests for non numeric values."""
-        with pytest.raises(TypeError):
-            assert_is_integer(value, "test_param")
-
-    @pytest.mark.parametrize("value", ["3", 1.1, -0.1])
-    def test_non_integer(self, value):
-        """Tests for non integer values."""
-        with pytest.raises(TypeError):
-            assert_is_integer(value, "test_param")
-
-
-class TestAssertIsNumeric:
-    """Test suite for the 'assert_is_numeric' function."""
-
-    @pytest.mark.parametrize("value", [10, 0, -3.0])
-    def test_valid(self, value):
-        """Tests for valid numeric values."""
-        assert_is_numeric(value, "test_param")
-
-    @pytest.mark.parametrize("value", ["hello", "3.1", None, [1, 2], {"a": 1}])
-    def test_non_numeric(self, value):
-        """Tests for non numeric values."""
-        with pytest.raises(TypeError):
-            assert_is_numeric(value, "test_param")
-
-
-class TestAssertIsString:
-    """Test suite for the 'assert_is_string' function."""
-
-    def test_valid(self):
-        """Tests for valid strings."""
-        assert_is_string("x", "test_param")
-
-    @pytest.mark.parametrize("value", [1, None, [1, 2], {"a": 1}])
-    def test_non_strings(self, value):
-        """Tests for non-string values."""
-        with pytest.raises(TypeError):
-            assert_is_string(value, "test_param")
-
-
-def test_assert_valid_timezone():
-    """Test 'assert_valid_timezone' function."""
-    assert_valid_timezone("Europe/Rome")
-    with pytest.raises(ValueError):
-        assert_valid_timezone("wrong")
-
-
-@pytest.mark.parametrize(
-    "req, cols", [[["c3"], ["c1", "c2"]], [["c1", "c3"], ["c1", "c2"]]]
-)
-def test_check_if_columns_are_present(req, cols):
-    """Test 'check_if_columns_are_present' function."""
-    with pytest.raises(AssertionError):
-        check_if_columns_are_present(req, cols)
 
 
 @pytest.mark.parametrize("names", [None, ["li_1", "li_2", "li_3"], ["li_1"]])
@@ -302,6 +185,7 @@ def test_ensure_nested_length(o: list, n: int, exp: bool):
 
 def test_get_class_name():
     """Test the 'get_class_name' function."""
+
     # noqa: D202
     class A: ...  # noqa
 
@@ -432,7 +316,7 @@ class TestSelectColumns:
         ],
     )
     def test_startswith(self, startswith, exp):
-        """Test 'select_columns' with 'startswith' parameter'."""
+        """Test 'select_columns' with 'startswith' parameter."""
         input_columns = ["a_1", "a_2", "b_1", "b_2", "c_1", "c_2"]
         chk = select_columns(
             input_columns,
@@ -451,7 +335,7 @@ class TestSelectColumns:
         ],
     )
     def test_endswith(self, endswith, exp):
-        """Test 'select_columns' with 'endswith' parameter'."""
+        """Test 'select_columns' with 'endswith' parameter."""
         input_columns = ["a_1", "a_2", "b_1", "b_2", "c_1", "c_2", "c_3"]
         chk = select_columns(
             input_columns,
@@ -463,10 +347,10 @@ class TestSelectColumns:
     @pytest.mark.parametrize("regex", (None, "c[034]"))
     @pytest.mark.parametrize("glob", (None, "*", "d*"))
     def test_columns_regex_glob(
-        self,
-        columns: Optional[List[str]],
-        regex: Optional[str],
-        glob: Optional[str],
+            self,
+            columns: list[str] | None,
+            regex: str | None,
+            glob: str | None,
     ):
         """Test 'select_columns' with the parameters 'columns', 'regex' and 'glob'."""
         input_cols = [f"{x}{y}" for x, y in itertools.product("cd", range(5))]

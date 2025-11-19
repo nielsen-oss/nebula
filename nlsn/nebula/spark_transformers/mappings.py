@@ -1,7 +1,7 @@
 """MapType Columns Manipulations."""
 
 from itertools import chain
-from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
+from typing import Any, Iterable
 
 from pyspark.sql import functions as F
 from pyspark.sql.types import MapType
@@ -24,13 +24,13 @@ class ColumnsToMap(Transformer):
             self,
             *,
             output_column: str,
-            columns: Optional[Union[str, List[str]]] = None,
-            regex: Optional[str] = None,
-            glob: Optional[str] = None,
-            startswith: Optional[Union[str, Iterable[str]]] = None,
-            endswith: Optional[Union[str, Iterable[str]]] = None,
-            exclude_columns: Optional[Union[str, Iterable[str]]] = None,
-            cast_values: Optional[str] = None,
+            columns: str | list[str] | None = None,
+            regex: str | None = None,
+            glob: str | None = None,
+            startswith: str | Iterable[str] | None = None,
+            endswith: str | Iterable[str] | None = None,
+            exclude_columns: str | Iterable[str] | None = None,
+            cast_values: str | None = None,
             drop_input_columns: bool = False,
     ):
         """Create a MapType field using the provided columns.
@@ -69,12 +69,12 @@ class ColumnsToMap(Transformer):
             startswith=startswith,
             endswith=endswith,
         )
-        self._excl_cols: List[str] = ensure_flat_list(exclude_columns)
-        self._cast_value: Optional[str] = cast_values
+        self._excl_cols: list[str] = ensure_flat_list(exclude_columns)
+        self._cast_value: str | None = cast_values
         self._drop: bool = drop_input_columns
 
     def _transform(self, df):
-        input_columns: List[str] = self._get_selected_columns(df)
+        input_columns: list[str] = self._get_selected_columns(df)
         if self._excl_cols:
             input_columns = [i for i in input_columns if i not in self._excl_cols]
 
@@ -99,7 +99,7 @@ class MapToColumns(Transformer):
             self,
             *,
             input_column: str,
-            output_columns: Union[List[str], List[List[str]], Dict[Any, str]],
+            output_columns: list[str] | list[list[str]] | dict[Any, str],
     ):
         """Extract keys from a MapType column and create new columns.
 
@@ -129,7 +129,7 @@ class MapToColumns(Transformer):
 
         super().__init__()
         self._input_col: str = input_column
-        self.cols: List[Tuple[str, str]]
+        self.cols: list[tuple[str, str]]
 
         values: list  # A list created for checks only
 

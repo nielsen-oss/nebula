@@ -1,7 +1,7 @@
 """General Purposes Transformers."""
 
 from functools import reduce
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 from pyspark.sql import functions as F
 from pyspark.sql.types import ArrayType, DataType, MapType
@@ -47,7 +47,7 @@ def _assert_no_null_keys(d: dict) -> None:
 
 
 def validate_args_kwargs(
-        args: Optional[list] = None, kwargs: Optional[Dict[str, Any]] = None
+        args: list | None = None, kwargs: dict[str, Any] | None = None
 ) -> None:
     """Validate args and kwargs."""
     if (args is not None) and (not isinstance(args, (tuple, list))):
@@ -64,7 +64,7 @@ class Coalesce(Transformer):
             self,
             *,
             output_col: str,
-            columns: Optional[Union[str, List[str]]] = None,
+            columns: str | list[str] | None = None,
             drop_input_cols: bool = False,
             treat_nan_as_null: bool = False,
             treat_blank_string_as_null: bool = False,
@@ -97,7 +97,7 @@ class Coalesce(Transformer):
         self._treat_blank_string_as_null: bool = treat_blank_string_as_null
 
     def _transform(self, df):
-        selection: List[str] = self._get_selected_columns(df)
+        selection: list[str] = self._get_selected_columns(df)
         if self._treat_nan_as_null:
             cols = [
                 F.when(F.isnan(i), None).otherwise(F.col(i)).alias(i) for i in selection
@@ -124,10 +124,10 @@ class ColumnMethod(Transformer):
             self,
             *,
             input_column: str,
-            output_column: Optional[str] = None,
+            output_column: str | None = None,
             method: str,
-            args: Optional[List[Any]] = None,
-            kwargs: Optional[Dict[str, Any]] = None,
+            args: list[Any] = None,
+            kwargs: dict[str, Any] | None = None,
     ):
         """Call a pyspark.sql.Column method with the provided args/kwargs.
 
@@ -152,7 +152,7 @@ class ColumnMethod(Transformer):
         self._output_col: str = output_column if output_column else input_column
         self._meth: str = method
         self._args: list = args if args else []
-        self._kwargs: Dict[str, Any] = kwargs if kwargs else {}
+        self._kwargs: dict[str, Any] = kwargs if kwargs else {}
 
         # Attempt to retrieve any errors during initialization.
         # Use a try-except block because Spark may not be running at this
@@ -185,7 +185,7 @@ class Explode(Transformer):
             self,
             *,
             input_col: str,
-            output_cols: Optional[Union[List[str], str]] = None,
+            output_cols: str | list[str] | None = None,
             outer: bool = True,
             drop_after: bool = False,
     ):
@@ -222,7 +222,7 @@ class Explode(Transformer):
 
         super().__init__()
         self._input_col: str = input_col
-        self._output_cols: Union[List[str], str] = output_cols or input_col
+        self._output_cols: list[str] | str = output_cols or input_col
         self._outer: bool = outer
         self._drop_after: bool = drop_after
 
@@ -263,10 +263,10 @@ class FillNa(Transformer):
     def __init__(
             self,
             *,
-            value: Union[int, float, str, bool, Dict[str, Union[int, float, str, bool]]],
-            columns: Optional[Union[str, List[str]]] = None,
-            regex: Optional[str] = None,
-            glob: Optional[str] = None,
+            value: int | float | str | bool | dict[str, int | float | str | bool],
+            columns: str | list[str] | None = None,
+            regex: str | None = None,
+            glob: str | None = None,
     ):
         """Replace null values.
 
@@ -300,8 +300,8 @@ class FillNa(Transformer):
                 msg = "If 'value' is <dict>, all the other parameters must be null."
                 raise AssertionError(msg)
 
-        scalar = Union[int, float, str, bool]
-        self._value: Union[scalar, Dict[str, scalar]] = value
+        scalar = int | float | str | bool
+        self._value: scalar | dict[str, scalar] = value
         self._set_columns_selections(columns=columns, regex=regex, glob=glob)
 
     def _transform(self, df):
@@ -316,7 +316,7 @@ class Join(Transformer):
             self,
             *,
             table: str,
-            on: Union[List[str], str],
+            on: list[str] | str,
             how: str,
             broadcast: bool = False,
     ):
@@ -363,7 +363,7 @@ class Join(Transformer):
 
         super().__init__()
         self._table: str = table
-        self._on: List[str] = ensure_flat_list(on)
+        self._on: list[str] = ensure_flat_list(on)
         self._how: str = how
         self._broadcast: bool = broadcast
 
@@ -378,10 +378,10 @@ class Melt(Transformer):
     def __init__(
             self,
             *,
-            id_cols: Optional[Union[str, List[str]]] = None,
-            id_regex: Optional[str] = None,
-            melt_cols: Optional[Union[str, List[str]]] = None,
-            melt_regex: Optional[str] = None,
+            id_cols: str | list[str] | None = None,
+            id_regex: str | None = None,
+            melt_cols: str | list[str] | None = None,
+            melt_regex: str | None = None,
             variable_col: str,
             value_col: str,
     ):
@@ -416,13 +416,13 @@ class Melt(Transformer):
             columns=self._id_cols,
             regex=self._id_regex,
         )
-        id_cols: List[str] = self._get_selected_columns(df)
+        id_cols: list[str] = self._get_selected_columns(df)
 
         self._set_columns_selections(
             columns=self._melt_cols,
             regex=self._melt_regex,
         )
-        melt_cols: List[str] = self._get_selected_columns(df)
+        melt_cols: list[str] = self._get_selected_columns(df)
 
         _vars_and_vals = F.array(
             *(
@@ -448,8 +448,8 @@ class SqlFunction(Transformer):
             *,
             column: str,
             function: str,
-            args: Optional[List[Any]] = None,
-            kwargs: Optional[Dict[str, Any]] = None,
+            args: list[Any] | None = None,
+            kwargs: dict[str, Any] | None = None,
     ):
         """Call a pyspark.sql.function with the provided args/kwargs.
 
@@ -472,7 +472,7 @@ class SqlFunction(Transformer):
         self._output_col: str = column
         self._func_name: str = function
         self._args: list = args if args else []
-        self._kwargs: Dict[str, Any] = kwargs if kwargs else {}
+        self._kwargs: dict[str, Any] = kwargs if kwargs else {}
 
     def _transform(self, df):
         func = getattr(F, self._func_name)(*self._args, **self._kwargs)
@@ -483,10 +483,10 @@ class UnionByName(Transformer):
     def __init__(
             self,
             *,
-            temp_view: Optional[str] = None,
-            store_key: Optional[str] = None,
-            select_before_union: Optional[Union[str, List[str]]] = None,
-            drop_before_union: Optional[Union[str, List[str]]] = None,
+            temp_view: str | None = None,
+            store_key: str | None = None,
+            select_before_union: str | list[str] | None = None,
+            drop_before_union: str | list[str] | None = None,
             drop_excess_columns: bool = False,
             allow_missing_columns: bool = False,
     ):
@@ -527,10 +527,10 @@ class UnionByName(Transformer):
         assert_at_most_one_args(drop_excess_columns, allow_missing_columns)
 
         super().__init__()
-        self._temp_view: Optional[str] = temp_view
-        self._store_key: Optional[str] = store_key
-        self._to_select: List[str] = ensure_flat_list(select_before_union)
-        self._to_drop: List[str] = ensure_flat_list(drop_before_union)
+        self._temp_view: str | None = temp_view
+        self._store_key: str | None = store_key
+        self._to_select: list[str] = ensure_flat_list(select_before_union)
+        self._to_drop: list[str] = ensure_flat_list(drop_before_union)
         self._drop_excess_columns: bool = drop_excess_columns
         self._allow_missing_columns: bool = allow_missing_columns
 
@@ -570,10 +570,10 @@ class When(Transformer):
             self,
             *,
             output_column: str,
-            conditions: List[Dict],
+            conditions: list[dict],
             otherwise_constant: Any = None,
-            otherwise_column: Optional[str] = None,
-            cast_output: Optional[str] = None,
+            otherwise_column: str | None = None,
+            cast_output: str | None = None,
     ):
         """Apply conditional logic to create a column based on specified conditions.
 
@@ -644,8 +644,8 @@ class When(Transformer):
             compare_col = el.get("comparison_column")
             ensure_spark_condition(operator, value, compare_col)
 
-        self._conditions: List[Dict[str, Any]] = conditions
-        self._cast_output: Optional[str] = cast_output
+        self._conditions: list[dict[str, Any]] = conditions
+        self._cast_output: str | None = cast_output
 
     def _transform(self, df):
         spark_conds = []

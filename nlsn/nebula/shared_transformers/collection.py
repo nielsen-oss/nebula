@@ -1,7 +1,7 @@
 """General Purposes Transformers."""
 
 import itertools
-from typing import Any, Optional
+from typing import Any
 
 from nlsn.nebula import nebula_storage as ns
 from nlsn.nebula.base import Transformer
@@ -19,9 +19,9 @@ class FromData(Transformer):
             self,
             *,
             data: Any,
-            storage_key: Optional[str] = None,
+            storage_key: str | None = None,
             broadcast: bool = False,
-            kwargs: Optional[dict] = None,
+            kwargs: dict | None = None,
     ):
         """Create a DataFrame using the same backend as the input one with the provided data.
 
@@ -52,7 +52,7 @@ class FromData(Transformer):
 
         data = data or []
         self._data: Any = data
-        self._storage_key: Optional[str] = storage_key
+        self._storage_key: str | None = storage_key
         self._broadcast: bool = broadcast
         self._kwargs: dict = kwargs or {}
 
@@ -114,8 +114,8 @@ class WithColumn(Transformer):
             self,
             *,
             column_name: str,
-            value: Optional[Any] = None,
-            cast: Optional[Any] = None,
+            value=None,
+            cast=None,
             copy: bool = True,
     ):
         """Add a column to the DataFrame.
@@ -169,8 +169,8 @@ class WithColumn(Transformer):
         """
         super().__init__()
         self._name: str = column_name
-        self._value: Optional[Any] = value
-        self._cast: Optional[Any] = cast
+        self._value = value
+        self._cast = cast
         self._copy: bool = copy
 
     @staticmethod

@@ -4,14 +4,14 @@ Dynamically create a Union type like:
 Union[pyspark.sql.dataframe.DataFrame, pandas.core.frame.DataFrame]
 """
 
-from typing import List, Union
+import operator
+from functools import reduce
 
 from nlsn.nebula.backend_util import HAS_PANDAS, HAS_POLARS, HAS_SPARK
 
 __all__ = ["GenericDataFrame", "get_dataframe_type"]
 
-_df_types: List[type] = []
-_u = Union  # keep for backwards compatibility
+_df_types: list[type] = []
 
 if HAS_PANDAS:
     import pandas
@@ -35,9 +35,7 @@ if HAS_SPARK:
 #     _eval_str = ", ".join([f"{i.__module__}.{i.__name__}" for i in _df_types])
 #     GenericDataFrame = eval(f"Union[{_eval_str}]")
 
-# Quite dirty, replace it with reduce(operator.or_, _li_df) when upgrading to py>=3.10
-_eval_str = ", ".join([f"{i.__module__}.{i.__name__}" for i in _df_types])
-GenericDataFrame = eval(f"Union[{_eval_str}]")
+GenericDataFrame = reduce(operator.or_, _df_types)
 
 
 def get_dataframe_type(df: GenericDataFrame) -> str:

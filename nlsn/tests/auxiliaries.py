@@ -2,7 +2,6 @@
 
 import re
 from fnmatch import fnmatch
-from typing import Optional
 
 import narwhals as nw
 import polars as pl
@@ -69,9 +68,9 @@ def from_pandas(df_input, backend: str, to_nw: bool, spark=None):
 def get_expected_columns(
         input_columns: list[str],
         *,
-        columns: Optional[list] = None,
-        regex: Optional[str] = None,
-        glob: Optional[str] = None
+        columns: list | None = None,
+        regex: str | None = None,
+        glob: str | None = None
 ) -> list[str]:
     """Get the expected columns by using the nlsn.nebula.select_columns logic."""
     columns = ensure_list(columns)
