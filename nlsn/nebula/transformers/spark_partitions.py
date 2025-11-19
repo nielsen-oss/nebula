@@ -2,7 +2,6 @@
 
 from nlsn.nebula.auxiliaries import assert_is_bool, ensure_flat_list
 from nlsn.nebula.base import Transformer
-from nlsn.nebula.logger import logger
 from nlsn.nebula.spark_util import get_default_spark_partitions, cache_if_needed, get_data_skew
 
 __all__ = [
@@ -54,15 +53,15 @@ class _Partitions(Transformer):
         if self._rows_per_part:
             n_rows: int = df.count()
             n_part = max(n_rows // self._rows_per_part, 1)
-            logger.info(f"{op} to {n_part} partitions ({self._rows_per_part} per row)")
+            # print(f"{op} to {n_part} partitions ({self._rows_per_part} per row)")
 
         elif self._num_part:
             n_part = self._num_part
-            logger.info(f"{op} to {n_part} partitions")
+            # print(f"{op} to {n_part} partitions")
 
         else:  # to default partition
             n_part = get_default_spark_partitions(df)
-            logger.info(f"{op} to default partitions ({n_part})")
+            # print(f"{op} to default partitions ({n_part})")
 
         return n_part
 
@@ -150,9 +149,7 @@ class Persist(Transformer):
     @staticmethod
     def _transform_spark(df):
         if df.is_cached:
-            logger.info("DataFrame was already cached, no need to persist.")
             return df
-        logger.info("Caching dataframe")
         return df.cache()
 
 

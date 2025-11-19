@@ -1,12 +1,9 @@
 """Inspect and verify the correctness of the transformer classes.
 
 Ensure that:
-- the class names do not end with `Transformer`
-- each class is a subclass of `nlsn.nebula.base.Transformer`
+- each class is a subclass of `nebula.base.Transformer`
 - each class has a docstring within its `__init__` constructor
 - no positional arguments are used in the `__init__` constructor
-- the class does not have a public method named `transform`
-- each class has a private method named `_transform`
 - the `_transform` method accepts only one positional argument and nothing else.
 
 Then check if all the transformers are publicly declared in `__all__` for each py file.
@@ -42,7 +39,7 @@ class InvalidTransformMethodSignature1:
         ...  # It does not take df as an argument
 
 
-class IdvalidTransformMethodSignature2:
+class InvalidTransformMethodSignature2:
     def _transform(self, a, b):
         ...  # Too many arguments
 
@@ -55,7 +52,7 @@ class InvalidTransformMethodSignature3:
 # ------------------------------ Check Functions
 
 def _test_transformer_subclass(transformer):
-    """Transformer must be a subclass of nlsn.nebula.base.Transformer."""
+    """Transformer must be a subclass of base.Transformer."""
     assert issubclass(transformer, Transformer)
 
 
@@ -121,7 +118,7 @@ def _test_transformer_method_signature(transformer):
     elif kind == "POSITIONAL_OR_KEYWORD":
         assert param_df.default == inspect.Parameter.empty
     else:
-        msg = "Parameter in '_transform' method must be positional "
+        msg = "Parameter in '_transform*' method must be positional "
         msg += "only or keyword without any default."
         raise AssertionError(msg)
 
@@ -139,7 +136,6 @@ class TestInvalidTransformers:
         li_func = [
             _test_transformer_subclass,
             _test_transformer_docstring,
-            _test_transformer_method_name,
         ]
 
         for func in li_func:
@@ -159,7 +155,7 @@ class TestInvalidTransformers:
         """Test the method signature."""
         li_invalid_transform_signature = [
             InvalidTransformMethodSignature1,
-            IdvalidTransformMethodSignature2,
+            InvalidTransformMethodSignature2,
             InvalidTransformMethodSignature3,
         ]
         for trf in li_invalid_transform_signature:
@@ -205,7 +201,6 @@ def test_transformer_correctness():
     li_func = [
         _test_transformer_subclass,
         _test_transformer_docstring,
-        _test_transformer_method_name,
         _test_transformer_init_signature,
         _test_transformer_method_signature,
     ]

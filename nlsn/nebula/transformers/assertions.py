@@ -5,17 +5,15 @@ They don't manipulate the data but may trigger eager evaluation.
 
 from nlsn.nebula.auxiliaries import ensure_flat_list
 from nlsn.nebula.base import Transformer
-from nlsn.nebula.logger import logger
 
 __all__ = [
+    "AssertContainsColumns",
     "AssertCount",
-    # "AssertNotEmpty",
-    # "AssertRowsAreDistinct",
-    "DataFrameContainsColumns",
+    "AssertNotEmpty",
 ]
 
 
-class DataFrameContainsColumns(Transformer):
+class AssertContainsColumns(Transformer):
     def __init__(self, *, columns: str | list[str]):
         """Raise AssertionError if the dataframe does not contain the expected columns.
 
@@ -29,65 +27,116 @@ class DataFrameContainsColumns(Transformer):
         super().__init__()
         self._cols: list[str] = ensure_flat_list(columns)
 
-    def _transform(self, df):
+    def _transform_nw(self, df):
         actual_cols = set(df.columns)
         missing_cols = [i for i in self._cols if i not in actual_cols]
 
         if missing_cols:
-            logger.info(f"Missing columns: {missing_cols}")
-            raise AssertionError("Some expected columns are missing")
+            msg = f"Missing required columns: {missing_cols}. "
+            msg += f"Available columns: {sorted(actual_cols)}"
+            raise AssertionError(msg)
 
         return df
+
 
 class AssertCount(Transformer):
     def __init__(
             self,
             *,
-            expected: Optional[int] = None,
-            min_count: Optional[int] = None,
-            max_count: Optional[int] = None,
-            operator: str = "eq",  # eq, ne, ge, gt, le, lt
-            persist_spark: bool = False,  # NEW: explicit control
-            collect_polars: bool = True,  # NEW: explicit control
+            expected: int | None = None,
+            min_count: int | None = None,
+            max_count: int | None = None,
     ):
-        """
+        """Assert DataFrame has expected number of rows.
+
         Args:
-            persist_spark: If True, cache Spark DF before counting
-            collect_polars: If True, collect Polars LazyFrame before counting
+            expected: Exact number of rows expected (mutually exclusive with min/max)
+            min_count: Minimum number of rows required
+            max_count: Maximum number of rows allowed
+
+        Raises:
+            AssertionError: If expected is provided with min_count or max_count
+            AssertionError: If row count doesn't meet expectations
+            ValueError: If no count condition is specified
+
+        Example:
+            AssertCount(expected=1000)
+            AssertCount(min_count=1, max_count=10000)
         """
-        self._expected = expected
-        self._min = min_count
-        self._max = max_count
-        self._operator = operator
-        self._persist_spark = persist_spark
-        self._collect_polars = collect_polars
+        if expected is not None:
+            if min_count is not None or max_count is not None:
+                raise AssertionError(
+                    "'expected' cannot be used with 'min_count' or 'max_count'"
+                )
 
-    def _transform(self, df):
-        backend = self._detect_backend(df)
+        super().__init__()
+        self._expected: int | None = expected
+        self._min: int | None = min_count
+        self._max: int | None = max_count
 
-        # Handle Spark specially
-        if backend == "spark":
-            if self._persist_spark and not df.is_cached:
-                df = df.cache()
-            count = df.count()  # Spark action
-            # df is still the same object (cached or not)
+    def _validate_count(self, count: int):
+        """Validate count against expectations."""
+        errors = []
 
-        # Handle Polars LazyFrame
-        elif backend == "polars" and hasattr(df, 'collect'):
-            if self._collect_polars:
-                # Collect and count, but return original LazyFrame
-                count = len(df.collect())
-                # df is still LazyFrame
-            else:
-                # Use estimated count or other strategy
-                count = df.select(pl.count()).collect().item()
+        if self._expected is not None:
+            if count != self._expected:
+                errors.append(f"Expected exactly {self._expected} rows, got {count}")
 
-        # Pandas or materialized Polars
+        if self._min is not None:
+            if count < self._min:
+                errors.append(f"Expected at least {self._min} rows, got {count}")
+
+        if self._max is not None:
+            if count > self._max:
+                errors.append(f"Expected at most {self._max} rows, got {count}")
+
+        if errors:
+            raise AssertionError(". ".join(errors))
+
+    def _transform_pandas(self, df):
+        self._validate_count(df.shape[0])
+        return df
+
+    def _transform_polars(self, df):
+        if hasattr(df, 'collect'):
+            count = len(df.collect())
         else:
             count = len(df)
-
-        # Validate
         self._validate_count(count)
+        return df
 
-        # Return original df (unchanged)
+    def _transform_spark(self, df):
+        self._validate_count(df.count())
+        return df
+
+
+class AssertNotEmpty(Transformer):
+    def __init__(self, *, df_name: str = "DataFrame"):
+        """Raise AssertionError if dataframe is empty.
+
+        Args:
+            df_name: Name to use in error message (default: "DataFrame")
+
+        Raises:
+            AssertionError: If dataframe has no rows
+        """
+        super().__init__()
+        self._df_name: str = df_name
+
+    def _transform_polars(self, df):
+        if hasattr(df, 'collect'):
+            if len(df.head(1).collect()) == 0:
+                raise AssertionError(f"{self._df_name} is empty")
+        elif len(df) == 0:
+            raise AssertionError(f"{self._df_name} is empty")
+        return df
+
+    def _transform_pandas(self, df):
+        if df.empty:
+            raise AssertionError(f"{self._df_name} is empty")
+        return df
+
+    def _transform_spark(self, df):
+        if df.isEmpty():
+            raise AssertionError(f"{self._df_name} is empty")
         return df

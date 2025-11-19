@@ -2,7 +2,6 @@
 
 import operator as py_operator
 from datetime import datetime, timedelta
-from typing import List, Tuple
 
 import pandas as pd
 import pytest
@@ -711,10 +710,10 @@ class TestFunctionHashDataFrame:
         ]
 
         data = [
-            ["a", 0.0, [1, 2]],
-            ["  ", float("nan"), [None, 12]],
-            [None, None, None],
-        ] * 100
+                   ["a", 0.0, [1, 2]],
+                   ["  ", float("nan"), [None, 12]],
+                   [None, None, None],
+               ] * 100
 
         return spark.createDataFrame(data, schema=StructType(fields)).persist()
 

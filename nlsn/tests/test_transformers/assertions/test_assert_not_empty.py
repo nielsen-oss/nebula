@@ -4,7 +4,7 @@ import pytest
 from chispa import assert_df_equality
 from pyspark.sql.types import IntegerType, StringType, StructField, StructType
 
-from nlsn.nebula.spark_transformers import AssertNotEmpty
+from nlsn.nebula.transformers import AssertNotEmpty
 
 
 @pytest.fixture(scope="module", name="df_input")

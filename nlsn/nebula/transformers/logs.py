@@ -15,9 +15,7 @@ from pyspark.sql.types import (
 )
 
 from nlsn.nebula.base import Transformer
-from nlsn.nebula.spark_util import (
-    get_spark_session,
-)
+from nlsn.nebula.spark_util import get_spark_session
 
 __all__ = [
     "CpuInfo",

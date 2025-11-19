@@ -4,16 +4,12 @@ import operator as py_operator
 import sys
 import warnings
 from io import StringIO
-from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
+from typing import Any, Iterable
 
 import narwhals as nw
 import pyspark.sql
 import pyspark.sql.functions as F
-from pyspark.sql.types import (
-    StructField,
-    StructType,
-    _parse_datatype_string,
-)
+from pyspark.sql.types import StructField, StructType, _parse_datatype_string
 
 from nlsn.nebula.auxiliaries import (
     assert_allowed,
@@ -35,9 +31,7 @@ __all__ = [
     "get_default_spark_partitions",
     "get_schema_as_str",
     "get_spark_condition",
-    "get_spark_full_conf",
     "get_spark_session",
-    "get_registered_tables",
     "hash_dataframe",
     "is_broadcast",
     "is_valid_number",
@@ -69,7 +63,7 @@ _allowed_operators = ALLOWED_STANDARD_OPERATORS.union(
 _psql = pyspark.sql  # keep it for linting
 
 
-def _string_schema_to_datatype(li: List[Iterable[str]]) -> List[StructField]:
+def _string_schema_to_datatype(li: list[Iterable[str]]) -> list[StructField]:
     """Convert diamond notation schema into spark schema.
 
     Given a list of columns / types like:
@@ -92,8 +86,8 @@ def _string_schema_to_datatype(li: List[Iterable[str]]) -> List[StructField]:
 
 
 def cast_to_schema(
-    df: "pyspark.sql.DataFrame",
-    schema: StructType,
+        df: "pyspark.sql.DataFrame",
+        schema: StructType,
 ) -> "pyspark.sql.DataFrame":
     """Cast the columns of a DataFrame to a given schema.
 
@@ -111,7 +105,7 @@ def cast_to_schema(
             If the number of columns in the DataFrame does not match
             the number of fields in the schema.
     """
-    cols: List[str] = df.columns
+    cols: list[str] = df.columns
 
     if len(cols) != len(schema):
         logger.error("Different columns")
@@ -122,7 +116,7 @@ def cast_to_schema(
         msg = "'cast_subset_to_input_schema' -> Different number of columns"
         raise AssertionError(msg)
 
-    exp_columns: List[str] = [i.name for i in schema]
+    exp_columns: list[str] = [i.name for i in schema]
     df = df.select(exp_columns)
 
     new_cols = []
@@ -141,13 +135,13 @@ def cast_to_schema(
 
 
 def compare_dfs(
-    df1: "pyspark.sql.DataFrame",
-    df2: "pyspark.sql.DataFrame",
-    *,
-    columns: Optional[List[str]] = None,
-    raise_if_row_number_mismatch: bool = True,
-    return_mismatched_rows: bool = False,
-) -> Tuple[Optional["pyspark.sql.DataFrame"], Optional["pyspark.sql.DataFrame"]]:
+        df1: "pyspark.sql.DataFrame",
+        df2: "pyspark.sql.DataFrame",
+        *,
+        columns: list[str] = None,
+        raise_if_row_number_mismatch: bool = True,
+        return_mismatched_rows: bool = False,
+) -> tuple[pyspark.sql.DataFrame | None, pyspark.sql.DataFrame | None]:
     """Compare two DFs for equality based on schema, row count, and content.
 
     This function performs several checks for equality. First, if no specific
@@ -271,9 +265,9 @@ def compare_dfs(
 
 
 def drop_duplicates_no_randomness(
-    df: "pyspark.sql.DataFrame",
-    subset: Union[str, List[str]],
-    agg_func: str = "max",
+        df: "pyspark.sql.DataFrame",
+        subset: str | list[str],
+        agg_func: str = "max",
 ) -> "pyspark.sql.DataFrame":
     """Drop duplicated rows considering a subset of columns and remove the randomness when possible.
 
@@ -323,7 +317,7 @@ def drop_duplicates_no_randomness(
 
     func: callable = getattr(F, agg_func)
 
-    grouping: List[str] = ensure_flat_list(subset)
+    grouping: list[str] = ensure_flat_list(subset)
 
     other_cols = [c for c in df.columns if c not in grouping]
     scalar_cols = [c for c in other_cols if _is_scalar(df, c)]
@@ -344,9 +338,9 @@ def drop_duplicates_no_randomness(
 
 
 def ensure_spark_condition(
-    operator: str,
-    value: Optional[Any] = None,
-    compare_col: Optional[str] = None,
+        operator: str,
+        value=None,
+        compare_col: str | None = None,
 ) -> None:
     """Validate the input parameters for a Spark condition.
 
@@ -486,8 +480,8 @@ def get_default_spark_partitions(df: "pyspark.sql.DataFrame") -> int:
 
 
 def get_schema_as_str(
-    df: "pyspark.sql.DataFrame", full_type_name: bool
-) -> List[Tuple[str, str]]:
+        df: "pyspark.sql.DataFrame", full_type_name: bool
+) -> list[tuple[str, str]]:
     """Return the dataframe schema as a List of 2-string tuples.
 
     The first string represents the column, the latter its data-types.
@@ -522,8 +516,8 @@ def get_schema_as_str(
     """
     meth = "simpleString" if full_type_name else "typeName"
 
-    fields: List[StructField] = df.schema.fields
-    ret: List[Tuple[str, str]] = []
+    fields: list[StructField] = df.schema.fields
+    ret: list[tuple[str, str]] = []
     for field in fields:
         name: str = field.name  # columns name
         data_type = field.dataType
@@ -533,13 +527,13 @@ def get_schema_as_str(
 
 
 def hash_dataframe(
-    df: "pyspark.sql.DataFrame",
-    hash_name: str = "md5",
-    *,
-    new_col: Optional[str] = None,
-    num_bits: int = 256,
-    return_func: bool = False,
-) -> Union["pyspark.sql.DataFrame", F.col]:
+        df: "pyspark.sql.DataFrame",
+        hash_name: str = "md5",
+        *,
+        new_col: str | None = None,
+        num_bits: int = 256,
+        return_func: bool = False,
+) -> pyspark.sql.DataFrame | F.col:
     """Hash each dataframe row.
 
     All the columns are sorted before being hashed to ensure a repeatable result.
@@ -579,7 +573,7 @@ def hash_dataframe(
     if new_col and return_func:
         raise AssertionError("Only one among 'new_col' and 'return_func' is allowed")
 
-    sorted_cols: List[str] = sorted(df.columns)
+    sorted_cols: list[str] = sorted(df.columns)
 
     hash_func = getattr(F, hash_name)
 
@@ -608,7 +602,7 @@ def null_cond_to_false(cond: F.col) -> F.col:
     return F.when(null_cond, F.lit(False)).otherwise(cond)
 
 
-def get_data_skew(df, as_dict: bool = False) -> Optional[Dict[str, Any]]:
+def get_data_skew(df, as_dict: bool = False) -> dict[str, Any] | None:
     """Get the skewness of a spark dataframe.
 
     Args:
@@ -641,10 +635,10 @@ def get_data_skew(df, as_dict: bool = False) -> Optional[Dict[str, Any]]:
     n_part: int = s_rdd.getNumPartitions()
 
     # get the length of each partition
-    li: List[int] = s_rdd.glom().map(len).collect()
+    li: list[int] = s_rdd.glom().map(len).collect()
     s = pd.Series(li)
 
-    desc: List[Tuple[str, float]]
+    desc: list[tuple[str, float]]
     desc = list(s.describe().to_frame().to_records())
     # something ordered like
     # [('count', 10.0),
@@ -678,12 +672,12 @@ def get_data_skew(df, as_dict: bool = False) -> Optional[Dict[str, Any]]:
 
 
 def get_spark_condition(
-    df: "pyspark.sql.DataFrame",
-    col_str: str,
-    operator: str,
-    *,
-    value: Optional[Any] = None,
-    compare_col: Optional[str] = None,
+        df: "pyspark.sql.DataFrame",
+        col_str: str,
+        operator: str,
+        *,
+        value=None,
+        compare_col: str | None = None,
 ) -> F.col:
     """Verify if a condition is met.
 
@@ -808,9 +802,9 @@ def is_broadcast(df) -> bool:
 
 
 def split_df_bool_condition(
-    df: "pyspark.sql.DataFrame",
-    cond: F.col,
-) -> Tuple["pyspark.sql.DataFrame", "pyspark.sql.DataFrame"]:
+        df: "pyspark.sql.DataFrame",
+        cond: F.col,
+) -> tuple["pyspark.sql.DataFrame", "pyspark.sql.DataFrame"]:
     """Split a dataframe into two dataframes given a certain condition.
 
     Given a spark condition like:
