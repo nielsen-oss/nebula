@@ -1,10 +1,6 @@
 """Check which dataframe libraries are installed."""
 
-__all__ = [
-    "HAS_PANDAS",
-    "HAS_POLARS",
-    "HAS_SPARK",
-]
+__all__ = ["HAS_PANDAS", "HAS_POLARS", "HAS_SPARK"]
 
 HAS_PANDAS: bool
 HAS_POLARS: bool

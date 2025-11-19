@@ -26,11 +26,9 @@ if __name__ == "__main__":
         # utils and auxiliaries
         path_test / "test_auxiliaries.py",
         path_test / "test_base.py",
-        path_test / "test_deprecations.py",
         path_test / "test_helpers.py",
         path_test / "test_metaclasses.py",
         path_test / "test_nebula_storage.py",
-        path_test / "test_ts_util.py",
         # pandas transformers
         *list_test_trf_pandas,
         # pipeline w/o spark

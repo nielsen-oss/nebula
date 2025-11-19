@@ -4,7 +4,7 @@ import operator as py_operator
 import sys
 import warnings
 from io import StringIO
-from typing import Any, Iterable
+from typing import Any, Iterable, Union
 
 import narwhals as nw
 import pyspark.sql
@@ -533,7 +533,7 @@ def hash_dataframe(
         new_col: str | None = None,
         num_bits: int = 256,
         return_func: bool = False,
-) -> pyspark.sql.DataFrame | F.col:
+) -> Union["pyspark.sql.DataFrame", "F.col"]:
     """Hash each dataframe row.
 
     All the columns are sorted before being hashed to ensure a repeatable result.
@@ -883,8 +883,4 @@ def cache_if_needed(df, do_cache: bool):
         return df
     if not isinstance(df, _psql.DataFrame):
         return df
-    if df.is_cached:
-        logger.info("DataFrame was already cached, no need to persist.")
-    else:
-        df = df.cache()
-    return df
+    return df.cache()

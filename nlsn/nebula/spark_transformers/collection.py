@@ -7,7 +7,6 @@ from pyspark.sql import functions as F
 from pyspark.sql.types import ArrayType, DataType, MapType
 
 from nlsn.nebula.auxiliaries import (
-    assert_allowed,
     assert_at_least_one_non_null,
     assert_at_most_one_args,
     ensure_flat_list,
@@ -22,12 +21,10 @@ from nlsn.nebula.storage import nebula_storage as ns
 
 __all__ = [
     "Coalesce",
-    "ColumnMethod",
     "Explode",
     "FillNa",
     "Join",
     "Melt",
-    "SqlFunction",
     "UnionByName",
     "When",
 ]
@@ -117,67 +114,6 @@ class Coalesce(Transformer):
             df = df.drop(*cols2drop)
 
         return df
-
-
-class ColumnMethod(Transformer):
-    def __init__(
-            self,
-            *,
-            input_column: str,
-            output_column: str | None = None,
-            method: str,
-            args: list[Any] = None,
-            kwargs: dict[str, Any] | None = None,
-    ):
-        """Call a pyspark.sql.Column method with the provided args/kwargs.
-
-        Args:
-            input_column (str):
-                Name of the input column.
-            output_column (str):
-                Name of the column where the result of the function is stored.
-                If not provided, the input column will be used.
-                Defaults to None.
-            method (str):
-                Name of the pyspark.sql.Column method to call.
-            args (list(any) | None):
-                Positional arguments of pyspark.sql.Column method.
-                Defaults to None.
-            kwargs (dict(str, any) | None):
-                Keyword arguments of pyspark.sql.Column method.
-                Defaults to None.
-        """
-        super().__init__()
-        self._input_col: str = input_column
-        self._output_col: str = output_column if output_column else input_column
-        self._meth: str = method
-        self._args: list = args if args else []
-        self._kwargs: dict[str, Any] = kwargs if kwargs else {}
-
-        # Attempt to retrieve any errors during initialization.
-        # Use a try-except block because Spark may not be running at this
-        # point, making it impossible to guarantee the availability of the
-        # requested method.
-        self._assert_col_meth(False)
-
-    def _assert_col_meth(self, raise_err: bool):
-        try:
-            all_meths = dir(F.col(self._input_col))
-        except AttributeError as e:  # pragma: no cover
-            if raise_err:
-                raise e
-            return
-
-        valid_meths = {
-            i for i in all_meths if (not i.startswith("_")) and (not i[0].isupper())
-        }
-        if self._meth not in valid_meths:
-            raise ValueError(f"'method' must be one of {sorted(valid_meths)}")
-
-    def _transform(self, df):
-        self._assert_col_meth(True)
-        func = getattr(F.col(self._input_col), self._meth)(*self._args, **self._kwargs)
-        return df.withColumn(self._output_col, func)
 
 
 class Explode(Transformer):
@@ -440,43 +376,6 @@ class Melt(Transformer):
             for x in [self._variable_col, self._value_col]
         ]
         return melted_df.select(*cols)
-
-
-class SqlFunction(Transformer):
-    def __init__(
-            self,
-            *,
-            column: str,
-            function: str,
-            args: list[Any] | None = None,
-            kwargs: dict[str, Any] | None = None,
-    ):
-        """Call a pyspark.sql.function with the provided args/kwargs.
-
-        Args:
-            column (str):
-                Name of the column where the result of the function is stored.
-            function (str):
-                Name of the pyspark.sql.function to call.
-            args (list(any) | None):
-                Positional arguments of pyspark.sql.function. Defaults to None.
-            kwargs (dict(str, any) | None):
-                Keyword arguments of pyspark.sql.function. Defaults to None.
-        """
-        valid_funcs = {
-            i for i in dir(F) if (not i.startswith("_")) and (not i[0].isupper())
-        }
-        assert_allowed(function, valid_funcs, "function")
-
-        super().__init__()
-        self._output_col: str = column
-        self._func_name: str = function
-        self._args: list = args if args else []
-        self._kwargs: dict[str, Any] = kwargs if kwargs else {}
-
-    def _transform(self, df):
-        func = getattr(F, self._func_name)(*self._args, **self._kwargs)
-        return df.withColumn(self._output_col, func)
 
 
 class UnionByName(Transformer):
