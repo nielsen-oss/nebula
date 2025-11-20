@@ -6,4 +6,3 @@ from .collection import *
 from .filters import *
 from .mappings import *
 from .numerical import *
-from .schema import *

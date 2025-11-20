@@ -2,28 +2,22 @@
 
 import pandas as pd
 import pytest
-from pyspark.sql.types import StructType
 
 from nlsn.nebula.df_types import get_dataframe_type
+from nlsn.tests.auxiliaries import from_pandas
 
 
-@pytest.mark.parametrize(
-    "o, exp",
-    [
-        (pd.DataFrame(), "pandas"),
-        ("spark_placeholder", "spark"),
-        ([], None),
-    ],
-)
-def test_get_dataframe_type(spark, o, exp):
+class TestGetDataframeType:
     """Unit-Test 'get_dataframe_type' function."""
-    if exp is None:
+
+    @pytest.mark.parametrize("backend", ["pandas", "polars", "spark"])
+    def test_valid(self, spark, backend):
+        df_pd = pd.DataFrame({"a": [1], "b": [2.0]})
+        df = from_pandas(df_pd, backend, to_nw=False, spark=spark)
+        chk = get_dataframe_type(df)
+        assert chk == backend
+
+    @staticmethod
+    def test_invalid():
         with pytest.raises(TypeError):
-            get_dataframe_type(o)
-        return
-
-    if isinstance(o, str) and (o == "spark_placeholder"):
-        o = spark.createDataFrame([], schema=StructType([]))
-
-    chk = get_dataframe_type(o)
-    assert chk == exp
+            get_dataframe_type([])

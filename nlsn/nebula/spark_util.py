@@ -9,7 +9,7 @@ from typing import Any, Iterable, Union
 import narwhals as nw
 import pyspark.sql
 import pyspark.sql.functions as F
-from pyspark.sql.types import StructField, StructType, _parse_datatype_string
+from pyspark.sql.types import StructField, StructType
 
 from nlsn.nebula.auxiliaries import (
     assert_allowed,
@@ -61,28 +61,6 @@ _allowed_operators = ALLOWED_STANDARD_OPERATORS.union(
 ).union(ALLOWED_SPARK_OPERATORS)
 
 _psql = pyspark.sql  # keep it for linting
-
-
-def _string_schema_to_datatype(li: list[Iterable[str]]) -> list[StructField]:
-    """Convert diamond notation schema into spark schema.
-
-    Given a list of columns / types like:
-    [
-        ['col_1', 'map<string, double>'],
-        ['col_2', 'string']
-    ]
-
-    return a spark schema like:
-    [
-        StructField(col_1, MapType(StringType, DoubleType, true), true),
-        StructField(col_2, StringType, true)
-    ]
-    """
-    li_join = []
-    for el in li:
-        li_join.append(" ".join(el))
-    s = ", ".join(li_join)
-    return list(_parse_datatype_string(s))
 
 
 def cast_to_schema(

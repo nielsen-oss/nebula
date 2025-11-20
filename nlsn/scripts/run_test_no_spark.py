@@ -1,6 +1,6 @@
 """Run some unit-tests that do not require spark.
 
-When the env var LOCAL_TESTS_NO_SPARK is set, conftest.py does not init spark.
+When the env var TESTS_NO_SPARK is set, conftest.py does not init spark.
 """
 
 import os
@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 
 if __name__ == "__main__":
-    os.environ["LOCAL_TESTS_NO_SPARK"] = "true"
+    os.environ["TESTS_NO_SPARK"] = "true"
 
     path_test = Path("..") / "tests"
     path_pipe = path_test / "test_pipelines"

@@ -9,7 +9,6 @@ from pyspark.sql.utils import AnalysisException
 
 from nlsn.nebula import nebula_storage as ns
 from nlsn.nebula.spark_transformers import UnionByName
-from nlsn.tests.constants import SPARK_VERSION
 
 _DATA = [["a"], ["b"]]
 
@@ -106,7 +105,6 @@ def test_union_by_name_drop_before_union(df_input, drop):
     _assert(df_input, t)
 
 
-@pytest.mark.skipif(SPARK_VERSION < "3.1.0", reason="requires pyspark 3.1.0 or higher")
 @pytest.mark.parametrize("store_key", [_TABLE_2, _TABLE_3])
 def test_union_by_name_allow_missing_columns(df_input, store_key: str):
     """Test UnionByName transformer setting 'allow_missing_columns'."""

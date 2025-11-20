@@ -14,12 +14,12 @@ def data_path() -> str:
 
 @pytest.fixture(scope="session", name="spark")
 def start_spark():
-    """Init Spark.
+    """Init Spark if ee requested.
 
-    If 'LOCAL_TESTS_NO_SPARK' exists as an env variable, skip this fixture and
+    If 'TESTS_NO_SPARK' exists as an env variable, skip this fixture and
     do not execute any test related to spark.
     """
-    if os.environ.get("LOCAL_TESTS_NO_SPARK"):
+    if os.environ.get("TESTS_NO_SPARK"):
         return
 
     venv_python = sys.executable

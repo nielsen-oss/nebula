@@ -25,7 +25,6 @@ from nlsn.nebula.spark_util import *
 from nlsn.nebula.spark_util import (
     ALLOWED_SPARK_NULL_OPERATORS,
     ALLOWED_STANDARD_OPERATORS,
-    _string_schema_to_datatype,
 )
 
 _nan = float("nan")
@@ -129,39 +128,6 @@ class TestSplitDfBoolCondition:
         cond_num = F.col("c2") == 2.0
         df1_num, df2_num = split_df_bool_condition(df_input, cond_num)
         self._check_split_df_bool_condition(df1_num, 1, df2_num, 3, row_count)
-
-
-def test_string_schema_to_datatype():
-    """Test _string_schema_to_datatype."""
-    dict_alias = {"integer": "int", "long": "bigint"}
-
-    li_input = [
-        ["col_1 ", " map<string  , double>"],
-        ["col_2 ", "string "],
-        ["   col_3 ", " long "],
-        ["col_4 ", " int "],
-        ["col_5 ", " map<string  , map<string  , double>>"],
-        [" col_6   ", " bigint "],
-        ["col_7 ", " array<string> "],
-        ["col_8 ", " array<array<   float>> "],
-    ]
-
-    res: list[StructField]
-    res = _string_schema_to_datatype(li_input)
-
-    assert len(res) == len(li_input)
-
-    field: StructField
-    for (exp_name, input_type), field in zip(li_input, res):
-        # field.simpleString() -> "col_name:<type>"
-        chk_name, chk_type = field.simpleString().split(":")
-        assert chk_name == exp_name.strip()
-
-        exp_type = input_type.replace(" ", "")
-        for k, v in dict_alias.items():
-            exp_type = exp_type.replace(k, v)
-
-        assert chk_type == exp_type
 
 
 class TestCacheIfNeeded:

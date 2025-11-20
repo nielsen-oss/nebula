@@ -2,17 +2,16 @@
 
 import os
 
-__all__ = ["SPARK_VERSION", "TEST_BACKENDS"]
+__all__ = ["TESTS_NO_SPARK", "TEST_BACKENDS"]
 
-SPARK_VERSION: str
+TESTS_NO_SPARK: bool
 TEST_BACKENDS = ["pandas", "polars"]
 
-if os.environ.get("LOCAL_TESTS_NO_SPARK"):
-    # if LOCAL_TESTS_NO_SPARK exists as env variable skip this fixture and
+if os.environ.get("TESTS_NO_SPARK"):
+    # if TESTS_NO_SPARK exists as env variable skip this fixture and
     # do not execute any test related to spark.
-    SPARK_VERSION = "0.0.0"
+    TESTS_NO_SPARK = False
 else:
-    import pyspark
 
-    SPARK_VERSION = pyspark.__version__
+    TESTS_NO_SPARK = True
     TEST_BACKENDS.append("spark")
