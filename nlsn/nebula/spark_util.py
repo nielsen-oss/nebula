@@ -34,7 +34,6 @@ __all__ = [
     "get_spark_session",
     "hash_dataframe",
     "is_broadcast",
-    "is_valid_number",
     "null_cond_to_false",
     "split_df_bool_condition",
 ]
@@ -750,18 +749,6 @@ def get_spark_condition(
 
     return cond
 
-
-def is_valid_number(c: str):
-    """Check if values in a specific field are valid number or not (Null /NaN).
-
-    Args:
-        c (str):
-            Column name.
-
-    Returns (pyspark.sql.Column):
-        True if the value is a valid number, False if the value is Null or NaN.
-    """
-    return F.col(c).isNotNull() & ~F.isnan(c)
 
 
 def is_broadcast(df) -> bool:

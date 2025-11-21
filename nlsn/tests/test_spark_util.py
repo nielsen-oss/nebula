@@ -54,29 +54,6 @@ def test_get_column_data_type_name(spark):
         assert chk == exp
 
 
-def test_is_valid_number(spark):
-    """Test is_valid_number function."""
-    fields = [
-        StructField("c1", FloatType(), True),
-        StructField("exp", BooleanType(), True),  # expected values
-    ]
-    schema = StructType(fields)
-
-    input_data = [
-        [1.5, True],
-        [0.0, True],
-        [None, False],
-        [_nan, False],
-    ]
-
-    df = spark.createDataFrame(input_data, schema=schema).withColumn(
-        "chk", is_valid_number("c1")
-    )
-
-    count: int = df.filter(F.col("chk") == F.col("exp")).count()
-    assert count == len(input_data)
-
-
 def test_is_broadcast(spark):
     """Test 'is_broadcast' function."""
     fields = [
