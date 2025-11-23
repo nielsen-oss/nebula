@@ -18,6 +18,8 @@ from nlsn.nebula.spark_util import (
 __all__ = [
     "Cache",  # alias Persist
     "CoalescePartitions",
+    "ColumnMethod",
+    "CpuInfo",
     "LogDataSkew",
     "Persist",  # alias Cache
     "Repartition",
@@ -35,14 +37,9 @@ class _Partitions(Transformer):
             self,
             *,
             num_partitions: int | None = None,
-            to_default: bool = False,
             rows_per_partition: int | None = None,
     ):
-        assert_is_bool(to_default, "to_default")
-
-        n_p = bool(num_partitions) + bool(to_default) + bool(rows_per_partition)
-        if n_p == 0:
-            raise AssertionError("No partition strategy provided")
+        n_p = bool(num_partitions) + bool(rows_per_partition)
         if n_p > 1:
             msg = 'Only one among "num_partitions", "to_partitions" '
             msg += 'and "rows_per_partition" can be provided'
@@ -57,7 +54,6 @@ class _Partitions(Transformer):
         super().__init__()
 
         self._num_part: int | None = num_partitions
-        self._to_default: bool = to_default  # not used
         self._rows_per_part: int | None = rows_per_partition
 
     def _get_requested_partitions(self, df, op: str) -> int:
@@ -85,33 +81,29 @@ class CoalescePartitions(_Partitions):
             self,
             *,
             num_partitions: int | None = None,
-            to_default: bool = False,
             rows_per_partition: int | None = None,
     ):
         """Coalesce a dataframe according to the inputs.
 
-        Only one among "num_partitions", "to_partitions" and
-        "rows_per_partition" can be provided.
+        Only one among "num_partitions", and "rows_per_partition"
+        can be provided. If both are None, the partitions will be coalesced
+        to the default value.
 
         Args:
             num_partitions (int | None):
                 Specify the target number of partitions.
-            to_default (bool):
-                Coalesce to the default number of spark shuffle partitions.
             rows_per_partition (int | None):
                 Coalesce the dataframe based on the desired
                 number of rows per partition.
         """
         super().__init__(
             num_partitions=num_partitions,
-            to_default=to_default,
             rows_per_partition=rows_per_partition,
         )
 
     def _transform_spark(self, df):
         n_part: int = self._get_requested_partitions(df, "Coalesce")
         return df.coalesce(n_part)
-
 
 
 class ColumnMethod(Transformer):
@@ -169,11 +161,10 @@ class ColumnMethod(Transformer):
         if self._meth not in valid_meths:
             raise ValueError(f"'method' must be one of {sorted(valid_meths)}")
 
-    def _transform(self, df):
+    def _transform_spark(self, df):
         self._assert_col_meth(True)
         func = getattr(F.col(self._input_col), self._meth)(*self._args, **self._kwargs)
         return df.withColumn(self._output_col, func)
-
 
 
 class CpuInfo(Transformer):
@@ -280,7 +271,6 @@ class LogDataSkew(Transformer):
         return df
 
 
-
 class Persist(Transformer):
     def __init__(self):
         """Cache dataframe if not already cached."""
@@ -325,31 +315,30 @@ class SqlFunction(Transformer):
         self._args: list = args if args else []
         self._kwargs: dict[str, Any] = kwargs if kwargs else {}
 
-    def _transform(self, df):
+    def _transform_spark(self, df):
         func = getattr(F, self._func_name)(*self._args, **self._kwargs)
         return df.withColumn(self._output_col, func)
 
-class Repartition(_Partitions):  # FIXME: to default explicit or remove it
+
+class Repartition(_Partitions):
     def __init__(
             self,
             *,
             num_partitions: int | None = None,
-            to_default: bool = False,
             rows_per_partition: int | None = None,
             columns: str | list[str] | None = None,
     ):
-        """Return a new DataFrame partitioned by the given partitioning expressions.
+        """Return a new DataFrame partitioned by the given partitioning.
 
-        Only one among "num_partitions", "to_partitions" and
-        "rows_per_partition" can be provided.
+        Only one among "num_partitions", and "rows_per_partition"
+        can be provided. If both are None, the dataframe will be repartitioned
+        to the default value.
 
         The resulting DataFrame is hash partitioned.
 
         Args:
             num_partitions (int | None):
                 Specify the target number of partitions.
-            to_default (bool):
-                Coalesce to the default number of spark shuffle partitions.
             rows_per_partition (int | None):
                 Coalesce the dataframe based on the desired
                 number of rows per partition.
@@ -358,7 +347,6 @@ class Repartition(_Partitions):  # FIXME: to default explicit or remove it
         """
         super().__init__(
             num_partitions=num_partitions,
-            to_default=to_default,
             rows_per_partition=rows_per_partition,
         )
 
@@ -393,4 +381,3 @@ class Repartition(_Partitions):  # FIXME: to default explicit or remove it
 
 # ---------------------- ALIASES ----------------------
 Cache = Persist
-
