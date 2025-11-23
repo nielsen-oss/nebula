@@ -30,32 +30,6 @@ __all__ = [
 ]
 
 
-def _assert_no_null_keys(d: dict) -> None:
-    """Asserts that a dictionary does not contain None as a key.
-
-    Args:
-        d (dict): The dictionary to check.
-
-    Raises:
-        KeyError: If None is found as a key in the dictionary.
-    """
-    if None in d:
-        raise KeyError("None as mapping key is not allowed")
-
-
-def validate_args_kwargs(
-        args: list | None = None, kwargs: dict[str, Any] | None = None
-) -> None:
-    """Validate args and kwargs."""
-    if (args is not None) and (not isinstance(args, (tuple, list))):
-        raise TypeError("'args' must be a <list> or <tuple>")
-    if kwargs is not None:
-        if not isinstance(kwargs, dict):
-            raise TypeError("'kwargs' must be a <dict>")
-        if not all(isinstance(k, str) for k in kwargs):
-            raise TypeError("All keys in 'kwargs' must be <str>")
-
-
 class Coalesce(Transformer):
     def __init__(
             self,
