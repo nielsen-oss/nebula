@@ -2,5 +2,4 @@
 
 from .assertions import *
 from .columns import *
-from .columns import *
 from .spark_transformers import *

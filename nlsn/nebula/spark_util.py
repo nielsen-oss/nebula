@@ -842,7 +842,7 @@ def nw_to_spark(df) -> tuple[bool, "pyspark.sql.DataFrame"]:
     return False, df
 
 
-def cache_if_needed(df, do_cache: bool):
+def cache_if_needed(df, do_cache: bool):  # FIXME: useful ?
     """Cache the dataframe if is not already cached."""
     if not do_cache:
         return df

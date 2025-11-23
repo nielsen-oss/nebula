@@ -1,9 +1,7 @@
 """Transformers for Managing Columns without Affecting Row Values."""
 
 import re
-from typing import Any, Iterable
-
-import narwhals as nw
+from typing import Iterable
 
 from nlsn.nebula.auxiliaries import (
     assert_at_least_one_non_null,
@@ -13,122 +11,10 @@ from nlsn.nebula.auxiliaries import (
 from nlsn.nebula.base import Transformer
 
 __all__ = [
-    "AddTypedColumns",
     "DropColumns",
     "RenameColumns",
     "SelectColumns",
 ]
-
-
-class AddTypedColumns(Transformer):
-    def __init__(
-            self,
-            *,
-            columns: list[tuple[str, str]] | dict[str, Any] | None,
-    ):
-        """Add typed columns if they do not exist in the DF.
-
-        For each column, the data type must be specified.
-        If 'columns' is null/empty, the transformer is a pass-through.
-
-        Args:
-            columns (list(tuple(str, str)) | dict(str, Any) | None):
-            3 different input types:
-            - list(tuple(str, str)): the first value represents the column
-                name and the second one the data-type. These fields are
-                filled with null values.
-            - dict(str, any): the key represents the column name.
-                If the value is a <string>, it represents the data-type; values
-                will be filled with null.
-                If the value is <dict>, it must be in the form:
-                {"type": str, "value": any}, where the nested "value" indicates
-                the filling value.
-            - [] | {} | None: do nothing.
-        """
-        super().__init__()
-
-        self._columns: dict[str, dict[str, Any]]
-        self._skip: bool = False
-
-        if not columns:
-            self._skip = True
-            return
-
-        if isinstance(columns, dict):
-            self._assert_keys_strings(columns)
-            self._check_default_value(columns)
-            # Sort for repeatability
-            columns_raw = sorted(columns.items())
-
-        else:
-            if not isinstance(columns, (tuple, list)):
-                msg = '"columns" must be <list> | <tuple> | <dict <str, str>>'
-                raise AssertionError(msg)
-            unique_len = {len(i) for i in columns}
-            if unique_len != {2}:
-                msg = 'If "columns" is a <list> | <tuple> it must contain '
-                msg += "2-element iterables"
-                raise AssertionError(msg)
-            columns_raw = columns
-
-        # Convert 'columns_raw' into a dictionary like:
-        # {"column_name": {"type": datatype, "value": value}}
-        self._columns = {}
-        for k, obj in columns_raw:
-            if isinstance(obj, dict):
-                datatype = obj["type"]
-                value = obj["value"]
-            else:
-                datatype = obj
-                value = None
-
-            self._columns.update({k: {"type": datatype, "value": value}})
-
-    @staticmethod
-    def _assert_keys_strings(dictionary):
-        for k in dictionary.keys():
-            if not isinstance(k, str):
-                msg = "All keys in the dictionary must be <string>"
-                raise AssertionError(msg)
-
-    @staticmethod
-    def _check_default_value(dictionary):
-        _allowed = {"type", "value"}
-
-        for nd in dictionary.values():
-            if not isinstance(nd, dict):
-                continue
-
-            set_keys = nd.keys()
-            if set_keys != _allowed:
-                msg = f"Allowed keys in nested dictionary: {_allowed}. "
-                msg += f"Found: {set_keys}."
-                raise AssertionError(msg)
-
-    def _transform_nw(self, nw_df):
-        if self._skip:
-            return nw_df
-
-        # Current columns
-        current_cols: set[str] = set(nw_df.columns)
-
-        # Build a list of new columns to add
-        new_cols_exprs = []
-        for name, nd in self._columns.items():
-            if name in current_cols:  # Do not add new col if already exist
-                continue
-
-            value = nd["value"]
-            data_type = nd["type"]
-
-            # Create literal column with specified value
-            new_cols_exprs.append(nw.lit(value).cast(data_type).alias(name))
-
-        if not new_cols_exprs:
-            return nw_df
-
-        # Add new columns to existing dataframe
-        return nw_df.with_columns(new_cols_exprs)
 
 
 class DropColumns(Transformer):
