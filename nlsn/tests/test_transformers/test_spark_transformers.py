@@ -14,7 +14,7 @@ _N_ROWS: int = 60
 
 _PARAMS = [
     ({"num_partitions": 5}, 5),
-    ({"to_default": True}, None),
+    ({}, None),
     ({"rows_per_partition": 20}, _N_ROWS // 20),
 ]
 
@@ -127,8 +127,6 @@ class TestPartitions:
             {"num_partitions": 0},
             {"rows_per_partition": 0},
             {"num_partitions": 1, "rows_per_partition": 1},
-            {"num_partitions": 1, "to_default": True},
-            {"rows_per_partition": 1, "to_default": True},
         ],
     )
     def test_invalid(self, kwargs):
@@ -145,7 +143,7 @@ class TestPartitions:
         "kwargs, exp",
         [
             ({"num_partitions": 10}, 10),
-            ({"to_default": True}, None),
+            ({}, None),
             ({"rows_per_partition": 50}, 1000 // 50),
         ],
     )

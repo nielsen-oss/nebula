@@ -6,6 +6,7 @@ Union[pyspark.sql.DataFrame, pandas.DataFrame, polars.DataFrame]
 
 import operator
 from functools import reduce
+from typing import Any
 
 from nlsn.nebula.backend_util import HAS_PANDAS, HAS_POLARS, HAS_SPARK
 
@@ -28,7 +29,13 @@ if HAS_SPARK:
 
     _df_types.append(pyspark.sql.DataFrame)
 
-GenericDataFrame = reduce(operator.or_, _df_types)
+# Handle case where no backends are installed
+if _df_types:
+    GenericDataFrame = reduce(operator.or_, _df_types)
+else:
+    # Fallback type when no backends installed
+    # This allows imports to work, but any usage will fail with helpful message
+    GenericDataFrame = Any
 
 
 def get_dataframe_type(df) -> str:
@@ -43,6 +50,7 @@ def get_dataframe_type(df) -> str:
     Raises:
         TypeError: If the dataframe type is unknown or unsupported.
     """
+    # Fast path: check module name (avoids imports)
     df_module = type(df).__module__
 
     if "pandas" in df_module:
@@ -52,7 +60,7 @@ def get_dataframe_type(df) -> str:
     elif "pyspark" in df_module:
         return "spark"
 
-    # Fallback to isinstance checks (more reliable but requires imports)
+    # Fallback: isinstance checks (more reliable but requires imports)
     if HAS_PANDAS:
         from pandas import DataFrame as pandas_DF
         if isinstance(df, pandas_DF):
@@ -68,11 +76,23 @@ def get_dataframe_type(df) -> str:
         if isinstance(df, ps_DF):
             return "spark"
 
-    # Provide helpful error with detected type info
+    # Build helpful error message
+    supported = []
+    if HAS_PANDAS:
+        supported.append("pandas.DataFrame")
+    if HAS_POLARS:
+        supported.append("polars.DataFrame")
+    if HAS_SPARK:
+        supported.append("pyspark.sql.DataFrame")
+
+    if not supported:
+        raise TypeError(
+            f"Unknown dataframe type: {type(df)}. "
+            "No supported backends are installed. "
+            "Install at least one: pip install pandas|polars|pyspark"
+        )
+
     raise TypeError(
-        f"Unknown or unsupported dataframe type: {type(df)}. "
-        f"Supported types: "
-        f"{'pandas.DataFrame, ' if HAS_PANDAS else ''}"
-        f"{'polars.DataFrame, ' if HAS_POLARS else ''}"
-        f"{'pyspark.sql.DataFrame' if HAS_SPARK else ''}"
+        f"Unknown dataframe type: {type(df)}. "
+        f"Supported types: {', '.join(supported)}"
     )

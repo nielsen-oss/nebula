@@ -5,23 +5,26 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "nlsnnebula"
 version = "0.0.1"
-description = "A collection of dataframe transformers with pipeline assembly and execution capabilities"
+description = "Declarative data transformation pipelines for Pandas, Polars, and PySpark"
 authors = [
     { name = "DSci Global Platform Support Team", email = "dscigps@nielsen.com" },
 ]
 readme = "README.md"
 requires-python = ">=3.10"
-keywords = ["nielsen"]
+keywords = ["etl", "pipeline", "dataframe", "pandas", "polars", "pyspark", "narwhals", "data-engineering"]
 classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
     "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Scientific/Engineering",
 ]
 license = { file = "LICENSE" }
 dependencies = [
-    "polars>=1.34.0",
-    "pyspark==3.5.6",
-    "pandas>=1.2.5",
-    "pytest>=7.4.4",
-    "setuptools>=61.0.0",
     "narwhals>=2.0.0",
 ]
 
@@ -29,56 +32,57 @@ dependencies = [
 Homepage = "http://www.nielsen.com"
 Source = "https://github.com/nielsen-oss/nebula"
 
-
 [project.optional-dependencies]
-full = [
-    "chispa",
-    "coverage",
-    "lxml",
-    "numpy",
-    "orjson",
-    "pre-commit>=4.3.0",
-    "py-cpuinfo",
-    "pyarrow",
-    "pytest",
-    "pytest-cov",
-    "pyyaml"
+# Backend support
+pandas = ["pandas>=1.2.5"]
+polars = ["polars>=1.34.0"]
+spark = ["pyspark>=3.5.0"]
+
+# All backends
+all = [
+    "pandas>=1.2.5",
+    "polars>=1.34.0",
+    "pyspark>=3.5.0",
 ]
 
-# TODO Discuss what to include in optionals
-# [project.optional-dependencies]
+# Development dependencies
+dev = [
+    "pytest>=7.4.4",
+    "pytest-cov",
+    "coverage",
+    "pre-commit>=4.3.0",
+    "ruff>=0.1.0",
+]
 
-# dev = [
-#     "pre-commit>=4.3.0",
-#     "py-cpuinfo",
-#     "pyarrow"
-# ]
+# Testing with all backends
+test = [
+    "nlsnnebula[all]",
+    "pytest>=7.4.4",
+    "pytest-cov",
+    "chispa", # For Spark DataFrame comparison
+]
 
-# test = [
-#     "chispa",
-#     "coverage",
-#     "lxml",
-#     "numpy",
-#     "orjson",
-#     "pyarrow",
-#     "py-cpuinfo",
-#     "pytest",
-#     "pytest-cov",
-#     "pyyaml"
-# ]
+# Pipeline visualization
+viz = [
+    "graphviz",
+]
 
-# full = [
-#     ".[dev]",
-#     ".[test]"
-# ]
+# Performance/utilities
+utils = [
+    "py-cpuinfo",
+    "pyarrow",
+    "orjson",
+    "pyyaml",
+]
+
+# Everything
+full = [
+    "nlsnnebula[all,dev,test,viz,utils]",
+]
 
 [tool.setuptools.packages.find]
 include = ["nlsn", "nlsn.*"]
 namespaces = true
-
-
-
-# In your pyproject.toml
 
 [tool.ruff]
 # Set the line length, just like Black

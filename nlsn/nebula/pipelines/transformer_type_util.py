@@ -4,26 +4,18 @@ import inspect
 from inspect import Parameter
 from typing import List, Mapping
 
-from nlsn.nebula.backend_util import HAS_SPARK
 from nlsn.nebula.base import Transformer
 
 __all__ = ["is_transformer", "is_generic_transformer"]
 
-if HAS_SPARK:
-    from pyspark.ml import Transformer as PysparkTransformer
-
-    TransformerTypes = (Transformer, PysparkTransformer)
-else:  # pragma: no cover
-    TransformerTypes = (Transformer,)
-
 
 def is_transformer(o) -> bool:
     """Check if an object is a transformer."""
-    return isinstance(o, TransformerTypes) or is_generic_transformer(o)
+    return isinstance(o, Transformer) or is_generic_transformer(o)
 
 
 def _check_multiple_args(
-    param_names: List[str], params: Mapping[str, Parameter]
+        param_names: List[str], params: Mapping[str, Parameter]
 ) -> bool:
     """Check if additional parameters (after 'df') have default values.
 

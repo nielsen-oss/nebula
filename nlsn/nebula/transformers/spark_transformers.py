@@ -1,4 +1,5 @@
 """Spark transformers related to the partitioning."""
+
 import socket
 from typing import Any
 

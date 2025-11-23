@@ -13,35 +13,30 @@ __all__ = [
 
 
 class PipelineError(Exception):
+    """Base exception for Nebula pipeline errors."""
     pass
 
 
 def raise_pipeline_error(e: Exception, msg: str) -> None:
-    """Handle pipeline errors.
+    """Handle pipeline errors with enhanced context.
 
-    Manageable exceptions:
-    - Py4JJavaError (low-level spark error)
-    - CapturedException (low-level spark error, like: AnalysisException, ...)
-    - All the native Python exceptions
+    Gracefully handles Spark-specific exceptions when available,
+    and falls back to standard Python exception handling otherwise.
 
     Args:
-        e (Exception): Exception raised.
-        msg (str): Custom message to add.
+        e: The original exception that was raised
+        msg: Custom contextual message to prepend
 
     Raises:
-        Original exception adding the custom message
+        The original exception type with enhanced message
     """
-    # if len(e.args) >= 1:
-    #     e.args = (e.args[0] + "\n" + msg,) + e.args[1:]
-    # else:
-    #     e.args = ("\n" + msg,)
-
     if HAS_SPARK and isinstance(e, Py4JJavaError):
-        e.errmsg = msg + "\n" + e.errmsg
+        e.errmsg = f"{msg}\n{e.errmsg}"
         raise e
 
     if HAS_SPARK and isinstance(e, CapturedException):
-        e.desc = msg + "\n" + e.desc
+        e.desc = f"{msg}\n{e.desc}"
         raise e
 
-    raise type(e)(f"{e}\n{msg}")  # .with_traceback(sys.exc_info()[2])
+    # Handle all other exceptions
+    raise type(e)(f"{msg}\n{e}") from e

@@ -8,7 +8,6 @@ Transformers for modifying dataframe schema:
 from typing import Any
 
 import narwhals as nw
-import pandas as pd
 
 from nlsn.nebula.base import Transformer
 from nlsn.nebula.df_types import get_dataframe_type
@@ -160,6 +159,8 @@ class AddTypedColumns(Transformer):
             nw_df = nw_df.with_columns(new_cols_exprs)
 
         if pandas_nullable_int:
+            import pandas as pd
+
             df_pd = nw.to_native(nw_df)
             for name, dtype in pandas_nullable_int.items():
                 df_pd[name] = pd.Series([None] * len(df_pd), dtype=dtype)
