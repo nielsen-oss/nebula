@@ -23,6 +23,7 @@ __all__ = [
     "LogDataSkew",
     "Persist",  # alias Cache
     "Repartition",
+    "SqlFunction",
 ]
 
 
@@ -278,46 +279,7 @@ class Persist(Transformer):
 
     @staticmethod
     def _transform_spark(df):
-        if df.is_cached:
-            return df
-        return df.cache()
-
-
-class SqlFunction(Transformer):
-    def __init__(
-            self,
-            *,
-            column: str,
-            function: str,
-            args: list[Any] | None = None,
-            kwargs: dict[str, Any] | None = None,
-    ):
-        """Call a pyspark.sql.function with the provided args/kwargs.
-
-        Args:
-            column (str):
-                Name of the column where the result of the function is stored.
-            function (str):
-                Name of the pyspark.sql.function to call.
-            args (list(any) | None):
-                Positional arguments of pyspark.sql.function. Defaults to None.
-            kwargs (dict(str, any) | None):
-                Keyword arguments of pyspark.sql.function. Defaults to None.
-        """
-        valid_funcs = {
-            i for i in dir(F) if (not i.startswith("_")) and (not i[0].isupper())
-        }
-        assert_allowed(function, valid_funcs, "function")
-
-        super().__init__()
-        self._output_col: str = column
-        self._func_name: str = function
-        self._args: list = args if args else []
-        self._kwargs: dict[str, Any] = kwargs if kwargs else {}
-
-    def _transform_spark(self, df):
-        func = getattr(F, self._func_name)(*self._args, **self._kwargs)
-        return df.withColumn(self._output_col, func)
+        return df if df.is_cached else df.cache()
 
 
 class Repartition(_Partitions):
@@ -377,6 +339,43 @@ class Repartition(_Partitions):
             args += self._columns
 
         return df.repartition(*args)
+
+
+class SqlFunction(Transformer):
+    def __init__(
+            self,
+            *,
+            column: str,
+            function: str,
+            args: list[Any] | None = None,
+            kwargs: dict[str, Any] | None = None,
+    ):
+        """Call a pyspark.sql.function with the provided args/kwargs.
+
+        Args:
+            column (str):
+                Name of the column where the result of the function is stored.
+            function (str):
+                Name of the pyspark.sql.function to call.
+            args (list(any) | None):
+                Positional arguments of pyspark.sql.function. Defaults to None.
+            kwargs (dict(str, any) | None):
+                Keyword arguments of pyspark.sql.function. Defaults to None.
+        """
+        valid_funcs = {
+            i for i in dir(F) if (not i.startswith("_")) and (not i[0].isupper())
+        }
+        assert_allowed(function, valid_funcs, "function")
+
+        super().__init__()
+        self._output_col: str = column
+        self._func_name: str = function
+        self._args: list = args if args else []
+        self._kwargs: dict[str, Any] = kwargs if kwargs else {}
+
+    def _transform_spark(self, df):
+        func = getattr(F, self._func_name)(*self._args, **self._kwargs)
+        return df.withColumn(self._output_col, func)
 
 
 # ---------------------- ALIASES ----------------------

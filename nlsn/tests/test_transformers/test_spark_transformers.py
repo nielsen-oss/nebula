@@ -3,7 +3,7 @@
 import pytest
 from chispa import assert_df_equality
 from pyspark.sql import functions as F
-from pyspark.sql.types import IntegerType, StringType, StructField, StructType
+from pyspark.sql.types import ArrayType, IntegerType, StringType, StructField, StructType
 from pyspark.sql.utils import AnalysisException
 
 from nlsn.nebula.spark_util import get_default_spark_partitions
@@ -96,6 +96,15 @@ class TestColumnMethod:
         assert_df_equality(df_chk, df_exp, ignore_row_order=True)
 
 
+def test_cpu_info(spark):
+    """Test CpuInfo."""
+    schema = StructType([StructField("c1", IntegerType(), True)])
+    df = spark.createDataFrame([[1]], schema=schema)
+
+    t = CpuInfo(n_partitions=10)
+    t.transform(df)
+
+
 def test_log_data_skew(spark):
     """Test LogDataSkew transformer."""
     schema = StructType([StructField("c1", IntegerType(), True)])
@@ -180,10 +189,30 @@ class TestRepartition:
             t.transform(df_input)
 
 
-def test_cpu_info(spark):
-    """Test CpuInfo."""
-    schema = StructType([StructField("c1", IntegerType(), True)])
-    df = spark.createDataFrame([[1]], schema=schema)
+class TestSqlFunction:
+    @staticmethod
+    @pytest.fixture(scope="module", name="df_input")
+    def _get_df_input(spark):
+        """Creates initial DataFrame."""
+        fields = [StructField("data", ArrayType(IntegerType()))]
+        data = [([2, 1, None, 3],), ([1],), ([],), (None,)]
+        return spark.createDataFrame(data, StructType(fields)).persist()
 
-    t = CpuInfo(n_partitions=10)
-    t.transform(df)
+    @pytest.mark.parametrize("asc", [True, False])
+    def test_sql_function(self, df_input, asc: bool):
+        """Test SqlFunction."""
+        t = SqlFunction(
+            column="result", function="sort_array", args=["data"], kwargs={"asc": asc}
+        )
+        df_chk = t.transform(df_input)
+
+        df_exp = df_input.withColumn("result", F.sort_array("data", asc=asc))
+        assert_df_equality(df_chk, df_exp, ignore_row_order=True)
+
+    def test_sql_function_no_args(self, df_input):
+        """Test SqlFunction w/o any arguments."""
+        t = SqlFunction(column="result", function="rand")
+        df_chk = t.transform(df_input)
+
+        n_null: int = df_chk.filter(F.col("result").isNull()).count()
+        assert n_null == 0
