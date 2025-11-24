@@ -4,7 +4,9 @@ import re
 from fnmatch import fnmatch
 
 import narwhals as nw
+import pandas as pd
 import polars as pl
+import pyspark.sql
 from pandas.testing import assert_frame_equal as pd_assert_frame_equal
 from polars.testing import assert_frame_equal as pl_assert_frame_equal
 
@@ -14,6 +16,8 @@ __all__ = [
     "assert_pandas_polars_frame_equal",
     "from_pandas",
     "get_expected_columns",
+    "to_pandas",
+    "sort_reset_assert",
 ]
 
 
@@ -97,6 +101,38 @@ def get_expected_columns(
                 columns_seen.add(col)
 
     return ret
+
+
+def sort_reset_assert(
+        chk: pd.DataFrame,
+        exp: pd.DataFrame,
+        na_position: str = 'first',
+        **kws
+):
+    cols = list(chk.columns)
+    if list(exp.columns) != cols:
+        raise ValueError(f"{exp.columns=} != {chk.columns=}")
+
+    chk = chk.sort_values(cols, na_position=na_position).reset_index(drop=True)
+    exp = exp.sort_values(cols, na_position=na_position).reset_index(drop=True)
+    pd.testing.assert_frame_equal(chk, exp, **kws)
+
+
+def to_pandas(df_input) -> pd.DataFrame:
+    if isinstance(df_input, nw.DataFrame):
+        df = nw.to_native(df_input)
+    elif isinstance(df_input, nw.LazyFrame):
+        df = nw.to_native(df_input.collect())
+    else:
+        df = df_input
+
+    if isinstance(df, pl.DataFrame):
+        return df.to_pandas()
+    elif isinstance(df, pyspark.sql.DataFrame):
+        return df.toPandas()
+    elif isinstance(df, pd.DataFrame):
+        return df
+    raise TypeError(f"Unknown df type: {type(df)}")
 
 # def assert_frame_equal(
 #         df_chk_input,
