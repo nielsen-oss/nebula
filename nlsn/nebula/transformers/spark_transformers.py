@@ -1,7 +1,7 @@
 """Spark transformers related to the partitioning."""
 
 import socket
-from typing import Any
+from typing import Any, Iterable
 
 from pyspark.sql import functions as F
 from pyspark.sql.types import (
@@ -18,10 +18,11 @@ from nlsn.nebula.auxiliaries import ensure_flat_list, assert_allowed
 from nlsn.nebula.base import Transformer
 from nlsn.nebula.logger import logger
 from nlsn.nebula.spark_util import (
-    get_default_spark_partitions,
     cache_if_needed,
+    drop_duplicates_no_randomness,
     get_data_skew,
-    get_spark_session
+    get_default_spark_partitions,
+    get_spark_session,
 )
 
 __all__ = [
@@ -32,6 +33,7 @@ __all__ = [
     "Persist",  # alias Cache
     "Repartition",
     "SparkColumnMethod",
+    "SparkDropDuplicates",
     "SparkExplode",
     "SparkSqlFunction",
 ]
@@ -350,6 +352,54 @@ class SparkColumnMethod(Transformer):
         func = getattr(F.col(self._input_col), self._meth)(*self._args, **self._kwargs)
         return df.withColumn(self._output_col, func)
 
+
+class SparkDropDuplicates(Transformer):
+    def __init__(
+            self,
+            *,
+            columns: str | list[str] | None = None,
+            regex: str | None = None,
+            glob: str | None = None,
+            startswith: str | Iterable[str] | None = None,
+            endswith: str | Iterable[str] | None = None,
+    ):
+        """Perform spark `drop_duplicates` operation.
+
+        Input parameters are eventually used to select a subset of the columns.
+        In such cases, the 'drop_duplicates_no_randomness' function is used
+        to minimize randomness; otherwise, a bare 'drop_duplicates()' or
+        '.distinct()' method is used.
+
+        Args:
+            columns (str | list(str) | None):
+                List of the subset columns. Defaults to None.
+            regex (str | None):
+                Select the subset columns to select by using a regex pattern.
+                Defaults to None.
+            glob (str | None):
+                Select the subset columns by using a bash-like pattern.
+                Defaults to None.
+            startswith (str | iterable(str) | None):
+                Select all the subset columns whose names start with the provided
+                string(s). Defaults to None.
+            endswith (str | iterable(str) | None):
+                Select all the subset columns whose names end with the provided
+                string(s). Defaults to None.
+        """
+        super().__init__()
+        self._set_columns_selections(
+            columns=columns,
+            regex=regex,
+            glob=glob,
+            startswith=startswith,
+            endswith=endswith,
+        )
+
+    def _transform_spark(self, df):
+        subset: list[str] = self._get_selected_columns(df)
+        if subset and (set(subset) != set(list(df.columns))):
+            return drop_duplicates_no_randomness(df, subset)
+        return df.drop_duplicates()
 
 class SparkExplode(Transformer):
     def __init__(

@@ -1,4 +1,4 @@
-"""Unit-tests for spark-partitions transformers."""
+"""Unit-tests for spark transformers."""
 
 import pytest
 from chispa import assert_df_equality
@@ -13,7 +13,10 @@ from pyspark.sql.types import (
 )
 from pyspark.sql.utils import AnalysisException
 
-from nlsn.nebula.spark_util import get_default_spark_partitions
+from nlsn.nebula.spark_util import (
+    drop_duplicates_no_randomness,
+    get_default_spark_partitions,
+)
 from nlsn.nebula.transformers.spark_transformers import *
 from nlsn.nebula.transformers.spark_transformers import _Partitions
 
@@ -55,51 +58,6 @@ def test_coalesce_partitions(df_input, kwargs, exp_partitions):
 
     # Assert the input dataframe is not modified
     assert_df_equality(df_chk, df_input, ignore_row_order=True)
-
-
-class TestSparkColumnMethod:
-    @staticmethod
-    @pytest.fixture(scope="class", name="df_input")
-    def _get_df_input(spark):
-        fields = [StructField("name", StringType(), True)]
-
-        data = [
-            ["house"],
-            ["cat"],
-            ["secondary"],
-            [None],
-        ]
-        return spark.createDataFrame(data, StructType(fields)).persist()
-
-    def test_invalid_method(self, df_input):
-        """Test SparkColumnMethod with a wrong method name."""
-        with pytest.raises(ValueError):
-            t = SparkColumnMethod(input_column="name", method="invalid")
-            t.transform(df_input)
-
-    def test_invalid_column(self, df_input):
-        """Test SparkColumnMethod with a wrong column name."""
-        t = SparkColumnMethod(input_column="invalid", method="isNull")
-        with pytest.raises(AnalysisException):
-            t.transform(df_input)
-
-    def test_valid(self, df_input):
-        """Test SparkColumnMethod."""
-        t = SparkColumnMethod(
-            input_column="name", method="contains", output_column="result", args=["se"]
-        )
-        df_chk = t.transform(df_input)
-
-        df_exp = df_input.withColumn("result", F.col("name").contains("se"))
-        assert_df_equality(df_chk, df_exp, ignore_row_order=True)
-
-    def test_no_args(self, df_input):
-        """Test ColumnMethod w/o any arguments and overriding the input column."""
-        t = SparkColumnMethod(input_column="name", method="isNull")
-        df_chk = t.transform(df_input)
-
-        df_exp = df_input.withColumn("name", F.col("name").isNull())
-        assert_df_equality(df_chk, df_exp, ignore_row_order=True)
 
 
 def test_cpu_info(spark):
@@ -193,32 +151,116 @@ class TestRepartition:
             t.transform(df_input)
 
 
-class TestSparkSqlFunction:
+class TestSparkColumnMethod:
     @staticmethod
-    @pytest.fixture(scope="module", name="df_input")
+    @pytest.fixture(scope="class", name="df_input")
     def _get_df_input(spark):
-        fields = [StructField("data", ArrayType(IntegerType()))]
-        data = [([2, 1, None, 3],), ([1],), ([],), (None,)]
+        fields = [StructField("name", StringType(), True)]
+
+        data = [
+            ["house"],
+            ["cat"],
+            ["secondary"],
+            [None],
+        ]
         return spark.createDataFrame(data, StructType(fields)).persist()
 
-    @pytest.mark.parametrize("asc", [True, False])
-    def test_va(self, df_input, asc: bool):
-        """Test SqlFunction."""
-        t = SparkSqlFunction(
-            column="result", function="sort_array", args=["data"], kwargs={"asc": asc}
+    def test_invalid_method(self, df_input):
+        """Test SparkColumnMethod with a wrong method name."""
+        with pytest.raises(ValueError):
+            t = SparkColumnMethod(input_column="name", method="invalid")
+            t.transform(df_input)
+
+    def test_invalid_column(self, df_input):
+        """Test SparkColumnMethod with a wrong column name."""
+        t = SparkColumnMethod(input_column="invalid", method="isNull")
+        with pytest.raises(AnalysisException):
+            t.transform(df_input)
+
+    def test_valid(self, df_input):
+        """Test SparkColumnMethod."""
+        t = SparkColumnMethod(
+            input_column="name", method="contains", output_column="result", args=["se"]
         )
         df_chk = t.transform(df_input)
 
-        df_exp = df_input.withColumn("result", F.sort_array("data", asc=asc))
+        df_exp = df_input.withColumn("result", F.col("name").contains("se"))
         assert_df_equality(df_chk, df_exp, ignore_row_order=True)
 
-    def test_sql_function_no_args(self, df_input):
-        """Test SqlFunction w/o any arguments."""
-        t = SparkSqlFunction(column="result", function="rand")
+    def test_no_args(self, df_input):
+        """Test ColumnMethod w/o any arguments and overriding the input column."""
+        t = SparkColumnMethod(input_column="name", method="isNull")
         df_chk = t.transform(df_input)
 
-        n_null: int = df_chk.filter(F.col("result").isNull()).count()
-        assert n_null == 0
+        df_exp = df_input.withColumn("name", F.col("name").isNull())
+        assert_df_equality(df_chk, df_exp, ignore_row_order=True)
+
+
+class TestSparkDropDuplicates:
+    @staticmethod
+    @pytest.fixture(scope="class", name="df_input")
+    def _get_df_input(spark):
+        fields = [
+            StructField("c1", StringType(), True),
+            StructField("c2", StringType(), True),
+            StructField("c3", StringType(), True),
+        ]
+
+        data = [
+            ["a", "d", "h"],
+            ["a", "d", None],
+            ["a", "d", "h"],
+            ["a", "d", "i"],
+            ["a", "d", "h"],
+            ["a", "d", None],
+            ["b", "b", "l"],
+            ["b", "b", None],
+            ["b", "b", "m"],
+            ["b", "b", "m"],
+            ["b", "b", "m"],
+            ["c", "e", None],
+            ["c", "e", None],
+            ["c", "e", None],
+            ["c", "e", None],
+            ["c", "g", None],
+            ["c", "g", "n"],
+        ]
+        return spark.createDataFrame(data, schema=StructType(fields)).persist()
+
+    def test_drop_duplicates_no_subset(self, df_input):
+        """Test DropDuplicates transformer w/o subset columns."""
+        t = SparkDropDuplicates()
+        df_chk = t.transform(df_input)
+        df_exp = df_input.drop_duplicates()
+        assert_df_equality(df_chk, df_exp, ignore_row_order=True)
+
+    def _test_complex_types(self, df_input):
+        mapping = F.create_map(F.lit("a"), F.lit("1"), F.lit("b"), F.lit("2"))
+        array = F.array(F.lit("x"), F.lit("y"))
+
+        df_complex = df_input.withColumn("mapping", mapping).withColumn("array", array)
+
+        subset = ["c1", "c2"]
+        chk = drop_duplicates_no_randomness(df_complex, subset)
+
+        # Check whether MapType and ArrayType raise any error
+        chk.count()
+
+    def test_drop_duplicates_subset(self, df_input):
+        """Test the transformer w/ subset columns."""
+        # just to check if MapType and ArrayType raise any error
+        self._test_complex_types(df_input)
+
+        # check if the same df order in the opposite manner gives the same result
+        df_desc = df_input.sort([F.col(i).desc() for i in df_input.columns])
+        df_asc = df_input.sort([F.col(i).asc() for i in df_input.columns])
+
+        subset = ["c1", "c2"]
+        t = SparkDropDuplicates(columns=subset)
+        df_chk_desc = t.transform(df_desc)
+        df_chk_asc = t.transform(df_asc)
+
+        assert_df_equality(df_chk_desc, df_chk_asc, ignore_row_order=True)
 
 
 class TestSparkExplode:
@@ -360,3 +402,31 @@ class TestSparkExplode:
             if kwg["outer"]:
                 len_exp += null_len
             assert len_chk == len_exp, kwg
+
+
+class TestSparkSqlFunction:
+    @staticmethod
+    @pytest.fixture(scope="module", name="df_input")
+    def _get_df_input(spark):
+        fields = [StructField("data", ArrayType(IntegerType()))]
+        data = [([2, 1, None, 3],), ([1],), ([],), (None,)]
+        return spark.createDataFrame(data, StructType(fields)).persist()
+
+    @pytest.mark.parametrize("asc", [True, False])
+    def test_va(self, df_input, asc: bool):
+        """Test SqlFunction."""
+        t = SparkSqlFunction(
+            column="result", function="sort_array", args=["data"], kwargs={"asc": asc}
+        )
+        df_chk = t.transform(df_input)
+
+        df_exp = df_input.withColumn("result", F.sort_array("data", asc=asc))
+        assert_df_equality(df_chk, df_exp, ignore_row_order=True)
+
+    def test_sql_function_no_args(self, df_input):
+        """Test SqlFunction w/o any arguments."""
+        t = SparkSqlFunction(column="result", function="rand")
+        df_chk = t.transform(df_input)
+
+        n_null: int = df_chk.filter(F.col("result").isNull()).count()
+        assert n_null == 0
