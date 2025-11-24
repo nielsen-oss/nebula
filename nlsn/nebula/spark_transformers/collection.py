@@ -4,7 +4,6 @@ from functools import reduce
 from typing import Any
 
 from pyspark.sql import functions as F
-from pyspark.sql.types import ArrayType, DataType, MapType
 
 from nlsn.nebula.auxiliaries import (
     assert_at_least_one_non_null,
@@ -21,7 +20,6 @@ from nlsn.nebula.storage import nebula_storage as ns
 
 __all__ = [
     "Coalesce",
-    "Explode",
     "FillNa",
     "Join",
     "Melt",
@@ -88,85 +86,6 @@ class Coalesce(Transformer):
             df = df.drop(*cols2drop)
 
         return df
-
-
-class Explode(Transformer):
-    def __init__(
-            self,
-            *,
-            input_col: str,
-            output_cols: str | list[str] | None = None,
-            outer: bool = True,
-            drop_after: bool = False,
-    ):
-        """Explode an array column into multiple rows.
-
-        Args:
-            input_col (str):
-                Column to explode.
-            output_cols (str | None):
-                Where to store the values.
-                If the Column to explode is an <ArrayType>, 'output_cols'
-                can be null and the exploded values inside the input column.
-                Otherwise, if the Column to explode is a <MapType>,
-                'output_cols' must be a 2-element <list> or <tuple> of string,
-                representing the key and the value respectively.
-            outer (bool):
-                Whether to perform an outer-explode (null values are preserved).
-                If the Column to explode is an <ArrayType>, it will preserve
-                empty arrays and produce a null value as output.
-                If the Column to explode is an <MapType>, it will preserve empty
-                dictionaries and produce a null values as key and value output.
-                Defaults to True.
-            drop_after (bool):
-                If to drop input_column after the F.explode.
-        """
-        if isinstance(output_cols, (list, tuple)):
-            n = len(output_cols)
-            msg = "If 'output_cols' is an iterable it must "
-            msg += "be a 2-element <list> or <tuple> of string."
-            if n != 2:
-                raise AssertionError(msg)
-            if not all(isinstance(i, str) for i in output_cols):
-                raise AssertionError(msg)
-
-        super().__init__()
-        self._input_col: str = input_col
-        self._output_cols: list[str] | str = output_cols or input_col
-        self._outer: bool = outer
-        self._drop_after: bool = drop_after
-
-    def _transform(self, df):
-        explode_method = F.explode_outer if self._outer else F.explode
-
-        input_type: DataType = df.select(self._input_col).schema[0].dataType
-
-        if isinstance(input_type, ArrayType):
-            if not isinstance(self._output_cols, str):  # pragma: no cover
-                msg = "If the column to explode is <ArrayType> the 'output_col' "
-                msg += "parameter must be a <str>."
-                raise AssertionError(msg)
-            func = explode_method(self._input_col)
-            ret = df.withColumn(self._output_cols, func)
-
-        elif isinstance(input_type, MapType):
-            if not isinstance(self._output_cols, (list, tuple)):
-                msg = "If the column to explode is <MapType> the 'output_cols' "
-                msg += "parameter must be a 2 element <list>/<tuple> of <str>."
-                raise AssertionError(msg)
-            not_exploded = [i for i in df.columns if i not in self._output_cols]
-            exploded = explode_method(self._input_col).alias(*self._output_cols)
-            ret = df.select(*not_exploded, exploded)
-
-        else:
-            msg = "Input type not understood. Accepted <ArrayType> and <MapType>"
-            raise AssertionError(msg)
-
-        # Only if input col is different from output col
-        if self._drop_after and self._input_col != self._output_cols:
-            ret = ret.drop(self._input_col)
-
-        return ret
 
 
 class FillNa(Transformer):

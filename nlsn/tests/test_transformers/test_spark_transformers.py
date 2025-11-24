@@ -3,7 +3,14 @@
 import pytest
 from chispa import assert_df_equality
 from pyspark.sql import functions as F
-from pyspark.sql.types import ArrayType, IntegerType, StringType, StructField, StructType
+from pyspark.sql.types import (
+    ArrayType,
+    IntegerType,
+    MapType,
+    StringType,
+    StructField,
+    StructType
+)
 from pyspark.sql.utils import AnalysisException
 
 from nlsn.nebula.spark_util import get_default_spark_partitions
@@ -50,11 +57,10 @@ def test_coalesce_partitions(df_input, kwargs, exp_partitions):
     assert_df_equality(df_chk, df_input, ignore_row_order=True)
 
 
-class TestColumnMethod:
+class TestSparkColumnMethod:
     @staticmethod
     @pytest.fixture(scope="class", name="df_input")
     def _get_df_input(spark):
-        """Creates initial DataFrame."""
         fields = [StructField("name", StringType(), True)]
 
         data = [
@@ -65,21 +71,21 @@ class TestColumnMethod:
         ]
         return spark.createDataFrame(data, StructType(fields)).persist()
 
-    def test_column_method_invalid_method(self, df_input):
-        """Test ColumnMethod with a wrong method name."""
+    def test_invalid_method(self, df_input):
+        """Test SparkColumnMethod with a wrong method name."""
         with pytest.raises(ValueError):
-            t = ColumnMethod(input_column="name", method="invalid")
+            t = SparkColumnMethod(input_column="name", method="invalid")
             t.transform(df_input)
 
-    def test_column_method_invalid_column(self, df_input):
-        """Test ColumnMethod with a wrong column name."""
-        t = ColumnMethod(input_column="invalid", method="isNull")
+    def test_invalid_column(self, df_input):
+        """Test SparkColumnMethod with a wrong column name."""
+        t = SparkColumnMethod(input_column="invalid", method="isNull")
         with pytest.raises(AnalysisException):
             t.transform(df_input)
 
-    def test_column_method(self, df_input):
-        """Test ColumnMethod."""
-        t = ColumnMethod(
+    def test_valid(self, df_input):
+        """Test SparkColumnMethod."""
+        t = SparkColumnMethod(
             input_column="name", method="contains", output_column="result", args=["se"]
         )
         df_chk = t.transform(df_input)
@@ -87,9 +93,9 @@ class TestColumnMethod:
         df_exp = df_input.withColumn("result", F.col("name").contains("se"))
         assert_df_equality(df_chk, df_exp, ignore_row_order=True)
 
-    def test_column_method_no_args(self, df_input):
+    def test_no_args(self, df_input):
         """Test ColumnMethod w/o any arguments and overriding the input column."""
-        t = ColumnMethod(input_column="name", method="isNull")
+        t = SparkColumnMethod(input_column="name", method="isNull")
         df_chk = t.transform(df_input)
 
         df_exp = df_input.withColumn("name", F.col("name").isNull())
@@ -187,19 +193,18 @@ class TestRepartition:
             t.transform(df_input)
 
 
-class TestSqlFunction:
+class TestSparkSqlFunction:
     @staticmethod
     @pytest.fixture(scope="module", name="df_input")
     def _get_df_input(spark):
-        """Creates initial DataFrame."""
         fields = [StructField("data", ArrayType(IntegerType()))]
         data = [([2, 1, None, 3],), ([1],), ([],), (None,)]
         return spark.createDataFrame(data, StructType(fields)).persist()
 
     @pytest.mark.parametrize("asc", [True, False])
-    def test_sql_function(self, df_input, asc: bool):
+    def test_va(self, df_input, asc: bool):
         """Test SqlFunction."""
-        t = SqlFunction(
+        t = SparkSqlFunction(
             column="result", function="sort_array", args=["data"], kwargs={"asc": asc}
         )
         df_chk = t.transform(df_input)
@@ -209,8 +214,149 @@ class TestSqlFunction:
 
     def test_sql_function_no_args(self, df_input):
         """Test SqlFunction w/o any arguments."""
-        t = SqlFunction(column="result", function="rand")
+        t = SparkSqlFunction(column="result", function="rand")
         df_chk = t.transform(df_input)
 
         n_null: int = df_chk.filter(F.col("result").isNull()).count()
         assert n_null == 0
+
+
+class TestSparkExplode:
+    _DATA = [
+        ("row_1", [0, 1, None, 2], {"a": 0, "b": None, "c": 1}),
+        ("row_2", [0, None, None], {"a": 0, "b": None}),
+        ("row_3", [0], {"c": 3}),
+        ("row_4", [None], {"a": 0, "b": None}),
+        ("row_5", [], {}),
+        ("row_6", None, {"a": 0, "c": 6}),
+    ]
+
+    _COL_STRING: str = "row_name"
+    _COL_ARRAY: str = "arrays"
+    _COL_MAP: str = "mapping"
+    _COL_OUTPUT_ARRAY: str = "output"
+    _COL_OUTPUT_MAP: list[str] = ["key", "value"]
+
+    @pytest.fixture(scope="class", name="df_input")
+    def _get_df_input(self, spark):
+        fields = [
+            StructField(self._COL_STRING, StringType()),
+            StructField(self._COL_ARRAY, ArrayType(IntegerType())),
+            StructField(self._COL_MAP, MapType(StringType(), IntegerType())),
+        ]
+        schema: StructType = StructType(fields)
+        return spark.createDataFrame(self._DATA, schema).persist()
+
+    def _check_columns_array_type(self, cols_chk, kwg):
+        """Check output columns."""
+        # If "output_col" is not provided, the output is stored in the input
+        # column (_COL_ARRAY).
+        out_col: str = kwg.get("output_cols", self._COL_ARRAY)
+        drop_after: bool = kwg["drop_after"]
+
+        # Create the list of expected columns.
+        cols_exp = [self._COL_STRING, self._COL_ARRAY, self._COL_MAP]
+
+        # If output column != input column, add it to the expected columns.
+        if out_col != self._COL_ARRAY:
+            cols_exp.append(self._COL_OUTPUT_ARRAY)
+
+        # Remove the input column if "drop_after" = True and
+        # output column != input column.
+        if drop_after and (self._COL_ARRAY != out_col):
+            cols_exp.remove(self._COL_ARRAY)
+        assert cols_chk == cols_exp, kwg
+
+    @pytest.mark.parametrize("output_cols", [["c1"], ["c1", 1], ["c1", "c2", "c3"]])
+    def test_invalid_output_columns(self, output_cols):
+        """Test Explode transformer with wrong 'output_cols'."""
+        with pytest.raises(AssertionError):
+            SparkExplode(input_col=self._COL_MAP, output_cols=output_cols)
+
+    @pytest.mark.parametrize("output_cols", [None, "wrong"])
+    def test_map_invalid_output_columns(self, df_input, output_cols):
+        """Test the transformer with wrong 'output_cols' for MapType."""
+        t = SparkExplode(input_col=self._COL_MAP, output_cols=output_cols)
+        with pytest.raises(AssertionError):
+            t.transform(df_input)
+
+    def test_invalid_input(self, df_input):
+        """Test the transformer with <StringType> as input column."""
+        t = SparkExplode(input_col=self._COL_STRING, output_cols="x")
+        with pytest.raises(AssertionError):
+            t.transform(df_input)
+
+    def _get_expected_len(self, idx_data):
+        # List of iterables.
+        data_col = [i[idx_data] for i in self._DATA]
+
+        # Expected len when "outer" = False, thus null values and empty
+        # arrays are discarded.
+        base_len = sum(len(i) for i in data_col if i)
+
+        # Number of rows where data is null or the array is empty.
+        # This number sum up with base_len when "outer" = True
+        null_len = len([True for i in data_col if not i])
+
+        return base_len, null_len
+
+    def test_array(self, df_input):
+        """Test the transformer with <ArrayType> as input column."""
+        inputs = [
+            {"output_cols": self._COL_OUTPUT_ARRAY, "outer": True, "drop_after": True},
+            {"output_cols": self._COL_OUTPUT_ARRAY, "outer": True, "drop_after": False},
+            {"output_cols": self._COL_OUTPUT_ARRAY, "outer": False, "drop_after": True},
+            {"output_cols": self._COL_OUTPUT_ARRAY, "outer": False, "drop_after": False},
+            {"outer": True, "drop_after": True},
+            {"outer": True, "drop_after": False},
+            {"outer": False, "drop_after": True},
+            {"outer": False, "drop_after": False},
+        ]
+        # 1 -> array, 2 -> map
+        base_len, null_len = self._get_expected_len(1)
+
+        for kwg in inputs:
+            t = SparkExplode(input_col=self._COL_ARRAY, **kwg)
+            df_out = t.transform(df_input)
+
+            # Check columns.
+            self._check_columns_array_type(df_out.columns, kwg)
+
+            len_chk = df_out.count()
+            len_exp = base_len
+            if kwg["outer"]:
+                len_exp += null_len
+            assert len_chk == len_exp, kwg
+
+    def test_mapping(self, df_input):
+        """Test the transformer with <MapType> as input column."""
+        inputs = [
+            {"outer": True, "drop_after": True},
+            {"outer": True, "drop_after": False},
+            {"outer": False, "drop_after": True},
+            {"outer": False, "drop_after": False},
+        ]
+        # 1 -> array, 2 -> map
+        base_len, null_len = self._get_expected_len(2)
+
+        cols_exp = set(df_input.columns).union(set(self._COL_OUTPUT_MAP))
+        cols_exp.copy()
+
+        for kwg in inputs:
+            t = SparkExplode(
+                input_col=self._COL_MAP, output_cols=self._COL_OUTPUT_MAP, **kwg
+            )
+            df_out = t.transform(df_input)
+
+            set_cols_chk = set(df_out.columns)
+            # Check columns.
+            if kwg["drop_after"]:
+                assert set_cols_chk == (cols_exp - {self._COL_MAP})
+            else:
+                assert set_cols_chk == cols_exp
+
+            len_chk = df_out.count()
+            len_exp = base_len
+            if kwg["outer"]:
+                len_exp += null_len
+            assert len_chk == len_exp, kwg

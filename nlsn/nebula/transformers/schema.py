@@ -184,7 +184,7 @@ class Cast(Transformer):
         super().__init__()
         self._cast: dict[str, str] = cast
 
-    def _transform_nw(self, df: nw.DataFrame) -> nw.DataFrame:
+    def _transform_nw(self, df):
         """Narwhals implementation for simple types."""
         # Check if any Spark-specific types requested
         spark_types = ['array', 'struct', 'map']

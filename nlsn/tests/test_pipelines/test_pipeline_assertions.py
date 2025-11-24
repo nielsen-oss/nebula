@@ -3,7 +3,8 @@
 import pytest
 
 from nlsn.nebula.pipelines.pipelines import TransformerPipeline
-from nlsn.nebula.spark_transformers import Explode, KeysToArray
+from nlsn.nebula.spark_transformers import KeysToArray
+from nlsn.nebula.transformers.spark_transformers import SparkExplode
 
 
 def test_pipeline_wrong_data_type():
@@ -16,7 +17,7 @@ def test_pipeline_branch_and_apply_to_rows():
     """Test TransformerPipeline providing both 'branch' and 'apply_to_rows'."""
     with pytest.raises(AssertionError):
         TransformerPipeline(
-            Explode(input_col="c1"),
+            SparkExplode(input_col="c1"),
             branch={"end": "append"},
             apply_to_rows={"input_col": "x", "operator": "isNull"},
         )
@@ -32,7 +33,7 @@ def test_pipeline_branch_and_apply_to_rows():
 def test_branch_and_apply_to_rows_in_split_pipeline(branch, apply_to_rows):
     """Test a split pipeline providing the 'branch' / 'and_apply_to_rows'."""
     d = {
-        "errors": Explode(input_col="c1"),
+        "errors": SparkExplode(input_col="c1"),
         "valid_problems": [KeysToArray(input_column="c1")],
     }
     with pytest.raises(AssertionError):

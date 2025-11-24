@@ -76,7 +76,6 @@ class TestDataFrameMethod:
 
     def test_method_not_available_for_lazyframe(self):
         """Test that DataFrame-only methods raise AttributeError on LazyFrame."""
-        # Create a LazyFrame
         df_lazy = pl.LazyFrame({
             "c1": ["a", "b", "c"],
             "c2": [1, 2, 3],
@@ -105,13 +104,12 @@ class TestDataFrameMethod:
             t.transform(df_nw)
 
     def test_method_with_args_and_kwargs(self):
-        """Test calling method with both args and kwargs."""
+        """Test calling unique() method with both args and kwargs."""
         df = pd.DataFrame({
             "c1": ["a", "b", "c", "d", "e", "f"],
             "c2": [1, 2, 3, 4, 5, 6],
         })
 
-        # Call slice(offset=1, length=3) - skip first row, take 3 rows
         t = DataFrameMethod(
             method="sort",
             args=["c1"],
