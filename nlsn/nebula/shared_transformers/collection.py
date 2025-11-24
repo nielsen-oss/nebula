@@ -1,110 +1,12 @@
 """General Purposes Transformers."""
 
 import itertools
-from typing import Any
 
-from nlsn.nebula import nebula_storage as ns
 from nlsn.nebula.base import Transformer
 
 __all__ = [
-    "FromData",
     "WithColumn",
 ]
-
-
-class FromData(Transformer):
-    backends = {"pandas", "polars", "spark"}
-
-    def __init__(
-            self,
-            *,
-            data: Any,
-            storage_key: str | None = None,
-            broadcast: bool = False,
-            kwargs: dict | None = None,
-    ):
-        """Create a DataFrame using the same backend as the input one with the provided data.
-
-        Args:
-            data (Any):
-                The input data, which can be in any format compatible with the
-                chosen backend method:
-                - pandas.DataFrame
-                - spark.createDataFrame
-                - polars.DataFrame
-            storage_key (str | None):
-                If provided, stores the data with the given key and returns
-                the original input DataFrame. If not provided, returns the
-                newly created DataFrame and drops the input DataFrame.
-                Defaults to None.
-            broadcast (bool):
-                If the backend is "spark", the DataFrame will be broadcast.
-                Ignored for other backends. Defaults to False.
-            kwargs (dict | None):
-                Additional keyword arguments compatible with the chosen
-                backend method:
-                - pandas.DataFrame
-                - spark.createDataFrame
-                - polars.DataFrame
-                Defaults to None.
-        """
-        super().__init__()
-
-        data = data or []
-        self._data: Any = data
-        self._storage_key: str | None = storage_key
-        self._broadcast: bool = broadcast
-        self._kwargs: dict = kwargs or {}
-
-    @staticmethod
-    def _from_dict_of_list_to_list_of_dicts(data: dict) -> list[dict]:
-        lengths = {len(v) for v in data.values()}
-        if len(lengths) != 1:
-            raise ValueError(f"Found multiple lengths in the input data: {lengths}")
-
-        keys = list(data.keys())
-        n: int = list(lengths)[0]
-
-        if n == 0:
-            return []
-
-        ret = []
-        for i in range(n):
-            ret.append({k: data[k][i] for k in keys})
-        return ret
-
-    def _transform(self, df):
-        df_created = self._select_transform(df)
-        if self._storage_key:
-            ns.set(self._storage_key, df_created)
-            return df
-        return df_created
-
-    def _transform_pandas(self, _df):
-        import pandas as pd
-
-        return pd.DataFrame(self._data, **self._kwargs)
-
-    def _transform_polars(self, _df):
-        import polars as pl
-
-        return pl.DataFrame(self._data, **self._kwargs)
-
-    def _transform_spark(self, df):
-        from nlsn.nebula.spark_util import get_spark_session
-
-        if isinstance(self._data, dict):
-            values = list(self._data.values())[0]
-            if isinstance(values, (list, tuple)):
-                self._data = self._from_dict_of_list_to_list_of_dicts(self._data)
-
-        ss = get_spark_session(df)
-        df_created = ss.createDataFrame(self._data, **self._kwargs)
-        if self._broadcast:
-            from pyspark.sql.functions import broadcast
-
-            df_created = broadcast(df_created)
-        return df_created
 
 
 class WithColumn(Transformer):

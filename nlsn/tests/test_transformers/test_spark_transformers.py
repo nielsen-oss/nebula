@@ -20,45 +20,6 @@ from nlsn.nebula.spark_util import (
 from nlsn.nebula.transformers.spark_transformers import *
 from nlsn.nebula.transformers.spark_transformers import _Partitions
 
-_N_ROWS: int = 60
-
-_PARAMS = [
-    ({"num_partitions": 5}, 5),
-    ({}, None),
-    ({"rows_per_partition": 20}, _N_ROWS // 20),
-]
-
-
-@pytest.fixture(scope="module", name="df_input")
-def _get_df_input(spark):
-    fields = [
-        StructField("a", StringType(), True),
-        StructField("b", StringType(), True),
-        StructField("c", StringType(), True),
-    ]
-
-    data = [[f"a{i}", f"b{i}", f"c{i}"] for i in range(_N_ROWS)]
-    schema = StructType(fields)
-    # Number of partitions after a coalesce() cannot be > than current number.
-    # Repartition to high number of the input dataframe.
-    return spark.createDataFrame(data, schema=schema).repartition(50).persist()
-
-
-@pytest.mark.parametrize("kwargs, exp_partitions", _PARAMS)
-def test_coalesce_partitions(df_input, kwargs, exp_partitions):
-    """Test CoalescePartitions transformer."""
-    t = CoalescePartitions(**kwargs)
-    if exp_partitions is None:
-        exp_partitions = get_default_spark_partitions(df_input)
-
-    df_chk = t.transform(df_input)
-    df_chk.count()  # trigger
-    chk_partitions: int = df_chk.rdd.getNumPartitions()
-    assert chk_partitions == exp_partitions
-
-    # Assert the input dataframe is not modified
-    assert_df_equality(df_chk, df_input, ignore_row_order=True)
-
 
 def test_cpu_info(spark):
     """Test CpuInfo."""
@@ -120,12 +81,49 @@ class TestPartitions:
         assert chk == exp
 
 
-class TestRepartition:
-    """Test Repartition transformer."""
+class TestCoalesceRepartition:
+    """Test Coalesce and Repartition transformer."""
+
+    _N_ROWS: int = 60
+
+    _PARAMS = [
+        ({"num_partitions": 5}, 5),
+        ({}, None),
+        ({"rows_per_partition": 20}, _N_ROWS // 20),
+    ]
+
+    @pytest.fixture(scope="module", name="df_input")
+    def _get_df_input(self, spark):
+        fields = [
+            StructField("a", StringType(), True),
+            StructField("b", StringType(), True),
+            StructField("c", StringType(), True),
+        ]
+
+        data = [[f"a{i}", f"b{i}", f"c{i}"] for i in range(self._N_ROWS)]
+        schema = StructType(fields)
+        # Number of partitions after a coalesce() cannot be > than current number.
+        # Repartition to high number of the input dataframe.
+        return spark.createDataFrame(data, schema=schema).repartition(50).persist()
+
+    @pytest.mark.parametrize("kwargs, exp_partitions", _PARAMS)
+    def test_coalesce_partitions(self, df_input, kwargs, exp_partitions):
+        """Test CoalescePartitions transformer."""
+        t = CoalescePartitions(**kwargs)
+        if exp_partitions is None:
+            exp_partitions = get_default_spark_partitions(df_input)
+
+        df_chk = t.transform(df_input)
+        df_chk.count()  # trigger
+        chk_partitions: int = df_chk.rdd.getNumPartitions()
+        assert chk_partitions == exp_partitions
+
+        # Assert the input dataframe is not modified
+        assert_df_equality(df_chk, df_input, ignore_row_order=True)
 
     @pytest.mark.parametrize("columns", ["a", ["a", "b"]])
     @pytest.mark.parametrize("kwargs, exp_partitions", _PARAMS)
-    def test_valid(self, df_input, kwargs, exp_partitions, columns):
+    def test_repartition_valid(self, df_input, kwargs, exp_partitions, columns):
         t = Repartition(columns=columns, **kwargs)
         if exp_partitions is None:
             exp_partitions = get_default_spark_partitions(df_input)
@@ -139,12 +137,12 @@ class TestRepartition:
         assert_df_equality(df_chk, df_input, ignore_row_order=True)
 
     @pytest.mark.parametrize("columns", [1, ["a", "a"], ["a", 1]])
-    def test_invalid_column_types(self, columns):
+    def test_repartition_invalid_column_types(self, columns):
         """Invalid columns types."""
         with pytest.raises(AssertionError):
             Repartition(num_partitions=10, columns=columns)
 
-    def test_invalid_columns(self, df_input):
+    def test_repartition_invalid_columns(self, df_input):
         """Invalid columns."""
         t = Repartition(num_partitions=10, columns="wrong")
         with pytest.raises(AssertionError):
@@ -406,7 +404,7 @@ class TestSparkExplode:
 
 class TestSparkSqlFunction:
     @staticmethod
-    @pytest.fixture(scope="module", name="df_input")
+    @pytest.fixture(scope="class", name="df_input")
     def _get_df_input(spark):
         fields = [StructField("data", ArrayType(IntegerType()))]
         data = [([2, 1, None, 3],), ([1],), ([],), (None,)]
