@@ -2,169 +2,88 @@
 
 Transformers for modifying dataframe schema:
 - Type conversion of existing columns
-- Addition of new typed columns
+- Addition of new literal columns
 """
-
-from typing import Any
 
 import narwhals as nw
 
+from nlsn.nebula.auxiliaries import validate_keys
 from nlsn.nebula.base import Transformer
 from nlsn.nebula.df_types import get_dataframe_type
 from nlsn.nebula.transformers._constants import NW_TYPES, PANDAS_NULLABLE_INTEGERS, PL_TYPES
 
-__all__ = ["AddTypedColumns", "Cast"]
+__all__ = ["AddLiterals", "Cast"]
 
 
-class AddTypedColumns(Transformer):
-    def __init__(
-            self,
-            *,
-            columns: list[tuple[str, str]] | dict[str, Any] | None,
-    ):
-        """Add typed columns if they do not exist in the DF.
-
-        Supports simple types only (int64, float64, str, bool, date, datetime).
-        For complex nested types (array, struct, map), use:
-          1. AddTypedColumns to create as 'str'
-          2. Cast transformer to convert to desired nested type
+class AddLiterals(Transformer):
+    def __init__(self, *, data: list[dict]):
+        """Add literal value columns to DataFrame.
 
         Args:
-            columns: Column specifications
-                - list[tuple]: [(name, dtype), ...]
-                - dict: {name: dtype} or {name: {"type": dtype, "value": val}}
-                - None/empty: pass-through
-
-        Example:
-            # Simple types - works directly
-            AddTypedColumns(columns={"age": "int64", "name": "str"})
-
-            # Complex types - use Cast afterward
-            AddTypedColumns(columns={"data": "str"})  # Create as string
-            Cast(cast={"data": "array<string>"})      # Convert to array
+            data: List of column specifications, each containing:
+                - value: The literal value to add
+                - alias: Column name (required, must be string)
+                - cast: Optional type to cast to (must be in NW_TYPES)
         """
-        super().__init__()
+        exprs: list[nw.Expr] = []
+        exprs_pandas: list[nw.Expr] = []
+        pandas_nullable_int: dict[str, str] = {}
 
-        self._columns: dict[str, dict[str, Any]]
-        self._skip: bool = False
+        for i, row in enumerate(data):
+            validate_keys(f"data[{i}]", row, mandatory={"alias"}, optional={"value", "cast"})
 
-        if not columns:
-            self._skip = True
-            return
+            alias = row["alias"]
+            value = row.get("value")
+            cast = row.get("cast")
 
-        if isinstance(columns, dict):
-            self._assert_keys_strings(columns)
-            self._check_default_value(columns)
-            # Sort for repeatability
-            columns_raw = sorted(columns.items())
+            # Validate alias is string
+            if not isinstance(alias, str):
+                raise TypeError(f"'alias' must be string, got {type(alias).__name__}")
 
-        else:
-            if not isinstance(columns, (tuple, list)):
-                msg = '"columns" must be <list> | <tuple> | <dict <str, str>>'
-                raise AssertionError(msg)
-            unique_len = {len(i) for i in columns}
-            if unique_len != {2}:
-                msg = 'If "columns" is a <list> | <tuple> it must contain '
-                msg += "2-element iterables"
-                raise AssertionError(msg)
-            columns_raw = columns
+            # Validate cast type
+            if cast and cast not in NW_TYPES:
+                nw_types = sorted(NW_TYPES.keys())
+                raise ValueError(f"Invalid cast type '{cast}'. Must be one of: {nw_types}")
 
-        # Convert 'columns_raw' into a dictionary like:
-        # {"column_name": {"type": datatype, "value": value}}
-        self._columns = {}
-        for k, obj in columns_raw:
-            if isinstance(obj, dict):
-                datatype = obj["type"]
-                value = obj["value"]
-            else:
-                datatype = obj
-                value = None
+            el_nw = nw.lit(value)
+            el_pd = nw.lit(value)
+            if cast:
+                el_nw = el_nw.cast(NW_TYPES[cast])
+                if cast not in {"str", "string", "utf8"}:
+                    el_pd = el_pd.cast(NW_TYPES[cast])
 
-            self._columns.update({k: {"type": datatype, "value": value}})
+            el_nw = el_nw.alias(alias)
+            el_pd = el_pd.alias(alias)
+            exprs.append(el_nw)
 
-        self._validate_simple_types()
-
-    def _validate_simple_types(self):
-        """Ensure only simple types are requested."""
-        complex_markers = ['array', 'struct', 'map', 'list', '[', '{']
-
-        for col_name, spec in self._columns.items():
-            dtype_str = spec["type"]
-            dtype_lower = dtype_str.lower()
-
-            # Check for complex type markers
-            if any(marker in dtype_lower for marker in complex_markers):
-                raise ValueError(
-                    f"Column '{col_name}': AddTypedColumns only supports simple types.\n"
-                    f"Found: '{dtype_str}'\n\n"
-                    f"For complex types, use a two-step approach:\n"
-                    f"  1. AddTypedColumns(columns={{'{col_name}': 'str'}})\n"
-                    f"  2. Cast(cast={{'{col_name}': '{dtype_str}'}})"
-                )
-
-            # Check if type is recognized
-            if dtype_lower not in NW_TYPES:
-                supported = ', '.join(sorted(set(NW_TYPES.keys())))
-                raise ValueError(
-                    f"Column '{col_name}': Unsupported type '{dtype_str}'.\n"
-                    f"Supported types: {supported}"
-                )
-
-    @staticmethod
-    def _assert_keys_strings(dictionary):
-        for k in dictionary.keys():
-            if not isinstance(k, str):
-                msg = "All keys in the dictionary must be <string>"
-                raise AssertionError(msg)
-
-    @staticmethod
-    def _check_default_value(dictionary):
-        _allowed = {"type", "value"}
-
-        for nd in dictionary.values():
-            if not isinstance(nd, dict):
+            # Special handling for pandas nullable integers
+            if (value is None) and cast and (cast in PANDAS_NULLABLE_INTEGERS):
+                pandas_nullable_int[alias] = PANDAS_NULLABLE_INTEGERS[cast]
                 continue
 
-            set_keys = nd.keys()
-            if set_keys != _allowed:
-                msg = f"Allowed keys in nested dictionary: {_allowed}. "
-                msg += f"Found: {set_keys}."
-                raise AssertionError(msg)
+            exprs_pandas.append(el_pd)
+
+        super().__init__()
+        self._exprs: list[nw.Expr] = exprs
+        self._exprs_pandas: list[nw.Expr] = exprs_pandas
+        self._pandas_nullable_int: dict[str, str] = pandas_nullable_int
 
     def _transform_nw(self, nw_df):
-        if self._skip:
-            return nw_df
-
+        # Add regular columns
         backend: str = get_dataframe_type(nw.to_native(nw_df))
-        is_pandas: bool = backend == "pandas"
+        exprs = self._exprs_pandas if backend == "pandas" else self._exprs
 
-        current_cols: set[str] = set(nw_df.columns)
-        new_cols_exprs = []
-        pandas_nullable_int = {}
-        for name, nd in self._columns.items():
-            if name in current_cols:  # Do not add new col if already exist
-                continue
+        if exprs:
+            nw_df = nw_df.with_columns(*exprs)
 
-            value = nd["value"]
-            type_name: str = nd["type"]
-
-            if is_pandas and (value is None) and (type_name in PANDAS_NULLABLE_INTEGERS):
-                pandas_nullable_int[name] = PANDAS_NULLABLE_INTEGERS[type_name]
-                continue
-
-            data_type = NW_TYPES[type_name]
-            new_cols_exprs.append(nw.lit(value).cast(data_type).alias(name))
-
-        if new_cols_exprs:
-            nw_df = nw_df.with_columns(new_cols_exprs)
-
-        if pandas_nullable_int:
-            import pandas as pd
-
-            df_pd = nw.to_native(nw_df)
-            for name, dtype in pandas_nullable_int.items():
-                df_pd[name] = pd.Series([None] * len(df_pd), dtype=dtype)
-            nw_df = nw.from_native(df_pd)
+        # Handle pandas nullable integers
+        if self._pandas_nullable_int:
+            if backend == "pandas":
+                import pandas as pd
+                df_pd = nw.to_native(nw_df)
+                for name, dtype in self._pandas_nullable_int.items():
+                    df_pd[name] = pd.Series([None] * len(df_pd), dtype=dtype)
+                nw_df = nw.from_native(df_pd)
 
         return nw_df
 

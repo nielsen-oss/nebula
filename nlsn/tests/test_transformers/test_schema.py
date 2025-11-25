@@ -5,167 +5,283 @@ from decimal import Decimal
 import narwhals as nw
 import pandas as pd
 import polars as pl
-import pyspark.sql.functions as F
 import pytest
 
 from nlsn.nebula.transformers.schema import *
+from nlsn.tests.auxiliaries import from_pandas
 
 
-class TestAddTypedColumns:
-    """Test AddTypedColumns transformer."""
-
-    @staticmethod
-    def test_invalid_input_format():
-        """Test AddTypedColumns with invalid input formats."""
-        # Not allowed type (must be list/tuple/dict)
-        with pytest.raises(AssertionError):
-            AddTypedColumns(columns="string")
-
-        # Not pairs in list
-        with pytest.raises(AssertionError):
-            AddTypedColumns(columns=[("c1", "t1"), ("c2", "t2", "x"), ("c3", "t3")])
-
-        # Non-string keys in dictionary
-        with pytest.raises(AssertionError):
-            AddTypedColumns(columns={1: "string"})
-
-        # Invalid nested dictionary structure
-        with pytest.raises(AssertionError):
-            AddTypedColumns(columns={"c1": {"type": "string", "wrong": 1}})
+class TestAddLiterals:
+    """Test AddLiterals transformer."""
 
     @staticmethod
-    def test_invalid_types():
-        """Test AddTypedColumns rejects complex types."""
-        # Complex type markers should be rejected
-        with pytest.raises(ValueError):
-            AddTypedColumns(columns={"data": "array<string>"})
-
-        with pytest.raises(ValueError):
-            AddTypedColumns(columns={"info": "struct<name: string, age: int>"})
-
-        with pytest.raises(ValueError):
-            AddTypedColumns(columns={"tags": "list[str]"})
-
-        # Unknown type should be rejected
-        with pytest.raises(ValueError):
-            AddTypedColumns(columns={"col": "unknown_type"})
+    def test_invalid_alias_type():
+        """Test alias must be a string."""
+        with pytest.raises(TypeError):
+            AddLiterals(data=[{"value": 1, "alias": 123}])
 
     @staticmethod
-    @pytest.mark.parametrize("cols", [None, {}, []])
-    def test_empty_input(cols):
-        """Test AddTypedColumns with empty input is pass-through."""
+    def test_invalid_cast_type():
+        """Test cast type must be in NW_TYPES."""
+        with pytest.raises(ValueError):
+            AddLiterals(data=[{"value": 1, "alias": "x", "cast": "unknown_type"}])
+
+    @staticmethod
+    def test_empty_data():
+        """Test AddLiterals with empty data list is pass-through."""
         df_input = pd.DataFrame({"a": [1, 2]})
-        df_out = AddTypedColumns(columns=cols).transform(df_input)
+        df_out = AddLiterals(data=[]).transform(df_input)
 
         pd.testing.assert_frame_equal(df_input, df_out)
 
     @staticmethod
     @pytest.mark.parametrize("backend", ["pandas", "polars"])
-    def test_dict_format_with_values(backend):
-        """Test adding typed columns with default values."""
-        df_input = pd.DataFrame({"a": [1, 2], "b": [3, 4]})
+    def test_simple_literals(backend):
+        """Test adding simple literal columns."""
+        df_input = pd.DataFrame({"a": [1, 2]})
+        nw_df = from_pandas(df_input, backend, to_nw=True)
 
-        if backend == "polars":
-            import polars as pl
-            df_input = pl.from_pandas(df_input)
+        data = [
+            {"value": 42, "alias": "count"},
+            {"value": "active", "alias": "status"},
+            {"value": 3.14, "alias": "pi"},
+        ]
 
-        nw_df = nw.from_native(df_input)
-
-        cols = {
-            "new_str": {"type": "string", "value": "X"},
-            "new_int": {"type": "int64", "value": 1},
-            "new_null": "float64"
-        }
-
-        t = AddTypedColumns(columns=cols)
+        t = AddLiterals(data=data)
         df_out = t.transform(nw_df)
         df_out_native = nw.to_native(df_out)
 
         # Check columns exist
-        expected_cols = ["a", "b", "new_str", "new_int", "new_null"]
-        assert sorted(df_out_native.columns) == sorted(expected_cols)
+        expected_cols = ["a", "count", "status", "pi"]
+        assert list(df_out_native.columns) == expected_cols
 
-        # Check values (convert to pandas for uniform checking)
+        # Check values
         if backend == "polars":
             df_out_native = df_out_native.to_pandas()
 
-        assert df_out_native["new_str"].iloc[0] == "X"
-        assert df_out_native["new_int"].iloc[0] == 1
-        assert pd.isna(df_out_native["new_null"].iloc[0])
+        assert all(df_out_native["count"] == 42)
+        assert all(df_out_native["status"] == "active")
+        assert all(df_out_native["pi"] == 3.14)
 
     @staticmethod
     @pytest.mark.parametrize("backend", ["pandas", "polars"])
-    def test_list_format(backend):
-        """Test adding typed columns using list format."""
+    def test_literals_with_cast(backend):
+        """Test adding literals with explicit casting."""
         df_input = pd.DataFrame({"a": [1, 2]})
+        nw_df = from_pandas(df_input, backend, to_nw=True)
 
-        if backend == "polars":
-            import polars as pl
-            df_input = pl.from_pandas(df_input)
+        data = [
+            {"value": 42, "alias": "int_col", "cast": "int32"},
+            {"value": 3.14, "alias": "float_col", "cast": "float64"},
+            {"value": "true", "alias": "str_col", "cast": "string"},
+        ]
 
-        nw_df = nw.from_native(df_input)
-
-        t = AddTypedColumns(columns=[("new_col", "string"), ("another_col", "int64")])
+        t = AddLiterals(data=data)
         df_out = t.transform(nw_df)
+        df_out_native = nw.to_native(df_out)
 
-        expected_cols = ["a", "new_col", "another_col"]
-        assert sorted(df_out.columns) == sorted(expected_cols)
+        # Check columns exist
+        assert "int_col" in df_out_native.columns
+        assert "float_col" in df_out_native.columns
+        assert "str_col" in df_out_native.columns
 
-        df_native = nw.to_native(df_out)
+        # Check types (backend-specific)
         if backend == "polars":
             import polars as pl
-            assert df_native["new_col"].dtype == pl.String
-            assert df_native["another_col"].dtype == pl.Int64
+            assert df_out_native["int_col"].dtype == pl.Int32
+            assert df_out_native["float_col"].dtype == pl.Float64
+            assert df_out_native["str_col"].dtype == pl.String
         else:
-            assert df_native["new_col"].dtype == object
-            assert df_native["another_col"].dtype == "Int64"
+            assert df_out_native["int_col"].dtype == "int32"
+            assert df_out_native["float_col"].dtype == "float64"
+            assert df_out_native["str_col"].dtype == object
 
     @staticmethod
-    def test_does_not_overwrite_existing_columns():
-        """Test that existing columns are not overwritten."""
+    @pytest.mark.parametrize("backend", ["pandas", "polars"])
+    def test_null_literals_with_cast(backend):
+        """Test adding typed null columns (schema definition)."""
+        df_input = pd.DataFrame({"a": [1, 2]})
+        nw_df = from_pandas(df_input, backend, to_nw=True)
+
+        data = [
+            {"value": None, "alias": "null_int", "cast": "int64"},
+            {"alias": "null_float", "cast": "float64"},
+            {"value": None, "alias": "null_str", "cast": "string"},
+        ]
+
+        t = AddLiterals(data=data)
+        df_out = t.transform(nw_df)
+        df_out_native = nw.to_native(df_out)
+
+        # Check columns exist
+        assert set(df_out_native.columns) == {"a", "null_int", "null_float", "null_str"}
+
+        # Check all values are null
+        if backend == "polars":
+            df_out_native = df_out_native.to_pandas()
+
+        assert df_out_native["null_int"].isna().all()
+        assert df_out_native["null_float"].isna().all()
+        assert df_out_native["null_str"].isna().all()
+
+    @staticmethod
+    def test_pandas_nullable_integers():
+        """Test pandas nullable integer handling for null values."""
+        df_input = pd.DataFrame({"a": [1, 2]})
+        nw_df = nw.from_native(df_input)
+
+        data = [
+            {"value": None, "alias": "nullable_int", "cast": "int64"},
+        ]
+
+        t = AddLiterals(data=data)
+        df_out = t.transform(nw_df)
+        df_out_native = nw.to_native(df_out)
+
+        # Check pandas nullable integer dtype
+        assert df_out_native["nullable_int"].dtype == "Int64"
+        assert df_out_native["nullable_int"].isna().all()
+
+    @staticmethod
+    @pytest.mark.parametrize("backend", ["pandas", "polars"])
+    def test_value_optional_defaults_to_none(backend):
+        """Test that 'value' key is optional and defaults to None."""
+        df_input = pd.DataFrame({"a": [1, 2]})
+        nw_df = from_pandas(df_input, backend, to_nw=True)
+
+        # Only alias and cast, no value
+        data = [
+            {"alias": "default_null", "cast": "string"},
+        ]
+
+        t = AddLiterals(data=data)
+        df_out = t.transform(nw_df)
+        df_out_native = nw.to_native(df_out)
+
+        assert "default_null" in df_out_native.columns
+
+        if backend == "polars":
+            df_out_native = df_out_native.to_pandas()
+
+        assert df_out_native["default_null"].isna().all()
+
+    @staticmethod
+    @pytest.mark.parametrize("backend", ["pandas", "polars"])
+    def test_mixed_literals_and_nulls(backend):
+        """Test mixing literal values and null columns."""
+        df_input = pd.DataFrame({"a": [1, 2]})
+        nw_df = from_pandas(df_input, backend, to_nw=True)
+
+        data = [
+            {"value": "active", "alias": "status"},
+            {"value": None, "alias": "score", "cast": "float64"},
+            {"value": 100, "alias": "count", "cast": "int32"},
+            {"alias": "optional_field", "cast": "string"},
+        ]
+
+        t = AddLiterals(data=data)
+        df_out = t.transform(nw_df)
+        df_out_native = nw.to_native(df_out)
+
+        expected_cols = ["a", "status", "score", "count", "optional_field"]
+        assert list(df_out_native.columns) == expected_cols
+
+        if backend == "polars":
+            df_out_native = df_out_native.to_pandas()
+
+        # Check values
+        assert all(df_out_native["status"] == "active")
+        assert df_out_native["score"].isna().all()
+        assert all(df_out_native["count"] == 100)
+        assert df_out_native["optional_field"].isna().all()
+
+    @staticmethod
+    def test_overwrite_existing_columns():
+        """Test that existing columns are overwritten."""
         df_input = pd.DataFrame({"a": [1, 2], "b": [3, 4]})
         nw_df = nw.from_native(df_input)
 
         # Try to add column 'a' which already exists
-        t = AddTypedColumns(columns={"a": "string", "c": "int64"})
-        df_out = t.transform(nw_df)
-        df_native = nw.to_native(df_out)
+        data = [
+            {"value": 999, "alias": "a"},  # Should not overwrite
+            {"value": 100, "alias": "c"},  # Should add new
+        ]
 
-        # Column 'a' should be unchanged
-        assert list(df_native["a"]) == [1, 2]
-        # Column 'c' should be added
-        assert "c" in df_native.columns
+        t = AddLiterals(data=data)
+        df_out = t.transform(nw_df)
+        df_out_native = nw.to_native(df_out)
+
+        assert all(df_out_native["a"] == 999)
+        assert all(df_out_native["c"] == 100)
 
     @staticmethod
-    @pytest.mark.parametrize("dtype", ["int64", "float32", "string", "bool", "date"])
+    @pytest.mark.parametrize("dtype", ["int64", "float32", "string", "bool"])
     def test_various_simple_types(dtype):
         """Test various simple types are supported."""
         df_input = pd.DataFrame({"a": [1, 2]})
         nw_df = nw.from_native(df_input)
 
-        t = AddTypedColumns(columns={"new_col": dtype})
+        data = [{"value": None, "alias": "new_col", "cast": dtype}]
+
+        t = AddLiterals(data=data)
         df_out = t.transform(nw_df)
 
         assert "new_col" in df_out.columns
 
     @staticmethod
-    def test_works_with_spark(spark):
-        """Test that transformer works with Spark (falls back via _select_transform)."""
-        data = [(1, 2), (3, 4)]
-        df_spark = spark.createDataFrame(data, ["a", "b"])
+    def test_multiple_columns_at_once():
+        """Test adding many columns in a single operation."""
+        df_input = pd.DataFrame({"a": [1, 2, 3]})
+        nw_df = nw.from_native(df_input)
 
-        t = AddTypedColumns(columns={"c": "string", "d": "integer"})
+        data = [
+            {"value": i, "alias": f"col_{i}"}
+            for i in range(10)
+        ]
+
+        t = AddLiterals(data=data)
+        df_out = t.transform(nw_df)
+        df_out_native = nw.to_native(df_out)
+
+        # Check all columns were added
+        expected_cols = ["a"] + [f"col_{i}" for i in range(10)]
+        assert list(df_out_native.columns) == expected_cols
+
+        # Check values
+        for i in range(10):
+            assert all(df_out_native[f"col_{i}"] == i)
+
+    @staticmethod
+    def test_with_spark(spark):
+        """Test with Spark backend."""
+        data_spark = [(1, 2), (3, 4)]
+        df_spark = spark.createDataFrame(data_spark, ["a", "b"])
+
+        data = [
+            {"value": "test", "alias": "c"},
+            {"value": None, "alias": "d", "cast": "integer"},
+            {"value": 3.14, "alias": "e", "cast": "double"},
+        ]
+
+        t = AddLiterals(data=data)
         df_out = t.transform(df_spark)
 
         # Check columns exist
-        assert set(df_out.columns) == {"a", "b", "c", "d"}
+        assert set(df_out.columns) == {"a", "b", "c", "d", "e"}
 
-        # Check all values in new columns are null
-        assert df_out.filter(F.col("c").isNull()).count() == 2
+        # Check values
+        assert df_out.select("c").distinct().count() == 1
+        assert df_out.filter("c = 'test'").count() == 2
+
+        # Check nulls
+        from pyspark.sql import functions as F
         assert df_out.filter(F.col("d").isNull()).count() == 2
 
+        # Check literal value with cast
+        assert df_out.select("e").distinct().count() == 1
 
-class TestCastInitialization:
+
+class TestCast:
     """Test Cast transformer."""
 
     @pytest.mark.parametrize("cast", [[("col1", "int64")], "string"])

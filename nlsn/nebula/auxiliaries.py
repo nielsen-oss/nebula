@@ -27,6 +27,7 @@ __all__ = [
     "select_columns",
     "split_string_in_chunks",
     "truncate_long_string",
+    "validate_keys",
     "validate_regex_pattern",
 ]
 
@@ -483,6 +484,52 @@ def truncate_long_string(s: str, w: int) -> str:
         return s[:half_w] + " ... " + s[-half_w:]
     else:
         return s
+
+
+def validate_keys(
+        name: str,
+        data: dict | set,
+        *,
+        mandatory: set[str] | None = None,
+        optional: set[str] | None = None,
+) -> None:
+    """Validate that a dictionary has required keys and no unexpected ones.
+
+    Args:
+        name: Name of the parameter (for error messages)
+        data: Dictionary or set of keys to validate
+        mandatory: Required keys that must be present
+        optional: Optional keys that are allowed (defaults to empty set)
+
+    Raises:
+        KeyError: If required keys are missing or unknown keys are present
+
+    Example:
+        >>> validate_keys(
+        ...     "config",
+        ...     {"alias": "x", "value": 1},
+        ...     mandatory={"alias"},
+        ...     optional={"value", "cast"}
+        ... )
+    """
+    mandatory = mandatory or set()
+    optional = optional or set()
+    all_keys = mandatory | optional
+    keys = set(data)
+
+    if not keys.issubset(all_keys):
+        excess = keys - all_keys
+        raise KeyError(
+            f"'{name}' keys must be a subset of {all_keys}. "
+            f"Unknown key(s): {excess}"
+        )
+
+    if not mandatory.issubset(keys):
+        missing = mandatory - keys
+        raise KeyError(
+            f"'{name}' must contain the key(s): {mandatory}. "
+            f"Missing: {missing}"
+        )
 
 
 def validate_regex_pattern(pattern: str) -> bool:

@@ -9,12 +9,13 @@ __all__ = [
 ]
 
 NW_TYPES: dict[str, nw.dtypes.DType] = {
-    'int': nw.Int64, 'integer': nw.Int64,
+    'int': nw.Int64, 'integer': nw.Int64, 'long': nw.Int64,
     'int8': nw.Int8, 'int16': nw.Int16,
     'int32': nw.Int32, 'int64': nw.Int64,
     'uint8': nw.UInt8, 'uint16': nw.UInt16,
     'uint32': nw.UInt32, 'uint64': nw.UInt64,
-    'float': nw.Float64, 'float32': nw.Float32, 'float64': nw.Float64,
+    'float': nw.Float64, 'double': nw.Float64,
+    'float32': nw.Float32, 'float64': nw.Float64,
     'str': nw.String, 'string': nw.String, 'utf8': nw.String,
     'bool': nw.Boolean, 'boolean': nw.Boolean,
     'date': nw.Date,

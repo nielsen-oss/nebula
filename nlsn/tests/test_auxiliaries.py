@@ -436,12 +436,75 @@ def test_truncate_long_string():
             assert chk == s
 
 
-def test_validate_regex_pattern():
+class TestValidateKeys:
+    """Test 'validate_keys'."""
+
+    def test_valid_keys_dict(self):
+        data = {"alias": "x", "value": 1}
+        validate_keys(
+            "config",
+            data,
+            mandatory={"alias"},
+            optional={"value", "cast"},
+        )
+
+    def test_valid_keys_set(self):
+        data = {"alias", "value"}
+        validate_keys(
+            "config",
+            data,
+            mandatory={"alias"},
+            optional={"value"},
+        )
+
+    def test_missing_mandatory_keys(self):
+        data = {"value": 1}
+        with pytest.raises(KeyError) as exc:
+            validate_keys(
+                "config",
+                data,
+                mandatory={"alias"},
+                optional={"value"},
+            )
+
+        assert "Missing" in str(exc.value)
+        assert "{'alias'}" in str(exc.value)
+
+    def test_unknown_keys(self):
+        data = {"alias": "x", "value": 1, "unexpected": True}
+        with pytest.raises(KeyError) as exc:
+            validate_keys(
+                "config",
+                data,
+                mandatory={"alias"},
+                optional={"value"},
+            )
+
+        assert "Unknown key(s)" in str(exc.value)
+        assert "{'unexpected'}" in str(exc.value)
+
+    def test_no_mandatory_keys(self):
+        data = {"a": 1}
+        validate_keys("param", data, optional={"a"})
+
+    def test_no_optional_keys(self):
+        data = {"required"}
+        validate_keys("param", data, mandatory={"required"})
+
+    def test_empty_input_valid(self):
+        validate_keys("empty", {})
+
+    def test_empty_input_missing_mandatory(self):
+        with pytest.raises(KeyError):
+            validate_keys("empty", {}, mandatory={"needed"})
+
+
+class TestValidateRegexPattern:
     """Test 'validate_regex_pattern'."""
-    assert validate_regex_pattern(r"\d{3}-\d{2}-\d{4}")
 
+    def test_valid(self):
+        assert validate_regex_pattern(r"\d{3}-\d{2}-\d{4}")
 
-def test_validate_regex_pattern_error():
-    """Test 'validate_regex_pattern' exception."""
-    with pytest.raises(ValueError):
-        validate_regex_pattern(r"(unclosed bracket")
+    def test_error(self):
+        with pytest.raises(ValueError):
+            validate_regex_pattern(r"(unclosed bracket")

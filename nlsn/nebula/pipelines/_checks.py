@@ -98,6 +98,7 @@ def assert_branch_inputs(o: dict) -> None:
             {"storage", "end", "on", "how", "skip", "perform"}.
         ValueError: If the value for 'end' is not in the allowed.
     """
+    # FIXME: use 'validate_keys' from auxiliaries
     _assert_is_dict("branch", o)
     _check_keys("branch", o, _BRANCH_KEYS)
 
@@ -113,9 +114,9 @@ def assert_branch_inputs(o: dict) -> None:
 
 
 def ensure_no_branch_or_apply_to_rows_otherwise(
-    branch: Optional[dict[str, Union[str, bool]]],
-    apply_to_rows: Optional[dict[str, Union[str, bool]]],
-    otherwise: Optional[dict[str, Any]],
+        branch: Optional[dict[str, Union[str, bool]]],
+        apply_to_rows: Optional[dict[str, Union[str, bool]]],
+        otherwise: Optional[dict[str, Any]],
 ) -> None:
     """Ensure that 'branch', 'apply_to_rows' and 'otherwise' are valid.
 
@@ -155,7 +156,7 @@ def ensure_no_branch_or_apply_to_rows_otherwise(
 
 
 def ensure_no_branch_or_apply_to_rows_in_split_pipeline(
-    branch: Optional[dict[str, Any]], apply_to_rows: Optional[dict[str, Any]]
+        branch: Optional[dict[str, Any]], apply_to_rows: Optional[dict[str, Any]]
 ) -> None:
     """Ensure that 'branch' and 'apply_to_rows' are not passed in split-pipelines.
 
