@@ -10,7 +10,7 @@ from nlsn.nebula.base import (
     is_ns_lazy_request,
     nlazy,
 )
-from nlsn.nebula.shared_transformers import Count, SelectColumns
+from nlsn.nebula.transformers import AssertNotEmpty, SelectColumns
 from nlsn.nebula.storage import nebula_storage as ns
 
 
@@ -94,6 +94,6 @@ class TestLazyWrapper:
 
     def test_without_params(self, df_input):
         """Test using a transformer without parameters."""
-        t = LazyWrapper(Count)
+        t = LazyWrapper(AssertNotEmpty)
         df_chk = t.transform(df_input)
         pd.testing.assert_frame_equal(df_chk, df_input)

@@ -6,6 +6,7 @@ from .assertions import *
 from .collections import *
 from .columns import *
 from .meta import *
+from .schema import *
 
 if HAS_SPARK:
     from .spark_transformers import *

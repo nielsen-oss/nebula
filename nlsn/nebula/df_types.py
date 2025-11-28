@@ -68,7 +68,7 @@ def get_dataframe_type(df) -> str:
 
     if HAS_POLARS:
         import polars as pl
-        if isinstance(df, (pl.Dataframe, pl.LazyFrame)):
+        if isinstance(df, (pl.DataFrame, pl.LazyFrame)):
             return "polars"
 
     if HAS_SPARK:
