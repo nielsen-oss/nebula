@@ -3,6 +3,8 @@ import narwhals as nw
 from nlsn.nebula import nebula_storage as ns
 from nlsn.nebula.base import Transformer
 
+__all__ = ["InjectData"]
+
 
 class InjectData(Transformer):  # FIXME: move to keyword. add kwargs
 

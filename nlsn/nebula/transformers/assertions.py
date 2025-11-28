@@ -124,11 +124,13 @@ class AssertNotEmpty(Transformer):
         self._df_name: str = df_name
 
     def _transform_polars(self, df):
-        if hasattr(df, 'collect'):
-            if len(df.head(1).collect()) == 0:
+        import polars as pl
+        if isinstance(df, pl.LazyFrame):
+            if df.limit(1).collect().is_empty():
                 raise AssertionError(f"{self._df_name} is empty")
-        elif len(df) == 0:
-            raise AssertionError(f"{self._df_name} is empty")
+        else:
+            if df.is_empty():
+                raise AssertionError(f"{self._df_name} is empty")
         return df
 
     def _transform_pandas(self, df):

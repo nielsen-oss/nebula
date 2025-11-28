@@ -5,12 +5,13 @@ import pytest
 
 from nlsn.nebula.df_types import get_dataframe_type
 from nlsn.tests.auxiliaries import from_pandas
+from nlsn.tests.constants import TEST_BACKENDS
 
 
 class TestGetDataframeType:
     """Unit-Test 'get_dataframe_type' function."""
 
-    @pytest.mark.parametrize("backend", ["pandas", "polars", "spark"])
+    @pytest.mark.parametrize("backend", TEST_BACKENDS)
     def test_valid(self, spark, backend):
         df_pd = pd.DataFrame({"a": [1], "b": [2.0]})
         df = from_pandas(df_pd, backend, to_nw=False, spark=spark)
