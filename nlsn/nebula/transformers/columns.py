@@ -174,7 +174,7 @@ class SelectColumns(Transformer):
             columns: str | list[str] | None = None,
             regex: str | None = None,
             glob: str | None = None,
-            startswith: str | list[str] | None = None,
+            startswith: str | Iterable[str] | None = None,
             endswith: str | Iterable[str] | None = None,
     ):
         """Select a subset of columns.

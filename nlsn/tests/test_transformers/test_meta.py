@@ -124,3 +124,340 @@ class TestDataFrameMethod:
             result_pd.reset_index(drop=True),
             expected_pd.reset_index(drop=True)
         )
+
+
+class TestWithColumns:
+    """Test suite for WithColumns transformer."""
+
+    @pytest.mark.parametrize("meth", ["wrong", "str.wrong", "dt.b.wrong"])
+    def test_invalid_init(self, meth: str):
+        with pytest.raises(ValueError):
+            WithColumns(columns="a", method=meth)
+
+    def test_single_column_string_method(self):
+        """Test applying str.strip_chars to a single column."""
+        df = pl.DataFrame({
+            "name": ["  alice  ", "  bob  ", "  charlie  "],
+            "age": [25, 30, 35],
+        })
+        df_nw = nw.from_native(df)
+
+        t = WithColumns(columns="name", method="str.strip_chars")
+        df_out = t.transform(df_nw)
+
+        result = nw.to_native(df_out)
+        expected = pl.DataFrame({
+            "name": ["alice", "bob", "charlie"],
+            "age": [25, 30, 35],
+        })
+
+        assert result.equals(expected)
+
+    def test_multiple_columns_round(self):
+        """Test applying round to multiple columns."""
+        df = pl.DataFrame({
+            "price": [10.567, 20.891, 30.123],
+            "tax": [1.234, 2.345, 3.456],
+            "quantity": [5, 10, 15],
+        })
+        df_nw = nw.from_native(df)
+
+        t = WithColumns(
+            columns=["price", "tax"],
+            method="round",
+            args=[2]
+        )
+        df_out = t.transform(df_nw)
+
+        result = nw.to_native(df_out)
+        expected = pl.DataFrame({
+            "price": [10.57, 20.89, 30.12],
+            "tax": [1.23, 2.35, 3.46],
+            "quantity": [5, 10, 15],
+        })
+
+        assert result.equals(expected)
+
+    def test_regex_selection(self):
+        """Test selecting columns via regex pattern."""
+        df = pl.DataFrame({
+            "user_name": ["  Alice  ", "  Bob  "],
+            "company_name": ["  Acme  ", "  Corp  "],
+            "age": [25, 30],
+        })
+        df_nw = nw.from_native(df)
+
+        t = WithColumns(
+            regex=".*_name$",
+            method="str.strip_chars"
+        )
+        df_out = t.transform(df_nw)
+
+        result = nw.to_native(df_out)
+        expected = pl.DataFrame({
+            "user_name": ["Alice", "Bob"],
+            "company_name": ["Acme", "Corp"],
+            "age": [25, 30],
+        })
+
+        assert result.equals(expected)
+
+    def test_glob_selection(self):
+        """Test selecting columns via glob pattern."""
+        df = pl.DataFrame({
+            "price_usd": [10.5, 20.7],
+            "price_eur": [9.2, 18.1],
+            "quantity": [5, 10],
+        })
+        df_nw = nw.from_native(df)
+
+        t = WithColumns(
+            glob="price_*",
+            method="round",
+            args=[1]
+        )
+        df_out = t.transform(df_nw)
+
+        result = nw.to_native(df_out)
+        expected = pl.DataFrame({
+            "price_usd": [10.5, 20.7],
+            "price_eur": [9.2, 18.1],
+            "quantity": [5, 10],
+        })
+
+        assert result.equals(expected)
+
+    def test_startswith_selection(self):
+        """Test selecting columns that start with a prefix."""
+        df = pl.DataFrame({
+            "col_a": [1.111, 2.222],
+            "col_b": [3.333, 4.444],
+            "other": [5, 6],
+        })
+        df_nw = nw.from_native(df)
+
+        t = WithColumns(
+            startswith="col_",
+            method="round",
+            args=[1]
+        )
+        df_out = t.transform(df_nw)
+
+        result = nw.to_native(df_out)
+        expected = pl.DataFrame({
+            "col_a": [1.1, 2.2],
+            "col_b": [3.3, 4.4],
+            "other": [5, 6],
+        })
+
+        assert result.equals(expected)
+
+    def test_endswith_selection(self):
+        """Test selecting columns that end with a suffix."""
+        df = pl.DataFrame({
+            "amount_usd": [10.567, 20.891],
+            "amount_eur": [9.234, 18.567],
+            "quantity": [5, 10],
+        })
+        df_nw = nw.from_native(df)
+
+        t = WithColumns(
+            endswith="_usd",
+            method="round",
+            args=[1]
+        )
+        df_out = t.transform(df_nw)
+
+        result = nw.to_native(df_out)
+        expected = pl.DataFrame({
+            "amount_usd": [10.6, 20.9],
+            "amount_eur": [9.234, 18.567],
+            "quantity": [5, 10],
+        })
+
+        assert result.equals(expected)
+
+    def test_prefix_option(self):
+        """Test adding prefix to output column names."""
+        df = pl.DataFrame({
+            "price": [10.567, 20.891],
+            "tax": [1.234, 2.345],
+        })
+        df_nw = nw.from_native(df)
+
+        t = WithColumns(
+            columns=["price", "tax"],
+            method="round",
+            args=[2],
+            prefix="rounded_"
+        )
+        df_out = t.transform(df_nw)
+
+        result = nw.to_native(df_out)
+
+        # Should have original columns plus prefixed ones
+        assert "price" in result.columns
+        assert "tax" in result.columns
+        assert "rounded_price" in result.columns
+        assert "rounded_tax" in result.columns
+        assert result["rounded_price"].to_list() == [10.57, 20.89]
+
+    def test_suffix_option(self):
+        """Test adding suffix to output column names."""
+        df = pl.DataFrame({
+            "price": [10.567, 20.891],
+            "tax": [1.234, 2.345],
+        })
+        df_nw = nw.from_native(df)
+
+        t = WithColumns(
+            columns=["price", "tax"],
+            method="round",
+            args=[2],
+            suffix="_rounded"
+        )
+        df_out = t.transform(df_nw)
+
+        result = nw.to_native(df_out)
+
+        # Should have original columns plus suffixed ones
+        assert "price" in result.columns
+        assert "tax" in result.columns
+        assert "price_rounded" in result.columns
+        assert "tax_rounded" in result.columns
+        assert result["price_rounded"].to_list() == [10.57, 20.89]
+
+    def test_method_with_kwargs(self):
+        """Test method with keyword arguments."""
+        df = pl.DataFrame({
+            "text": ["hello world", "foo bar"],
+        })
+        df_nw = nw.from_native(df)
+
+        t = WithColumns(
+            columns="text",
+            method="str.replace_all",
+            args=["world", "universe"],
+        )
+        df_out = t.transform(df_nw)
+
+        result = nw.to_native(df_out)
+        expected = pl.DataFrame({
+            "text": ["hello universe", "foo bar"],
+        })
+
+        assert result.equals(expected)
+
+    def test_abs_method(self):
+        """Test applying abs to numeric columns."""
+        df = pl.DataFrame({
+            "value1": [-10, -20, 30],
+            "value2": [-5, 15, -25],
+        })
+        df_nw = nw.from_native(df)
+
+        t = WithColumns(
+            columns=["value1", "value2"],
+            method="abs"
+        )
+        df_out = t.transform(df_nw)
+
+        result = nw.to_native(df_out)
+        expected = pl.DataFrame({
+            "value1": [10, 20, 30],
+            "value2": [5, 15, 25],
+        })
+
+        assert result.equals(expected)
+
+    def test_cast_method(self):
+        """Test casting columns to different types."""
+        df = pl.DataFrame({
+            "int_col": [1, 2, 3],
+            "float_col": [1.5, 2.5, 3.5],
+        })
+        df_nw = nw.from_native(df)
+
+        t = WithColumns(
+            columns="int_col",
+            method="cast",
+            args=[nw.Float64]
+        )
+        df_out = t.transform(df_nw)
+
+        result = nw.to_native(df_out)
+
+        # Check that int_col is now float
+        assert result.schema["int_col"] == pl.Float64
+
+    def test_empty_selection_returns_unchanged(self):
+        """Test that empty column selection returns df unchanged."""
+        df = pl.DataFrame({
+            "col1": [1, 2, 3],
+            "col2": [4, 5, 6],
+        })
+        df_nw = nw.from_native(df)
+
+        # Regex that matches nothing
+        t = WithColumns(
+            regex="^nonexistent$",
+            method="round"
+        )
+        assert df_nw is t.transform(df_nw)
+
+    def test_multiple_string_methods_chained(self):
+        """Test that str namespace methods work correctly."""
+        df = pl.DataFrame({
+            "text": ["  HELLO  ", "  WORLD  "],
+        })
+        df_nw = nw.from_native(df)
+
+        # First strip, then lowercase (need to do in separate transforms)
+        t1 = WithColumns(columns="text", method="str.strip_chars")
+        t2 = WithColumns(columns="text", method="str.to_lowercase")
+
+        df_out = t1.transform(df_nw)
+        df_out = t2.transform(df_out)
+
+        result = nw.to_native(df_out)
+        expected = pl.DataFrame({
+            "text": ["hello", "world"],
+        })
+
+        assert result.equals(expected)
+
+    def test_works_with_native_polars_df(self):
+        """Test that transformer works with native Polars DataFrame."""
+        df = pl.DataFrame({
+            "value": [10.567, 20.891],
+        })
+
+        t = WithColumns(
+            columns="value",
+            method="round",
+            args=[1]
+        )
+        df_out = t.transform(df)
+
+        # Should return native Polars
+        assert isinstance(df_out, pl.DataFrame)
+        assert df_out["value"].to_list() == [10.6, 20.9]
+
+    def test_works_with_lazyframe(self):
+        """Test that transformer works with Polars LazyFrame."""
+        df_lazy = pl.LazyFrame({
+            "value": [10.567, 20.891],
+        })
+
+        t = WithColumns(
+            columns="value",
+            method="round",
+            args=[1]
+        )
+        df_out = t.transform(df_lazy)
+
+        # Should return LazyFrame
+        assert isinstance(df_out, pl.LazyFrame)
+
+        result = df_out.collect()
+        assert result["value"].to_list() == [10.6, 20.9]

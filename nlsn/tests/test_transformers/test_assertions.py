@@ -137,7 +137,7 @@ class TestAssertNotEmpty:
             t.transform(df)
 
     @pytest.mark.parametrize("lazy", [True, False])
-    def test_not_empty_polars_lazy(self, lazy: bool):
+    def test_empty_polars_lazy(self, lazy: bool):
         df = pl.DataFrame({})
         if lazy:
             df = df.lazy()
