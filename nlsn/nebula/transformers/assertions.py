@@ -69,6 +69,10 @@ class AssertCount(Transformer):
                     "'expected' cannot be used with 'min_count' or 'max_count'"
                 )
 
+        if min_count is not None and max_count is not None:
+            if min_count > max_count:
+                raise AssertionError("'min_count' must be <= 'max_count'")
+
         super().__init__()
         self._expected: int | None = expected
         self._min: int | None = min_count
@@ -98,7 +102,8 @@ class AssertCount(Transformer):
         return df
 
     def _transform_polars(self, df):
-        if hasattr(df, 'collect'):
+        import polars as pl
+        if isinstance(df, pl.LazyFrame):
             count = len(df.collect())
         else:
             count = len(df)
