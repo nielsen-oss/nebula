@@ -9,6 +9,30 @@ from nlsn.tests.auxiliaries import from_pandas
 from nlsn.tests.constants import TEST_BACKENDS
 
 
+class TestAssertContainsColumns:
+
+    @pytest.mark.parametrize(
+        "cols, error",
+        [
+            ([], False),
+            ("a", False),
+            (["a"], False),
+            (["a", "b"], False),
+            (["a", "b", "c"], True),
+            ("c", True),
+            (["c"], True),
+        ],
+    )
+    def test_dataframe_contains_columns(self, cols, error: bool):
+        df = pd.DataFrame({"a": [1, 2], "b": [3, 4]})
+        t = AssertContainsColumns(columns=cols)
+        if error:
+            with pytest.raises(AssertionError):
+                t.transform(df)
+        else:
+            t.transform(df)
+
+
 class TestAssertNotEmpty:
     @pytest.mark.parametrize("backend", TEST_BACKENDS)
     def test_not_empty(self, spark, backend: str):
