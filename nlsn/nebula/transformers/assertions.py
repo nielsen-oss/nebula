@@ -1,7 +1,4 @@
-"""Transformers to assert certain conditions.
-
-They don't manipulate the data but may trigger eager evaluation.
-"""
+"""Transformers to assert certain conditions."""
 
 from nlsn.nebula.auxiliaries import ensure_flat_list
 from nlsn.nebula.base import Transformer

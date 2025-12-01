@@ -126,6 +126,126 @@ class TestDataFrameMethod:
         )
 
 
+class TestHorizontalFunction:
+    """Test suite for HorizontalFunction transformer."""
+
+    def test_coalesce_basic(self):
+        """Test basic coalesce across multiple columns."""
+        df = pl.DataFrame({
+            "email_primary": [None, "bob@example.com", None],
+            "email_secondary": ["alice@work.com", None, None],
+            "email_backup": ["alice@home.com", "bob@home.com", "charlie@home.com"],
+        })
+        df_nw = nw.from_native(df)
+
+        t = HorizontalFunction(
+            output_col="best_email",
+            function="coalesce",
+            columns=["email_primary", "email_secondary", "email_backup"]
+        )
+        df_out = t.transform(df_nw)
+
+        result = nw.to_native(df_out)
+        expected = pl.DataFrame({
+            "email_primary": [None, "bob@example.com", None],
+            "email_secondary": ["alice@work.com", None, None],
+            "email_backup": ["alice@home.com", "bob@home.com", "charlie@home.com"],
+            "best_email": ["alice@work.com", "bob@example.com", "charlie@home.com"],
+        })
+
+        assert result.equals(expected)
+
+    def test_max_horizontal(self):
+        """Test max_horizontal across numeric columns."""
+        df = pl.DataFrame({
+            "score_math": [85, 90, 78],
+            "score_english": [92, 88, 95],
+            "score_science": [88, 85, None],
+        })
+        df_nw = nw.from_native(df)
+
+        t = HorizontalFunction(
+            output_col="max_score",
+            function="max_horizontal",
+            columns=["score_math", "score_english", "score_science"]
+        )
+        df_out = t.transform(df_nw)
+
+        result = nw.to_native(df_out)
+
+        assert "max_score" in result.columns
+        assert result["max_score"].to_list() == [92, 90, 95]
+
+    def test_concat_str_with_separator(self):
+        """Test concat_str with separator and ignore_nulls."""
+        df = pl.DataFrame({
+            "first_name": ["Alice", "Bob"],
+            "middle_name": ["M", None],
+            "last_name": ["Smith", "Jones"],
+        })
+        df_nw = nw.from_native(df)
+
+        t = HorizontalFunction(
+            output_col="full_name",
+            function="concat_str",
+            columns=["first_name", "middle_name", "last_name"],
+            kwargs={"separator": " ", "ignore_nulls": True}
+        )
+        df_out = t.transform(df_nw)
+
+        result = nw.to_native(df_out)
+
+        assert "full_name" in result.columns
+        assert result["full_name"].to_list() == ["Alice M Smith", "Bob Jones"]
+
+    def test_sum_horizontal_with_regex(self):
+        """Test sum_horizontal using regex pattern selection."""
+        df = pl.DataFrame({
+            "revenue_q1": [100, 200],
+            "revenue_q2": [150, 250],
+            "revenue_q3": [120, 180],
+            "cost": [50, 60],
+        })
+        df_nw = nw.from_native(df)
+
+        t = HorizontalFunction(
+            output_col="total_revenue",
+            function="sum_horizontal",
+            regex="^revenue_.*"
+        )
+        df_out = t.transform(df_nw)
+
+        result = nw.to_native(df_out)
+
+        assert "total_revenue" in result.columns
+        assert result["total_revenue"].to_list() == [370, 630]
+        # Cost column should not be included
+        assert "cost" in result.columns
+
+    def test_mean_horizontal_with_glob(self):
+        """Test mean_horizontal using glob pattern selection."""
+        df = pl.DataFrame({
+            "temp_morning": [20.0, 22.0, 19.0],
+            "temp_afternoon": [28.0, 30.0, 27.0],
+            "temp_evening": [24.0, 26.0, 23.0],
+            "humidity": [65.0, 70.0, 60.0],
+        })
+        df_nw = nw.from_native(df)
+
+        t = HorizontalFunction(
+            output_col="avg_temp",
+            function="mean_horizontal",
+            glob="temp_*"
+        )
+        df_out = t.transform(df_nw)
+
+        result = nw.to_native(df_out)
+
+        assert "avg_temp" in result.columns
+        # Mean of (20, 28, 24) = 24.0, etc.
+        assert result["avg_temp"].to_list() == [24.0, 26.0, 23.0]
+
+
 class TestWithColumns:
     """Test suite for WithColumns transformer."""
 
