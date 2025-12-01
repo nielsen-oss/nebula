@@ -7,14 +7,12 @@ from pyspark.sql import functions as F
 
 from nlsn.nebula.auxiliaries import (
     assert_at_least_one_non_null,
-    assert_at_most_one_args,
     ensure_flat_list,
 )
 from nlsn.nebula.base import Transformer
 from nlsn.nebula.spark_util import (
     ensure_spark_condition,
     get_spark_condition,
-    get_spark_session,
 )
 from nlsn.nebula.storage import nebula_storage as ns
 
@@ -22,7 +20,6 @@ __all__ = [
     "FillNa",
     "Join",
     "Melt",
-    "UnionByName",
     "When",
 ]
 
@@ -208,92 +205,6 @@ class Melt(Transformer):
             for x in [self._variable_col, self._value_col]
         ]
         return melted_df.select(*cols)
-
-
-class UnionByName(Transformer):
-    def __init__(
-            self,
-            *,
-            temp_view: str | None = None,
-            store_key: str | None = None,
-            select_before_union: str | list[str] | None = None,
-            drop_before_union: str | list[str] | None = None,
-            drop_excess_columns: bool = False,
-            allow_missing_columns: bool = False,
-    ):
-        """Append a dataframe to the main one in the pipeline.
-
-        This dataframe can be retrieved either from Spark temporary
-        views or Nebula storage.
-
-        Args:
-            temp_view (str | None):
-                Dataframe name in Spark temporary views.
-            store_key (str | None):
-                Dataframe name in Nebula storage.
-            select_before_union (str | list(str) | None):
-                Columns to select in the dataframe to append before
-                performing the union.
-            drop_before_union (str | list(str) | None):
-                Columns to drop in the dataframe to append before
-                performing the union.
-            drop_excess_columns (bool):
-                If True, drop columns in the dataframe to append that are
-                not present in the main dataframe.
-                Defaults to False.
-            allow_missing_columns (bool):
-                When this parameter is True, the set of column names in the
-                dataframe to append and in the main one can differ; missing
-                columns will be filled with null.
-                Further, the missing columns of this DataFrame will be
-                added at the end of the union result schema.
-                This parameter was introduced in spark 3.1.0.
-                If it is set to True with a previous version, it throws an error.
-                Defaults to False.
-        """
-        if (bool(temp_view) + bool(store_key)) != 1:
-            msg = "Either 'store_key' or 'temp_view' must be provided, but not both."
-            raise ValueError(msg)
-
-        assert_at_most_one_args(drop_excess_columns, allow_missing_columns)
-
-        super().__init__()
-        self._temp_view: str | None = temp_view
-        self._store_key: str | None = store_key
-        self._to_select: list[str] = ensure_flat_list(select_before_union)
-        self._to_drop: list[str] = ensure_flat_list(drop_before_union)
-        self._drop_excess_columns: bool = drop_excess_columns
-        self._allow_missing_columns: bool = allow_missing_columns
-
-    def __read(self, df):
-        if self._temp_view:
-            ss = get_spark_session(df)
-            df_union = ss.table(self._temp_view)
-        else:
-            df_union = ns.get(self._store_key)
-
-        if self._to_drop:
-            df_union = df_union.drop(*self._to_drop)
-
-        elif self._drop_excess_columns:
-            input_cols = set(df.columns)
-            to_drop = [i for i in df_union.columns if i not in input_cols]
-            df_union = df_union.drop(*to_drop)
-
-        if self._to_select:
-            df_union = df_union.select(*self._to_select)
-
-        return df_union
-
-    def _transform(self, df):
-        df_union = self.__read(df)
-
-        # keep the if / else as spark 3.0.0 does not accept the 2nd parameter
-        if self._allow_missing_columns:
-            ret = df.unionByName(df_union, allowMissingColumns=True)
-        else:
-            ret = df.unionByName(df_union)
-        return ret
 
 
 class When(Transformer):

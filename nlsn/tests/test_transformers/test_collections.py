@@ -1,9 +1,60 @@
+import pandas as pd
 import polars as pl
 import pytest
 from chispa.dataframe_comparer import assert_df_equality
 from pyspark.sql.types import StringType, StructField, StructType
 
-from nlsn.nebula.transformers import DropNulls
+from nlsn.nebula.storage import nebula_storage as ns
+from nlsn.nebula.transformers import DropNulls, AppendDataFrame
+from nlsn.tests.auxiliaries import from_pandas, to_pandas
+from nlsn.tests.constants import TEST_BACKENDS
+
+
+class TestAppendDataFrame:
+    @staticmethod
+    def _set_dfs(spark, backend: str, to_nw: bool):
+        ns.allow_overwriting()
+        df1 = pd.DataFrame({"c1": ["c", "d"], "c2": [3, 4]})
+        df2 = pd.DataFrame({"c1": ["a", "b"], "c3": [4.5, 5.5]})
+        df1 = from_pandas(df1, backend, to_nw, spark=spark)
+        df2 = from_pandas(df2, backend, to_nw, spark=spark)
+        ns.set("df1", df1)
+        ns.set("df2", df2)
+
+    @pytest.mark.parametrize("backend", TEST_BACKENDS)
+    @pytest.mark.parametrize("to_nw", [True, False])
+    @pytest.mark.parametrize("allow_missing", [True, False])
+    def test_exact_columns(self, spark, backend: str, to_nw: bool, allow_missing: bool):
+        self._set_dfs(spark, backend, to_nw)
+        df_pd_in = pd.DataFrame({"c1": ["a", "b"], "c2": [1, 2]})
+        df = from_pandas(df_pd_in, backend, to_nw=to_nw, spark=spark)
+        t = AppendDataFrame(store_key="df1", allow_missing_columns=allow_missing)
+        df_chk = t.transform(df)
+        df_chk_pd = to_pandas(df_chk).reset_index(drop=True)
+        df_exp = pd.concat([df_pd_in, to_pandas(ns.get("df1"))], axis=0)
+        pd.testing.assert_frame_equal(df_chk_pd, df_exp.reset_index(drop=True))
+
+    @pytest.mark.parametrize("backend", TEST_BACKENDS)
+    @pytest.mark.parametrize("to_nw", [True, False])
+    def test_invalid_columns(self, spark, backend: str, to_nw: bool):
+        self._set_dfs(spark, backend, to_nw)
+        df_pd_in = pd.DataFrame({"c1": ["a", "b"], "c2": [1, 2]})
+        df = from_pandas(df_pd_in, backend, to_nw=to_nw, spark=spark)
+        t = AppendDataFrame(store_key="df2", allow_missing_columns=False)
+        with pytest.raises(ValueError):
+            t.transform(df)
+
+    @pytest.mark.parametrize("backend", TEST_BACKENDS)
+    @pytest.mark.parametrize("to_nw", [True, False])
+    def test_missing_columns(self, spark, backend: str, to_nw: bool):
+        self._set_dfs(spark, backend, to_nw)
+        df_pd_in = pd.DataFrame({"c1": ["a", "b"], "c2": [1, 2]})
+        df = from_pandas(df_pd_in, backend, to_nw=to_nw, spark=spark)
+        t = AppendDataFrame(store_key="df2", allow_missing_columns=True)
+        df_chk = t.transform(df)
+        df_chk_pd = to_pandas(df_chk).reset_index(drop=True)
+        df_exp = pd.concat([df_pd_in, to_pandas(ns.get("df2"))], axis=0)
+        pd.testing.assert_frame_equal(df_chk_pd, df_exp.reset_index(drop=True))
 
 
 class TestDropNulls:
