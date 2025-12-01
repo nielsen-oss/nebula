@@ -1,7 +1,5 @@
 """Row Filtering Operations."""
 
-from typing import Iterable
-
 from nlsn.nebula.auxiliaries import assert_allowed
 from nlsn.nebula.base import Transformer
 from nlsn.nebula.spark_util import (
@@ -11,61 +9,8 @@ from nlsn.nebula.spark_util import (
 )
 
 __all__ = [
-    "DiscardNulls",
     "Filter",
 ]
-
-
-class DiscardNulls(Transformer):
-    def __init__(
-            self,
-            *,
-            how: str,
-            columns: str | list[str] | None = None,
-            regex: str | None = None,
-            glob: str | None = None,
-            startswith: str | Iterable[str] | None = None,
-            endswith: str | Iterable[str] | None = None,
-    ):
-        """Drop rows with null values.
-
-        Input parameters are eventually used to select a subset of the columns.
-
-        Args:
-            how (str):
-                "any" or "all". If "any", drop a row if it contains any nulls.
-                If "all", drop a row only if all its values are null.
-            columns (str | list(str) | None):
-                List of columns to consider. Defaults to None.
-            regex (str | None):
-                Take the columns to consider by using a regex pattern.
-                Defaults to None.
-            glob (str | None):
-                Take the columns to consider by using a bash-like pattern.
-                Defaults to None.
-            startswith (str | iterable(str) | None):
-                Select all the columns to consider whose names start with the
-                provided string(s). Defaults to None.
-            endswith (str | iterable(str) | None):
-                Select all the columns to consider whose names end with the
-                provided string(s). Defaults to None.
-        """
-        assert_allowed(how, {"any", "all"}, "how")
-        super().__init__()
-        self._how: str = how
-        self._set_columns_selections(
-            columns=columns,
-            regex=regex,
-            glob=glob,
-            startswith=startswith,
-            endswith=endswith,
-        )
-
-    def _transform(self, df):
-        subset: list[str] = self._get_selected_columns(df)
-        if subset and set(subset) != set(list(df.columns)):
-            return df.dropna(self._how, subset=subset)
-        return df.dropna(self._how)
 
 
 class Filter(Transformer):
