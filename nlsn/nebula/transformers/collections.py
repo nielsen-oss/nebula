@@ -1,10 +1,15 @@
-from typing import Iterable, Literal
+import operator
+from typing import Iterable, Literal, Callable
 
 import narwhals as nw
 import pandas as pd
 
 from nlsn.nebula import nebula_storage as ns
-from nlsn.nebula.auxiliaries import assert_allowed, ensure_flat_list, assert_at_least_one_non_null
+from nlsn.nebula.auxiliaries import (
+    assert_allowed,
+    ensure_flat_list,
+    assert_at_least_one_non_null,
+)
 from nlsn.nebula.base import Transformer
 
 __all__ = [
@@ -12,9 +17,12 @@ __all__ = [
     "DropNulls",
     "Join",
     "InjectData",
+    "MathOperator",
     "Pivot",
     "Unpivot",
 ]
+
+from nlsn.nebula.transformers._constants import NW_TYPES
 
 
 class AppendDataFrame(Transformer):
@@ -358,6 +366,249 @@ class InjectData(Transformer):  # FIXME: move to keyword. add kwargs
 
             ret = broadcast(ret)
         return self._post(df, ret)
+
+
+class MathOperator(Transformer):
+    """Apply mathematical operators to columns and constants.
+
+    This transformer enables declarative mathematical expressions by
+    applying a sequence of operations (add, sub, mul, div, pow) to
+    columns and/or constant values.
+
+    Examples:
+        >>> # Simple addition: result = col1 + col2
+        >>> MathOperator(strategy={
+        ...     'new_column_name': 'result',
+        ...     'strategy': [
+        ...         {'column': 'col1'},
+        ...         {'column': 'col2'}
+        ...     ],
+        ...     'operations': ['add']
+        ... })
+
+        >>> # Complex: total = (price * quantity) - discount
+        >>> MathOperator(strategy={
+        ...     'new_column_name': 'total',
+        ...     'strategy': [
+        ...         {'column': 'price', 'cast': 'double'},
+        ...         {'column': 'quantity'},
+        ...         {'column': 'discount'}
+        ...     ],
+        ...     'operations': ['mul', 'sub']
+        ... })
+
+        >>> # With constants: normalized = (value - 100) / 50
+        >>> MathOperator(strategy={
+        ...     'new_column_name': 'normalized',
+        ...     'cast': 'float',
+        ...     'strategy': [
+        ...         {'column': 'value'},
+        ...         {'constant': 100},
+        ...         {'constant': 50}
+        ...     ],
+        ...     'operations': ['sub', 'div']
+        ... })
+
+        >>> # Multiple columns at once
+        >>> MathOperator(strategy=[
+        ...     {
+        ...         'new_column_name': 'total_price',
+        ...         'strategy': [
+        ...             {'column': 'unit_price'},
+        ...             {'column': 'quantity'}
+        ...         ],
+        ...         'operations': ['mul']
+        ...     },
+        ...     {
+        ...         'new_column_name': 'price_with_tax',
+        ...         'strategy': [
+        ...             {'column': 'total_price'},
+        ...             {'constant': 1.2}
+        ...         ],
+        ...         'operations': ['mul']
+        ...     }
+        ... ])
+    """
+
+    def __init__(
+            self,
+            *,
+            strategy: dict | list[dict],
+    ):
+        """Initialize MathOperator transformer.
+
+        Args:
+            strategy: Single dict or list of dicts defining operations.
+                Each dict must contain:
+                - new_column_name (str): Name of output column
+                - strategy (list[dict]): Operands in order, each with:
+                    - column (str): Column name (mutually exclusive with constant)
+                    - constant: Literal value (mutually exclusive with column)
+                    - cast (str | None): Optional type for this operand
+                - operations (list[str]): Operations applied left-to-right.
+                    Must be one of: 'add', 'sub', 'mul', 'div', 'pow'
+                - cast (str | None): Optional final output type
+
+        Raises:
+            TypeError: If strategy is not dict or list.
+            ValueError: If strategy structure is invalid.
+        """
+        if isinstance(strategy, dict):
+            strategy = [strategy]
+        elif not isinstance(strategy, (list, tuple)):
+            raise TypeError(
+                f'"strategy" must be dict or list, found {type(strategy).__name__}'
+            )
+
+        super().__init__()
+        self._strategy: list[dict] = strategy
+        self._operators_map: dict[str, Callable] = {
+            "add": operator.add,
+            "sub": operator.sub,
+            "mul": operator.mul,
+            "div": operator.truediv,
+            "pow": operator.pow,
+        }
+
+    @staticmethod
+    def _cast_type(dtype_str: str) -> nw.dtypes.DType:
+        """Convert string type name to narwhals dtype.
+
+        Args:
+            dtype_str: Type name (e.g., 'int', 'double', 'string')
+
+        Returns:
+            Narwhals dtype object
+
+        Raises:
+            ValueError: If type name is not recognized
+        """
+        dtype_lower = dtype_str.lower()
+        if dtype_lower not in NW_TYPES:
+            raise ValueError(
+                f"Unknown type '{dtype_str}'. "
+                f"Must be one of: {sorted(NW_TYPES.keys())}"
+            )
+        return NW_TYPES[dtype_lower]
+
+    def _get_constant_or_col(self, operand: dict):
+        """Convert strategy operand dict to narwhals expression.
+
+        Args:
+            operand: Dict with 'column' or 'constant' key, and optional 'cast'
+
+        Returns:
+            Narwhals expression
+
+        Raises:
+            ValueError: If operand dict structure is invalid
+        """
+        if len(operand) > 2:
+            raise ValueError(
+                f"Operand dict can have at most 2 keys (column/constant + cast), "
+                f"found {len(operand)}: {operand}"
+            )
+
+        has_col = "column" in operand
+        has_const = "constant" in operand
+
+        if has_col == has_const:  # Both True or both False
+            raise ValueError(
+                f"Must specify exactly one of 'column' or 'constant'. "
+                f"Found keys: {list(operand.keys())}"
+            )
+
+        # Create base expression
+        if has_col:
+            expr = nw.col(operand["column"])
+        else:
+            expr = nw.lit(operand["constant"])
+
+        # Apply cast if specified
+        cast_to = operand.get("cast")
+        if cast_to:
+            expr = expr.cast(self._cast_type(cast_to))
+
+        return expr
+
+    def _get_op(self, op_name: str) -> Callable:
+        """Get operator function by name.
+
+        Args:
+            op_name: Operator name
+
+        Returns:
+            Operator function
+
+        Raises:
+            ValueError: If operator name is not recognized
+        """
+        if op_name not in self._operators_map:
+            raise ValueError(
+                f"Operator must be one of {set(self._operators_map.keys())}, "
+                f"found '{op_name}'"
+            )
+        return self._operators_map[op_name]
+
+    def _build_expression(self, strat_dict: dict):
+        """Build narwhals expression from strategy dict.
+
+        Args:
+            strat_dict: Strategy dict with 'strategy' and 'operations' keys
+
+        Returns:
+            Narwhals expression
+
+        Raises:
+            ValueError: If lengths don't match or structure is invalid
+        """
+        strategy = strat_dict["strategy"]
+        operations = strat_dict["operations"]
+
+        # Validate lengths
+        if len(strategy) - 1 != len(operations):
+            raise ValueError(
+                f"Strategy must have exactly one more element than operations. "
+                f"Found strategy length={len(strategy)}, "
+                f"operations length={len(operations)}"
+            )
+
+        # Convert all operands to narwhals expressions
+        exprs = [self._get_constant_or_col(item) for item in strategy]
+
+        # Apply operations left-to-right using reduce
+        op_funcs = [self._get_op(op_name) for op_name in operations]
+
+        result = exprs[0]
+        for op_func, next_expr in zip(op_funcs, exprs[1:]):
+            result = op_func(result, next_expr)
+
+        return result
+
+    def _transform_nw(self, df):
+        """Apply mathematical operations to create new columns.
+
+        Args:
+            df: Narwhals DataFrame or LazyFrame
+
+        Returns:
+            DataFrame/LazyFrame with new columns added
+        """
+        new_cols = []
+
+        for strat_dict in self._strategy:
+            # Build the expression
+            expr = self._build_expression(strat_dict)
+
+            # Apply final cast if specified
+            final_cast = strat_dict.get("cast")
+            if final_cast:
+                expr = expr.cast(self._cast_type(final_cast))
+
+            # Alias with the new column name
+            new_cols.append(expr.alias(strat_dict["new_column_name"]))
+
+        return df.with_columns(new_cols)
 
 
 class Pivot(Transformer):

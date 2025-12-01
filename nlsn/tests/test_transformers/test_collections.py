@@ -1,3 +1,5 @@
+import operator as py_operator
+
 import narwhals as nw
 import pandas as pd
 import polars as pl
@@ -357,6 +359,345 @@ class TestJoin:
 
         assert result.shape == (6, 2)  # 2 * 3 = 6 rows
         assert set(result.columns) == {"color", "size"}
+
+
+class TestMathOperator:
+    """Test suite for MathOperator transformer."""
+
+    _CONST: float = 11.0
+
+    @pytest.fixture(scope="class")
+    def df_input(self) -> pl.DataFrame:
+        """Create input DataFrame for testing."""
+        data = {
+            "col1": [1, 2, 4, 0, 0, None, None, 0, None, 4],
+            "col2": [3, 5, 0, 4, 0, None, 0, None, 3, None],
+        }
+        df = pl.DataFrame(data, schema={"col1": pl.Int64, "col2": pl.Int64})
+
+        # Create expected columns for single operation tests
+        df = df.with_columns(
+            add_column=(pl.col("col1") + pl.col("col2")),
+            sub_column=(pl.col("col1") - pl.col("col2")),
+            mul_column=(pl.col("col1") * pl.col("col2")),
+            div_column=(pl.col("col1") / pl.col("col2")),
+            pow_column=(pl.col("col1") ** pl.col("col2")),
+            add_constant=(pl.col("col1") + pl.lit(self._CONST)),
+            sub_constant=(pl.col("col1") - pl.lit(self._CONST)),
+            mul_constant=(pl.col("col1") * pl.lit(self._CONST)),
+            div_constant=(pl.col("col1") / pl.lit(self._CONST)),
+            pow_constant=(pl.col("col1") ** pl.lit(self._CONST)),
+        )
+        return df
+
+    @pytest.mark.parametrize(
+        "strategy",
+        [
+            # Both constant and column at the same time (invalid)
+            {
+                "new_column_name": "col3",
+                "strategy": [
+                    {"constant": 30, "column": "col1"},
+                    {"column": "col2"}
+                ],
+                "operations": ["sub"],
+            },
+            # Both constant and column in second operand
+            [
+                {
+                    "new_column_name": "col3",
+                    "strategy": [
+                        {"constant": 30},
+                        {"column": "col1", "cast": "float", "constant": "22"},
+                    ],
+                    "operations": ["sub"],
+                }
+            ],
+            # Mismatched lengths: 2 operands but 2 operations (should be 1)
+            {
+                "new_column_name": "col3",
+                "strategy": [{"constant": 30}, {"column": "col1"}],
+                "operations": ["sub", "sub"],
+            },
+            # Invalid operation name
+            [
+                {
+                    "new_column_name": "col3",
+                    "strategy": [
+                        {"constant": 30, "cast": "integer"},
+                        {"column": "col1"}
+                    ],
+                    "operations": ["not_found"],
+                }
+            ],
+        ],
+    )
+    def test_wrong_strategy(self, df_input, strategy):
+        """Test MathOperator with invalid strategy configurations."""
+        t = MathOperator(strategy=strategy)
+        with pytest.raises(ValueError):
+            t.transform(df_input)
+
+    def test_wrong_strategy_type(self):
+        """Test MathOperator with wrong strategy type."""
+        with pytest.raises(TypeError):
+            MathOperator(strategy=10)
+
+    def test_unknown_type_cast(self, df_input):
+        """Test MathOperator with unknown type in cast."""
+        strategy = {
+            "new_column_name": "result",
+            "strategy": [
+                {"column": "col1", "cast": "unknown_type"},
+                {"column": "col2"}
+            ],
+            "operations": ["add"],
+        }
+        t = MathOperator(strategy=strategy)
+        with pytest.raises(ValueError):
+            t.transform(df_input)
+
+    @pytest.mark.parametrize("col_or_const", ["column", "constant"])
+    @pytest.mark.parametrize("cast", [None, "float32"])
+    @pytest.mark.parametrize("operation", ["add", "sub", "mul", "div", "pow"])
+    def test_single_operation(
+            self, df_input, operation: str, col_or_const: str, cast
+    ):
+        """Test MathOperator with single operation using column or constant."""
+        second = (
+            {"column": "col2"}
+            if col_or_const == "column"
+            else {"constant": self._CONST}
+        )
+        strategy = {
+            "new_column_name": "result",
+            "strategy": [{"column": "col1"}, second],
+            "operations": [operation],
+        }
+        if cast:
+            strategy["cast"] = cast
+
+        t = MathOperator(strategy=strategy)
+        df_result = t.transform(df_input).select("col1", "col2", "result")
+
+        # Build expected dataframe
+        expected_col = f"{operation}_{col_or_const}"
+        df_expected = df_input.select(
+            "col1",
+            "col2",
+            pl.col(expected_col).alias("result")
+        )
+        if cast:
+            df_expected = df_expected.with_columns(
+                pl.col("result").cast(pl.Float32)
+            )
+
+        pl.testing.assert_frame_equal(df_result, df_expected)
+
+    @pytest.mark.parametrize(
+        "operations",
+        [["add", "div"], ["mul", "div"], ["pow", "sub"]]
+    )
+    def test_double_operation(self, df_input, operations: list[str]):
+        """Test MathOperator with two sequential operations."""
+        strategy = {
+            "new_column_name": "chk",
+            "strategy": [
+                {"column": "col1", "cast": "float"},
+                {"constant": self._CONST},
+                {"column": "col2"},
+            ],
+            "operations": operations,
+        }
+        t = MathOperator(strategy=strategy)
+        df_result = t.transform(df_input).select("col1", "col2", "chk")
+
+        # Build expected result using Python operators
+        operators_map: dict = {
+            "add": py_operator.add,
+            "sub": py_operator.sub,
+            "mul": py_operator.mul,
+            "div": py_operator.truediv,
+            "pow": py_operator.pow,
+        }
+
+        op_0 = operators_map[operations[0]]
+        op_1 = operators_map[operations[1]]
+
+        # Build expression: (col1.cast(float) op_0 11.0) op_1 col2
+        expr_0 = op_0(pl.col("col1").cast(pl.Float64), pl.lit(self._CONST))
+        expr_1 = op_1(expr_0, pl.col("col2"))
+
+        df_expected = df_input.select("col1", "col2").with_columns(
+            expr_1.alias("chk")
+        )
+
+        pl.testing.assert_frame_equal(df_result, df_expected)
+
+    def test_multiple_columns_at_once(self, df_input):
+        """Test creating multiple columns in a single transform."""
+        strategy = [
+            {
+                "new_column_name": "sum_cols",
+                "strategy": [{"column": "col1"}, {"column": "col2"}],
+                "operations": ["add"],
+            },
+            {
+                "new_column_name": "product_cols",
+                "strategy": [{"column": "col1"}, {"column": "col2"}],
+                "operations": ["mul"],
+            },
+        ]
+        t = MathOperator(strategy=strategy)
+        df_result = t.transform(df_input)
+
+        assert "sum_cols" in df_result.columns
+        assert "product_cols" in df_result.columns
+
+        # Verify calculations
+        df_expected = df_input.with_columns(
+            sum_cols=(pl.col("col1") + pl.col("col2")),
+            product_cols=(pl.col("col1") * pl.col("col2")),
+        )
+
+        pl.testing.assert_frame_equal(
+            df_result.select("sum_cols", "product_cols"),
+            df_expected.select("sum_cols", "product_cols")
+        )
+
+    def test_chained_columns(self, df_input):
+        """Test using a newly created column in subsequent calculation."""
+        # Note: This would require two separate transform calls
+        # since MathOperator processes all strategies in parallel
+        strategy_1 = {
+            "new_column_name": "doubled",
+            "strategy": [{"column": "col1"}, {"constant": 2}],
+            "operations": ["mul"],
+        }
+        t1 = MathOperator(strategy=strategy_1)
+        df_temp = t1.transform(df_input)
+
+        strategy_2 = {
+            "new_column_name": "tripled",
+            "strategy": [{"column": "doubled"}, {"constant": 1.5}],
+            "operations": ["mul"],
+        }
+        t2 = MathOperator(strategy=strategy_2)
+        df_result = t2.transform(df_temp)
+
+        # doubled = col1 * 2, tripled = doubled * 1.5 = col1 * 3
+        df_expected = df_input.with_columns(
+            tripled=(pl.col("col1") * 3.0)
+        )
+
+        pl.testing.assert_frame_equal(
+            df_result.select("tripled"),
+            df_expected.select("tripled")
+        )
+
+    def test_complex_expression(self, df_input):
+        """Test complex multi-operation expression."""
+        # ((col1 + 10) * col2) / 3
+        strategy = {
+            "new_column_name": "complex_result",
+            "cast": "float",
+            "strategy": [
+                {"column": "col1"},
+                {"constant": 10},
+                {"column": "col2"},
+                {"constant": 3},
+            ],
+            "operations": ["add", "mul", "div"],
+        }
+        t = MathOperator(strategy=strategy)
+        df_result = t.transform(df_input).select("complex_result")
+
+        # Build expected
+        df_expected = df_input.with_columns(
+            complex_result=(
+                    ((pl.col("col1") + 10) * pl.col("col2")) / 3
+            ).cast(pl.Float64)
+        ).select("complex_result")
+
+        pl.testing.assert_frame_equal(df_result, df_expected)
+
+    def test_all_operations_together(self, df_input):
+        """Test all supported operations in one complex expression."""
+        # (((col1 + 2) - 1) * 3) / 2
+        strategy = {
+            "new_column_name": "all_ops",
+            "strategy": [
+                {"column": "col1"},
+                {"constant": 2},
+                {"constant": 1},
+                {"constant": 3},
+                {"constant": 2},
+            ],
+            "operations": ["add", "sub", "mul", "div"],
+        }
+        t = MathOperator(strategy=strategy)
+        df_result = t.transform(df_input).select("all_ops")
+
+        # Build expected manually
+        df_expected = df_input.with_columns(
+            all_ops=(((pl.col("col1") + 2) - 1) * 3) / 2
+        ).select("all_ops")
+
+        pl.testing.assert_frame_equal(df_result, df_expected)
+
+    def test_cast_operands(self, df_input):
+        """Test casting individual operands before operations."""
+        strategy = {
+            "new_column_name": "casted_result",
+            "strategy": [
+                {"column": "col1", "cast": "float64"},
+                {"constant": 10, "cast": "float32"},
+            ],
+            "operations": ["div"],
+        }
+        t = MathOperator(strategy=strategy)
+        df_result = t.transform(df_input).select("casted_result")
+
+        # Build expected
+        df_expected = df_input.with_columns(
+            casted_result=pl.col("col1").cast(pl.Float64) / pl.lit(10).cast(pl.Float32)
+        ).select("casted_result")
+
+        pl.testing.assert_frame_equal(df_result, df_expected)
+
+    def test_final_cast(self, df_input):
+        """Test final cast of result column."""
+        strategy = {
+            "new_column_name": "result",
+            "cast": "int32",
+            "strategy": [
+                {"column": "col1"},
+                {"constant": 2.5},
+            ],
+            "operations": ["mul"],
+        }
+        t = MathOperator(strategy=strategy)
+        df_result = t.transform(df_input).select("result")
+
+        # Build expected
+        df_expected = df_input.with_columns(
+            result=(pl.col("col1") * 2.5).cast(pl.Int32)
+        ).select("result")
+
+        pl.testing.assert_frame_equal(df_result, df_expected)
+
+    def test_case_insensitive_types(self, df_input):
+        """Test that type names are case-insensitive."""
+        strategies = [
+            {"new_column_name": "r1", "cast": "INT64", "strategy": [{"column": "col1"}], "operations": []},
+            {"new_column_name": "r2", "cast": "Float", "strategy": [{"column": "col1"}], "operations": []},
+            {"new_column_name": "r3", "cast": "STRING", "strategy": [{"column": "col1"}], "operations": []},
+        ]
+
+        for strategy in strategies:
+            t = MathOperator(strategy=strategy)
+            df_result = t.transform(df_input)
+            assert strategy["new_column_name"] in df_result.columns
 
 
 class TestPivot:
