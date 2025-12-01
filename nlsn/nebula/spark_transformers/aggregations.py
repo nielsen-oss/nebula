@@ -22,7 +22,6 @@ __all__ = [
     "AggregateOverWindow",
     "GroupBy",
     "LagOverWindow",
-    "Pivot",
 ]
 
 
@@ -488,94 +487,6 @@ class LagOverWindow(_Window):
         return df.withColumn(
             self._output_col, F.lag(self._lag_col, self._lag).over(win)
         )
-
-
-class Pivot(Transformer):
-    def __init__(
-            self,
-            *,
-            pivot_col: str,
-            aggregations: dict[str, str] | list[dict[str, str]],
-            groupby_columns: str | list[str] | None = None,
-            distinct_values: str | list[str] | None = None,
-            groupby_regex: str | None = None,
-            groupby_glob: str | None = None,
-            groupby_startswith: str | Iterable[str] | None = None,
-            groupby_endswith: str | Iterable[str] | None = None,
-    ):
-        """Pivots a column of the current DataFrame and perform the specified aggregation.
-
-        There are two versions of the pivot function: one that requires the
-        caller to specify the list of distinct values to pivot on, and one
-        that does not. The latter is more concise but less efficient
-        because Spark needs to first compute the list of distinct values
-        internally.
-
-        Args:
-            pivot_col (str):
-                Name of the column to pivot.
-            aggregations (dict(str, str) | list(dict(str, str))):
-                A dictionary list of aggregations to be applied.
-                Each aggregation is defined with the following fields:
-                'col' (the column to aggregate)
-                'agg' (the aggregation operation)
-                'alias' (the alias for the aggregated column)
-                Eg:
-                [
-                    {"agg": "collect_list", "col": "time_bin"},
-                    {"agg": "sum", "col": "dollars", "alias": "tot_dollars"},
-                ]
-                The keys "agg" and "col" are mandatory, whereas the key
-                "alias" is optional.
-            groupby_columns (str | list(str) | None):
-                A list of the objective columns to groupby. Defaults to None.
-            distinct_values (str | list(str) | None):
-                Specify the list of distinct values to pivot on.
-                If not provided, Spark needs to first compute the list of
-                distinct values internally, slowing down performance a bit.
-            groupby_regex (str | None):
-                Select the objective columns to groupby by using a regex pattern.
-                Defaults to None.
-            groupby_glob (str | None):
-                Select the objective columns to groupby by using a bash-like pattern.
-                Defaults to None.
-            groupby_startswith (str | iterable(str) | None):
-                Select all the columns whose names start with the provided
-                string(s). Defaults to None.
-            groupby_endswith (str | iterable(str) | None):
-                Select all the columns whose names end with the provided
-                string(s). Defaults to None.
-
-        Raises:
-            ValueError: if any aggregation is invalid.
-            TypeError: if any column or alias in the aggregation is not a string type.
-            ValueError: if no groupby selection is provided.
-        """
-        assert_only_one_non_none(groupby_columns, groupby_regex, groupby_glob)
-
-        super().__init__()
-        self._pivot_col: str = pivot_col
-        self._aggregations: list[dict[str, str]]
-        self._aggregations = _get_sanitized_aggregations(aggregations)
-        self._distinct_values: list[str] = ensure_flat_list(distinct_values)
-        self._set_columns_selections(
-            columns=groupby_columns,
-            regex=groupby_regex,
-            glob=groupby_glob,
-            startswith=groupby_startswith,
-            endswith=groupby_endswith,
-        )
-
-    def _transform(self, df):
-        group_by_cols: list[str] = self._get_selected_columns(df)
-        df_grouped = df.groupby(group_by_cols)
-        if self._distinct_values:
-            df_pivoted = df_grouped.pivot(self._pivot_col, self._distinct_values)
-        else:
-            df_pivoted = df_grouped.pivot(self._pivot_col)
-
-        list_agg: list[F.col] = _make_aggregations(self._aggregations)
-        return df_pivoted.agg(*list_agg)
 
 
 AggregateOverWindow.__init__.__doc__ = (
