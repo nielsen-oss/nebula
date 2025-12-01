@@ -1,3 +1,4 @@
+import narwhals as nw
 import pandas as pd
 import polars as pl
 import pytest
@@ -356,3 +357,467 @@ class TestJoin:
 
         assert result.shape == (6, 2)  # 2 * 3 = 6 rows
         assert set(result.columns) == {"color", "size"}
+
+
+class TestPivot:
+    """Test suite for Pivot transformer."""
+
+    @staticmethod
+    @pytest.fixture
+    def long_df():
+        """Long format DataFrame with sales data."""
+        data = {
+            "product_id": [1, 1, 1, 2, 2, 2],
+            "month": ["jan", "feb", "mar", "jan", "feb", "mar"],
+            "revenue": [100, 110, 120, 200, 190, 210],
+        }
+        return nw.from_dict(data, backend="polars")
+
+    def test_pivot_basic(self, long_df):
+        """Test basic pivot with single value column."""
+        transformer = Pivot(
+            pivot_col="month",
+            id_cols="product_id",
+            aggregate_function="first",
+        )
+        result = transformer.transform(long_df)
+
+        assert result.shape == (2, 4)
+        assert "product_id" in result.columns
+        assert "jan" in result.columns
+        assert "feb" in result.columns
+        assert "mar" in result.columns
+
+        product_1 = result.filter(nw.col("product_id") == 1)
+        assert product_1["jan"].item() == 100
+        assert product_1["feb"].item() == 110
+        assert product_1["mar"].item() == 120
+
+    def test_pivot_with_id_regex(self):
+        """Test pivot with regex for id columns."""
+        data = {
+            "id_user": [1, 1, 2, 2],
+            "id_session": [101, 101, 102, 102],
+            "metric_type": ["A", "B", "A", "B"],
+            "value": [10, 20, 30, 40],
+        }
+        df = nw.from_dict(data, backend="polars")
+
+        transformer = Pivot(
+            pivot_col="metric_type",
+            id_regex="^id_.*",
+            aggregate_function="first",
+            values_cols=["value"]
+        )
+        result = transformer.transform(df)
+
+        assert result.shape == (2, 4)
+        assert "id_user" in result.columns
+        assert "id_session" in result.columns
+        assert "A" in result.columns
+        assert "B" in result.columns
+
+    def test_pivot_with_id_glob(self):
+        """Test pivot with glob pattern for id columns."""
+        data = {
+            "user_id": [1, 1, 2, 2],
+            "user_name": ["Alice", "Alice", "Bob", "Bob"],
+            "category": ["X", "Y", "X", "Y"],
+            "score": [10, 20, 30, 40],
+        }
+        df = nw.from_dict(data, backend="polars")
+
+        transformer = Pivot(
+            pivot_col="category",
+            id_glob="user_*",
+            aggregate_function="first",
+        )
+        result = transformer.transform(df)
+
+        assert result.shape == (2, 4)
+        assert "user_id" in result.columns
+        assert "user_name" in result.columns
+
+    def test_pivot_with_id_startswith(self):
+        """Test pivot with startswith selector for id columns."""
+        data = {
+            "pk_id": [1, 1, 2, 2],
+            "pk_timestamp": [100, 100, 200, 200],
+            "other_col": ["foo", "foo", "bar", "bar"],
+            "type": ["A", "B", "A", "B"],
+            "val": [10, 20, 30, 40],
+        }
+        df = nw.from_dict(data, backend="polars")
+
+        transformer = Pivot(
+            pivot_col="type",
+            id_startswith="pk_",
+            aggregate_function="first",
+        )
+        result = transformer.transform(df)
+
+        assert "pk_id" in result.columns
+        assert "pk_timestamp" in result.columns
+        assert "other_col" not in result.columns
+
+    def test_pivot_with_id_endswith(self):
+        """Test pivot with endswith selector for id columns."""
+        data = {
+            "user_key": [1, 1, 2, 2],
+            "session_key": [101, 101, 102, 102],
+            "random": ["x", "x", "y", "y"],
+            "metric": ["A", "B", "A", "B"],
+            "value": [10, 20, 30, 40],
+        }
+        df = nw.from_dict(data, backend="polars")
+
+        transformer = Pivot(
+            pivot_col="metric",
+            id_endswith="_key",
+            aggregate_function="first",
+        )
+        result = transformer.transform(df)
+
+        assert "user_key" in result.columns
+        assert "session_key" in result.columns
+        assert "random" not in result.columns
+
+    def test_pivot_with_values_regex(self):
+        """Test pivot with regex selection for value columns."""
+        data = {
+            "id": [1, 1, 2, 2],
+            "type": ["X", "Y", "X", "Y"],
+            "metric_1": [10, 20, 30, 40],
+            "metric_2": [11, 21, 31, 41],
+            "other": [99, 99, 99, 99],
+        }
+        df = nw.from_dict(data, backend="polars")
+
+        transformer = Pivot(
+            pivot_col="type",
+            id_cols="id",
+            values_regex="^metric_.*",
+            aggregate_function="first",
+        )
+        result = transformer.transform(df)
+
+        assert "other_X" not in result.columns
+        assert "other_Y" not in result.columns
+        assert "metric_1_X" in result.columns
+        assert "metric_2_Y" in result.columns
+
+    def test_pivot_with_values_glob(self):
+        """Test pivot with glob pattern for value columns."""
+        data = {
+            "id": [1, 1, 2, 2],
+            "category": ["A", "B", "A", "B"],
+            "sales_total": [100, 200, 150, 250],
+            "sales_count": [10, 20, 15, 25],
+            "cost": [50, 100, 75, 125],
+        }
+        df = nw.from_dict(data, backend="polars")
+
+        transformer = Pivot(
+            pivot_col="category",
+            id_cols="id",
+            values_glob="sales_*",
+            aggregate_function="first",
+        )
+        result = transformer.transform(df)
+
+        assert "sales_total_A" in result.columns
+        assert "sales_count_B" in result.columns
+        assert "cost_A" not in result.columns
+
+    def test_pivot_with_values_startswith(self):
+        """Test pivot with startswith selector for value columns."""
+        data = {
+            "id": [1, 1, 2, 2],
+            "type": ["X", "Y", "X", "Y"],
+            "revenue_usd": [100, 200, 150, 250],
+            "revenue_eur": [90, 180, 135, 225],
+            "cost": [50, 100, 75, 125],
+        }
+        df = nw.from_dict(data, backend="polars")
+
+        transformer = Pivot(
+            pivot_col="type",
+            id_cols="id",
+            values_startswith="revenue",
+            aggregate_function="first",
+        )
+        result = transformer.transform(df)
+
+        assert "revenue_usd_X" in result.columns
+        assert "revenue_eur_Y" in result.columns
+        assert "cost_X" not in result.columns
+
+    def test_pivot_with_values_endswith(self):
+        """Test pivot with endswith selector for value columns."""
+        data = {
+            "id": [1, 1, 2, 2],
+            "quarter": ["Q1", "Q2", "Q1", "Q2"],
+            "total_sales": [100, 200, 150, 250],
+            "total_units": [10, 20, 15, 25],
+            "average": [10, 10, 10, 10],
+        }
+        df = nw.from_dict(data, backend="polars")
+
+        transformer = Pivot(
+            pivot_col="quarter",
+            id_cols="id",
+            values_endswith="_sales",
+            aggregate_function="first",
+        )
+        result = transformer.transform(df)
+
+        assert "Q1" in result.columns
+        assert "Q2" in result.columns
+
+    def test_pivot_multiple_selectors_combined(self):
+        """Test pivot with multiple selector types combined."""
+        data = {
+            "pk_user": [1, 1, 2, 2],
+            "pk_session": [101, 101, 102, 102],
+            "dimension": ["A", "B", "A", "B"],
+            "metric_revenue": [100, 200, 150, 250],
+            "metric_cost": [50, 100, 75, 125],
+            "other": [99, 99, 99, 99],
+        }
+        df = nw.from_dict(data, backend="polars")
+
+        transformer = Pivot(
+            pivot_col="dimension",
+            id_startswith="pk_",  # Select pk_user, pk_session
+            values_startswith="metric",  # Select metric_revenue, metric_cost
+            aggregate_function="first",
+        )
+        result = transformer.transform(df)
+
+        # ID columns
+        assert "pk_user" in result.columns
+        assert "pk_session" in result.columns
+
+        # Value columns pivoted
+        assert "metric_revenue_A" in result.columns
+        assert "metric_cost_B" in result.columns
+
+        # Excluded columns
+        assert "other_A" not in result.columns
+
+    def test_pivot_requires_id_selector(self, long_df):
+        """Test that at least one id selector must be provided."""
+        with pytest.raises(AssertionError):
+            Pivot(
+                pivot_col="month",
+                aggregate_function="first",
+            )
+
+    def test_pivot_with_sum_aggregation(self):
+        """Test pivot with sum aggregation for duplicates."""
+        data = {
+            "store": ["A", "A", "A", "B", "B"],
+            "product": ["X", "X", "Y", "X", "Y"],
+            "sales": [10, 15, 20, 30, 40],
+        }
+        df = nw.from_dict(data, backend="polars")
+
+        transformer = Pivot(
+            pivot_col="product",
+            id_cols="store",
+            aggregate_function="sum",
+        )
+        result = transformer.transform(df)
+
+        store_a = result.filter(nw.col("store") == "A")
+        assert store_a["X"].item() == 25
+        assert store_a["Y"].item() == 20
+
+    def test_pivot_without_values_specified(self, long_df):
+        """Test pivot without specifying values (pivots all non-id columns)."""
+        transformer = Pivot(
+            pivot_col="month",
+            id_cols="product_id",
+            aggregate_function="first",
+        )
+        result = transformer.transform(long_df)
+
+        # Should pivot the revenue column automatically
+        assert "jan" in result.columns
+        assert "feb" in result.columns
+        assert "mar" in result.columns
+
+
+class TestUnpivot:
+    """Test suite for Unpivot transformer."""
+
+    @pytest.fixture
+    def wide_df(self):
+        """Wide format DataFrame with sales data."""
+        data = {
+            "product_id": [1, 2, 3],
+            "category": ["A", "B", "A"],
+            "sales_jan": [100, 200, 150],
+            "sales_feb": [110, 190, 160],
+            "sales_mar": [120, 210, 170],
+        }
+        return nw.from_native(pl.DataFrame(data))
+
+    def test_with_id_cols_and_melt_cols(self, wide_df):
+        """Test basic melt with explicit columns."""
+        transformer = Unpivot(
+            id_cols=["product_id", "category"],
+            melt_cols=["sales_jan", "sales_feb", "sales_mar"],
+            variable_col="month",
+            value_col="revenue",
+        )
+        result = transformer.transform(wide_df)
+
+        assert result.shape == (9, 4)  # 3 products × 3 months
+        assert set(result.columns) == {"product_id", "category", "month", "revenue"}
+
+        # Check first product's data
+        first_product = result.filter(nw.col("product_id") == 1).sort("month")
+        months = first_product["month"].to_list()
+        revenues = first_product["revenue"].to_list()
+
+    def test_with_regex(self, wide_df):
+        """Test melt using regex patterns."""
+        transformer = Unpivot(
+            id_cols=["product_id"],
+            melt_regex="^sales_.*",
+            variable_col="month",
+            value_col="amount",
+        )
+        result = transformer.transform(wide_df)
+
+        # category is NOT in id_cols, so it gets dropped entirely
+        assert result.shape == (9, 3)
+        assert set(result.columns) == {"product_id", "month", "amount"}
+
+        # Verify we have all 3 months for each product
+        product_1 = result.filter(nw.col("product_id") == 1)
+        assert product_1.shape[0] == 3
+
+    def test_with_id_regex(self):
+        """Test melt with regex for id columns."""
+        data = {
+            "id_user": [1, 2],
+            "id_session": [101, 102],
+            "metric_a": [10, 20],
+            "metric_b": [30, 40],
+        }
+        df = nw.from_native(pl.DataFrame(data))
+
+        transformer = Unpivot(
+            id_regex="^id_.*",
+            melt_regex="^metric_.*",
+            variable_col="metric_name",
+            value_col="metric_value",
+        )
+        result = transformer.transform(df)
+
+        assert result.shape == (4, 4)  # 2 rows × 2 metrics
+        assert set(result.columns) == {"id_user", "id_session", "metric_name", "metric_value"}
+
+    def test_without_id_cols(self):
+        """Test melt discards non-melt columns when no id_cols specified."""
+        data = {
+            "name": ["Alice", "Bob"],
+            "age": [25, 30],
+            "score_math": [85, 90],
+            "score_english": [88, 92],
+        }
+        df = nw.from_native(pl.DataFrame(data))
+
+        transformer = Unpivot(
+            melt_cols=["score_math", "score_english"],
+            variable_col="subject",
+            value_col="score",
+        )
+        result = transformer.transform(df)
+
+        # name and age should be discarded
+        assert result.shape == (4, 2)
+        assert set(result.columns) == {"subject", "score"}
+
+    def test_single_column(self):
+        """Test melt with single melt column."""
+        data = {
+            "id": [1, 2],
+            "value": [10, 20],
+        }
+        df = nw.from_native(pl.DataFrame(data))
+
+        transformer = Unpivot(
+            id_cols="id",
+            melt_cols="value",
+            variable_col="var",
+            value_col="val",
+        )
+        result = transformer.transform(df)
+
+        assert result.shape == (2, 3)
+        assert result["var"].to_list() == ["value", "value"]
+
+    def test_preserves_id_values(self, wide_df):
+        """Test that id column values are preserved correctly."""
+        transformer = Unpivot(
+            id_cols="product_id",
+            melt_cols=["sales_jan", "sales_feb"],
+            variable_col="month",
+            value_col="sales",
+        )
+        result = transformer.transform(wide_df)
+
+        # Each product_id should appear twice (once per month)
+        product_counts = result.group_by("product_id").agg(nw.len()).sort("product_id")
+        counts = product_counts["len"].to_list()
+        assert counts == [2, 2, 2]
+
+    def test_requires_melt_specification(self, wide_df):
+        """Test that either melt_cols or melt_regex must be provided."""
+        with pytest.raises(AssertionError):
+            Unpivot(
+                id_cols=["product_id"],
+                variable_col="var",
+                value_col="val",
+            )
+
+    def test_empty_selection(self):
+        """Test melt when regex matches no columns."""
+        data = {"id": [1, 2], "value": [10, 20]}
+        df = nw.from_native(pl.DataFrame(data))
+
+        transformer = Unpivot(
+            id_cols="id",
+            melt_regex="^nonexistent_.*",
+            variable_col="var",
+            value_col="val",
+        )
+
+        # Should handle gracefully - unpivot with empty index
+        result = transformer.transform(df)
+        assert "id" in result.columns
+
+    def test_with_nulls(self):
+        """Test melt preserves null values."""
+        data = {
+            "id": [1, 2],
+            "sales_jan": [100, None],
+            "sales_feb": [None, 200],
+        }
+        df = nw.from_native(pl.DataFrame(data))
+
+        transformer = Unpivot(
+            id_cols="id",
+            melt_cols=["sales_jan", "sales_feb"],
+            variable_col="month",
+            value_col="sales",
+        )
+        result = transformer.transform(df)
+
+        assert result.shape == (4, 3)
+        # Nulls should be preserved in the melted column
+        nulls = result.filter(nw.col("sales").is_null())
+        assert nulls.shape[0] == 2

@@ -5,9 +5,6 @@ from typing import Any
 
 from pyspark.sql import functions as F
 
-from nlsn.nebula.auxiliaries import (
-    assert_at_least_one_non_null,
-)
 from nlsn.nebula.base import Transformer
 from nlsn.nebula.spark_util import (
     ensure_spark_condition,
@@ -15,77 +12,8 @@ from nlsn.nebula.spark_util import (
 )
 
 __all__ = [
-    "Melt",
     "When",
 ]
-
-
-class Melt(Transformer):
-    def __init__(
-            self,
-            *,
-            id_cols: str | list[str] | None = None,
-            id_regex: str | None = None,
-            melt_cols: str | list[str] | None = None,
-            melt_regex: str | None = None,
-            variable_col: str,
-            value_col: str,
-    ):
-        """Perform a melt operation, converting specified columns from wide to long format (Unpivot).
-
-        Args:
-            id_cols (str | list(str) | None): Set of identifier columns.
-            id_regex (str | None): A regex that selects columns to be used as `id_cols`.
-            melt_cols (str | list(str)): List of column names to unpivot.
-            melt_regex (str | None): A regex that selects columns to be used as `value_cols`.
-            variable_col (str): Name of the new column to store variable names after melting.
-            value_col (str): Name of the new column to store values after melting.
-
-        Note:
-          1. If neither `id_cols` nor `id_regex` is provided, all non-melt columns will be discarded.
-
-        Raises:
-            AssertionError: if neither of `melt_cols` and `melt_regex` are provided.
-        """
-        assert_at_least_one_non_null(melt_cols, melt_regex)
-
-        super().__init__()
-        self._id_cols = id_cols
-        self._id_regex = id_regex
-        self._melt_cols = melt_cols
-        self._melt_regex = melt_regex
-        self._variable_col = variable_col
-        self._value_col = value_col
-
-    def _transform(self, df):
-        self._set_columns_selections(
-            columns=self._id_cols,
-            regex=self._id_regex,
-        )
-        id_cols: list[str] = self._get_selected_columns(df)
-
-        self._set_columns_selections(
-            columns=self._melt_cols,
-            regex=self._melt_regex,
-        )
-        melt_cols: list[str] = self._get_selected_columns(df)
-
-        _vars_and_vals = F.array(
-            *(
-                F.struct(
-                    F.lit(c).alias(self._variable_col), F.col(c).alias(self._value_col)
-                )
-                for c in melt_cols
-            )
-        )
-
-        melted_df = df.withColumn("_vars_and_vals", F.explode(_vars_and_vals))
-
-        cols = id_cols + [
-            F.col("_vars_and_vals")[x].alias(x)
-            for x in [self._variable_col, self._value_col]
-        ]
-        return melted_df.select(*cols)
 
 
 class When(Transformer):
