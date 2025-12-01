@@ -19,73 +19,12 @@ from nlsn.nebula.spark_util import (
 from nlsn.nebula.storage import nebula_storage as ns
 
 __all__ = [
-    "Coalesce",
     "FillNa",
     "Join",
     "Melt",
     "UnionByName",
     "When",
 ]
-
-
-class Coalesce(Transformer):
-    def __init__(
-            self,
-            *,
-            output_col: str,
-            columns: str | list[str] | None = None,
-            drop_input_cols: bool = False,
-            treat_nan_as_null: bool = False,
-            treat_blank_string_as_null: bool = False,
-    ):
-        """Coalesce given input_cols in the output_col and drop input_cols if needed.
-
-        Args:
-            output_col (str):
-                Result of coalesce.
-            columns (str | list(str) | None):
-                A list of columns to coalesce. Defaults to None.
-            drop_input_cols (bool):
-                Drop input_cols after coalesce. If output_col is one of
-                input_cols, it will not be dropped.
-            treat_nan_as_null (bool):
-                Spark treats NaN as number in numeric columns, hence if NaN
-                occurs before a valid number, it will result in the output
-                column. Set treat_nan_as_null as True if you want to treat
-                NaN as None.
-            treat_blank_string_as_null (bool):
-                Treat empty and blank strings as None and coalesce accordingly.
-        """
-        assert_at_most_one_args(treat_nan_as_null, treat_blank_string_as_null)
-
-        super().__init__()
-        self._set_columns_selections(columns=columns)
-        self._output_col: str = output_col
-        self._drop_input_cols: bool = drop_input_cols
-        self._treat_nan_as_null: bool = treat_nan_as_null
-        self._treat_blank_string_as_null: bool = treat_blank_string_as_null
-
-    def _transform(self, df):
-        selection: list[str] = self._get_selected_columns(df)
-        if self._treat_nan_as_null:
-            cols = [
-                F.when(F.isnan(i), None).otherwise(F.col(i)).alias(i) for i in selection
-            ]
-        elif self._treat_blank_string_as_null:
-            cols = [
-                F.when(F.trim(i) == "", None).otherwise(F.col(i)).alias(i)
-                for i in selection
-            ]
-        else:
-            cols = selection
-
-        df = df.withColumn(self._output_col, F.coalesce(*cols))
-
-        if self._drop_input_cols:
-            cols2drop = [i for i in selection if i != self._output_col]
-            df = df.drop(*cols2drop)
-
-        return df
 
 
 class FillNa(Transformer):
