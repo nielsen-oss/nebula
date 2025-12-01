@@ -7,18 +7,15 @@ from pyspark.sql import functions as F
 
 from nlsn.nebula.auxiliaries import (
     assert_at_least_one_non_null,
-    ensure_flat_list,
 )
 from nlsn.nebula.base import Transformer
 from nlsn.nebula.spark_util import (
     ensure_spark_condition,
     get_spark_condition,
 )
-from nlsn.nebula.storage import nebula_storage as ns
 
 __all__ = [
     "FillNa",
-    "Join",
     "Melt",
     "When",
 ]
@@ -74,69 +71,6 @@ class FillNa(Transformer):
             return df.na.fill(self._value)
         subset = self._get_selected_columns(df)
         return df.na.fill(self._value, subset=subset)
-
-
-class Join(Transformer):
-    def __init__(
-            self,
-            *,
-            table: str,
-            on: list[str] | str,
-            how: str,
-            broadcast: bool = False,
-    ):
-        """Joins with another DataFrame, using the given join expression.
-
-        The right dataframe is retrieved from the nebula storage.
-
-        Args:
-            table (str):
-                Nebula storage key to retrieve the right table of the join.
-            on (list(str, str)):
-                A string for the join column name, or a list of column names.
-                The name of the join column(s) must exist on both sides.
-            how (str):
-                Must be one of: inner, cross, outer, full, fullouter,
-                full_outer, left, leftouter, left_outer, right, rightouter,
-                right_outer, semi, leftsemi, left_semi, anti, leftanti and
-                left_anti.
-            broadcast (bool):
-                Broadcast the right dataframe. Defaults to False.
-        """
-        allowed_how = {
-            "inner",
-            "cross",
-            "outer",
-            "full",
-            "fullouter",
-            "full_outer",
-            "left",
-            "leftouter",
-            "left_outer",
-            "right",
-            "rightouter",
-            "right_outer",
-            "semi",
-            "leftsemi",
-            "left_semi",
-            "anti",
-            "leftanti",
-            "left_anti",
-        }
-        if how not in allowed_how:
-            raise ValueError(f"'how' must be one of the following: {how}")
-
-        super().__init__()
-        self._table: str = table
-        self._on: list[str] = ensure_flat_list(on)
-        self._how: str = how
-        self._broadcast: bool = broadcast
-
-    def _transform(self, df):
-        df_right = ns.get(self._table)
-        if self._broadcast:
-            df_right = F.broadcast(df_right)
-        return df.join(df_right, on=self._on, how=self._how)
 
 
 class Melt(Transformer):

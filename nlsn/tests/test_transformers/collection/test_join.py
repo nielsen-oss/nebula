@@ -11,7 +11,7 @@ from nlsn.nebula.storage import nebula_storage as ns
 def test_join_error():
     """Test Join transformer with wrong 'how'."""
     with pytest.raises(ValueError):
-        Join(table="x", on="x", how="wrong")
+        Join(store_key="x", on="x", how="wrong")
 
 
 @pytest.fixture(scope="module", name="df_left")
@@ -59,7 +59,7 @@ def test_join(df_left, df_right, on, how: str, broadcast: bool):
     ns.clear()
     ns.set("df_right", df_right)
 
-    t = Join(table="df_right", on=on, how=how, broadcast=broadcast)
+    t = Join(store_key="df_right", on=on, how=how, broadcast=broadcast)
     df_chk = t.transform(df_left.drop(*c2d))
 
     df_exp = df_left.drop(*c2d).join(df_right, on=on, how=how)
