@@ -15,62 +15,9 @@ from nlsn.nebula.spark_util import (
 )
 
 __all__ = [
-    "FillNa",
     "Melt",
     "When",
 ]
-
-
-class FillNa(Transformer):
-    def __init__(
-            self,
-            *,
-            value: int | float | str | bool | dict[str, int | float | str | bool],
-            columns: str | list[str] | None = None,
-            regex: str | None = None,
-            glob: str | None = None,
-    ):
-        """Replace null values.
-
-        Args:
-            value (int | float | str | bool | dict(str), (int | float | str | bool):
-                Value to replace null values with.
-                If the 'value' is a dict, it must be a mapping from column name
-                (string) to replacement value.
-                The replacement value must be an int, float, boolean, or string.
-                In this case, all the other arguments: 'columns', 'regex', and
-                'glob' must be null.
-                Otherwise, if 'value' is a scalar, a subset can be specified
-                through the remaining arguments.
-                Columns specified in subset that do not have a matching data type are
-                ignored. For example, if a value is a string, and subset contains a
-                non-string column, then the non-string column is simply ignored.
-            columns (str | list(str) | None):
-                A list of columns to select. Defaults to None.
-            regex (str | None):
-                Take the columns to select by using a regex pattern.
-                Defaults to None.
-            glob (str | None):
-                Take the columns to select by using a bash-like pattern.
-                Defaults to None.
-        """
-        super().__init__()
-        self._flag_mapping: bool = isinstance(value, dict)
-
-        if bool(columns) or bool(regex) or bool(glob):
-            if self._flag_mapping:
-                msg = "If 'value' is <dict>, all the other parameters must be null."
-                raise AssertionError(msg)
-
-        scalar = int | float | str | bool
-        self._value: scalar | dict[str, scalar] = value
-        self._set_columns_selections(columns=columns, regex=regex, glob=glob)
-
-    def _transform(self, df):
-        if self._flag_mapping:
-            return df.na.fill(self._value)
-        subset = self._get_selected_columns(df)
-        return df.na.fill(self._value, subset=subset)
 
 
 class Melt(Transformer):
