@@ -9,10 +9,12 @@ from pyspark.sql.types import (
     MapType,
     StringType,
     StructField,
-    StructType
+    StructType,
+    Row,
 )
 from pyspark.sql.utils import AnalysisException
 
+from nlsn.nebula.auxiliaries import is_list_uniform
 from nlsn.nebula.spark_util import (
     drop_duplicates_no_randomness,
     get_default_spark_partitions,
@@ -38,6 +40,78 @@ def test_log_data_skew(spark):
 
     t = LogDataSkew()
     t.transform(df)
+
+
+class TestColumnsToMap:
+    _data = [(0, 1, 11), (1, 2, None), (2, None, 3)]
+
+    @pytest.fixture(scope="class", name="df_input")
+    def _get_df_input(self, spark):
+        fields = [
+            StructField("idx", IntegerType()),
+            StructField("c1", IntegerType()),
+            StructField("c2", IntegerType()),
+        ]
+        schema = StructType(fields)
+        return spark.createDataFrame(self._data, schema).persist()
+
+    @staticmethod
+    def _check(v_exp, v_chk, cast_values):
+        if v_exp is None:
+            assert v_chk is None
+        else:
+            if cast_values == "string":
+                assert v_chk == str(v_exp)
+            else:
+                assert v_chk == v_exp
+
+    @pytest.mark.parametrize(
+        "cast_values, drop",
+        [
+            [None, False],
+            ["string", True],
+        ],
+    )
+    def test(self, df_input, cast_values: str, drop: bool):
+        """Test ColumnsToMap."""
+        t = ColumnsToMap(
+            columns=["c1", "c2"],
+            output_column="result",
+            cast_values=cast_values,
+            drop_input_columns=drop,
+        )
+        df_chk = t.transform(df_input).persist()
+        n = df_chk.count()
+        assert len(self._data) == n
+
+        set_cols = set(df_chk.columns)
+
+        if drop:
+            cols = ["idx", "result"]
+            assert set_cols == set(cols)
+        else:
+            cols = ["idx", "c1", "c2", "result"]
+            assert set_cols == set(cols)
+
+        collected: list[Row] = df_chk.select(cols).sort("idx").collect()
+
+        row: Row
+        for row in collected:
+            d_row = row.asDict()
+
+            idx = d_row["idx"]
+
+            v1_exp = self._data[idx][1]
+            v2_exp = self._data[idx][2]
+
+            result = d_row["result"]
+            assert set(result.keys()) == {"c1", "c2"}
+
+            v1_chk = result["c1"]
+            v2_chk = result["c2"]
+
+            self._check(v1_exp, v1_chk, cast_values)
+            self._check(v2_exp, v2_chk, cast_values)
 
 
 class TestPartitions:
@@ -92,7 +166,7 @@ class TestCoalesceRepartition:
         ({"rows_per_partition": 20}, _N_ROWS // 20),
     ]
 
-    @pytest.fixture(scope="module", name="df_input")
+    @pytest.fixture(scope="class", name="df_input")
     def _get_df_input(self, spark):
         fields = [
             StructField("a", StringType(), True),
@@ -147,6 +221,93 @@ class TestCoalesceRepartition:
         t = Repartition(num_partitions=10, columns="wrong")
         with pytest.raises(AssertionError):
             t.transform(df_input)
+
+
+class TestMapToColumns:
+    _data = [
+        (1, {"a": 1, "b": 2}),
+        (2, {"x": None, "y": 20}),
+        (3, None),
+    ]
+
+    @pytest.fixture(scope="class", name="df_input")
+    def _get_df_input(self, spark):
+        fields = [
+            StructField("id", IntegerType()),
+            StructField("map_col", MapType(StringType(), IntegerType())),
+        ]
+        schema = StructType(fields)
+        return spark.createDataFrame(self._data, schema).persist()
+
+    @pytest.mark.parametrize(
+        "output_columns",
+        [
+            ["a", "b", "wrong"],
+            [("a", "col_a"), ("c", "col_c")],
+            {"a": "col_a", "c": "col_c", "x": "col_x"},
+        ],
+    )
+    def test_valid(self, df_input, output_columns):
+        """Test MapToColumns w/ and w/o 'output_column'."""
+        t = MapToColumns(input_column="map_col", output_columns=output_columns)
+        df_out = t.transform(df_input)
+
+        collected = df_out.rdd.map(lambda x: x.asDict()).collect()
+
+        if isinstance(output_columns, (list, tuple)):
+            if is_list_uniform(output_columns, str):
+                chk_cols = [(i, i) for i in output_columns]
+            else:
+                chk_cols = output_columns[:]
+        else:
+            chk_cols = list(output_columns.items())
+
+        for row in collected:
+            input_dict = row["map_col"]
+            if not input_dict:
+                assert all(row[j] is None for (i, j) in chk_cols)
+                continue
+            for i, j in chk_cols:
+                exp = input_dict.get(i)
+                chk = row[j]
+                assert exp == chk
+
+    @staticmethod
+    def test_missing_input_column():
+        """Test MapToColumns passing an empty output column list."""
+        with pytest.raises(AssertionError):
+            MapToColumns(input_column="id", output_columns=[])
+
+    @staticmethod
+    def test_invalid_output_columns_type():
+        """Test MapToColumns passing a wrong output column type."""
+        with pytest.raises(TypeError):
+            MapToColumns(input_column="id", output_columns={"a"})
+
+    def test_non_map_type_column(self, df_input):
+        """Test MapToColumns passing a non MapType column."""
+        t = MapToColumns(input_column="id", output_columns=["x"])
+        with pytest.raises(TypeError):
+            t.transform(df_input)
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        "output_columns",
+        [
+            ["a", 1],
+            ["a", None],
+            [None],
+            [("a", "col_a"), ("c", "col_a")],
+            [("a", "col_a"), ("c", "col_a", "col_b")],
+            [("a", "col_a"), ("c", 1)],
+            {"a": "col_a", "c": "col_a"},
+            {"a": "col_a", "c": 1},
+        ],
+    )
+    def test_invalid_output_columns(output_columns):
+        """Test MapToColumns passing a wrong type of 'output_columns'."""
+        with pytest.raises(TypeError):
+            MapToColumns(input_column="map_col", output_columns=output_columns)
 
 
 class TestSparkColumnMethod:
