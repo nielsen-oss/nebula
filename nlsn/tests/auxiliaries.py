@@ -119,19 +119,22 @@ def sort_reset_assert(
 
 
 def to_pandas(df_input) -> pd.DataFrame:
-    if isinstance(df_input, nw.DataFrame):
+    # from narwhals to native ...
+    if isinstance(df_input, (nw.DataFrame, nw.LazyFrame)):
         df = nw.to_native(df_input)
-    elif isinstance(df_input, nw.LazyFrame):
-        df = nw.to_native(df_input.collect())
     else:
         df = df_input
 
-    if isinstance(df, pl.DataFrame):
+    # ... to pandas
+    if isinstance(df, pl.DataFrame):  # polars
         return df.to_pandas()
-    elif isinstance(df, pyspark.sql.DataFrame):
+    if isinstance(df, pl.LazyFrame):  # polars lazy
+        return df.collect().to_pandas()
+    elif isinstance(df, pyspark.sql.DataFrame):  # spark
         return df.toPandas()
     elif isinstance(df, pd.DataFrame):
         return df
+
     raise TypeError(f"Unknown df type: {type(df)}")
 
 # def assert_frame_equal(
