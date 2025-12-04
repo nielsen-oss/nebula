@@ -28,7 +28,7 @@ class TestAddLiterals:
 
     @staticmethod
     def test_empty_data():
-        """Test AddLiterals with empty data list is pass-through."""
+        """Ensure pass-through with an empty input."""
         df_input = pd.DataFrame({"a": [1, 2]})
         df_out = AddLiterals(data=[]).transform(df_input)
 
