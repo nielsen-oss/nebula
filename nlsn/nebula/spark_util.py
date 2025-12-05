@@ -1,10 +1,9 @@
 """Spark utilities."""
 
-import operator as py_operator
 import sys
 import warnings
 from io import StringIO
-from typing import Any, Iterable, Union
+from typing import Any, Union
 
 import narwhals as nw
 import pyspark.sql
@@ -15,7 +14,6 @@ from nlsn.nebula.auxiliaries import (
     assert_allowed,
     compare_lists_of_string,
     ensure_flat_list,
-    validate_regex_pattern,
 )
 from nlsn.nebula.logger import logger
 
@@ -25,12 +23,10 @@ __all__ = [
     "cast_to_schema",
     "compare_dfs",
     "drop_duplicates_no_randomness",
-    "ensure_spark_condition",
     "get_column_data_type_name",
     "get_data_skew",
     "get_default_spark_partitions",
     "get_schema_as_str",
-    "get_spark_condition",
     "get_spark_session",
     "hash_dataframe",
     "is_broadcast",
@@ -54,10 +50,6 @@ ALLOWED_SPARK_OPERATORS = {
     "startswith",
     "endswith",
 }
-
-_allowed_operators = ALLOWED_STANDARD_OPERATORS.union(
-    ALLOWED_SPARK_NULL_OPERATORS
-).union(ALLOWED_SPARK_OPERATORS)
 
 _psql = pyspark.sql  # keep it for linting
 
@@ -314,113 +306,6 @@ def drop_duplicates_no_randomness(
     return df.groupby(subset).agg(*list_agg)
 
 
-def ensure_spark_condition(
-        operator: str,
-        value=None,
-        compare_col: str | None = None,
-) -> None:
-    """Validate the input parameters for a Spark condition.
-
-    This function checks if the provided `operator`, `value`, and `compare_col` are
-    valid for constructing a Spark condition. It ensures that the operator is
-    supported, that the correct arguments are provided based on the operator,
-    and that the values are of the expected types.
-
-    Args:
-        operator (str):
-            The comparison operator to use. Valid operators include:
-            - "eq", "ne", "le", "lt", "ge", "gt" (equality, greater, lower)
-            - "isNull", "isNotNull", "isNaN", "isNotNaN": look for null values
-            - "isin", "isnotin": check if a value is / is not in an iterable
-            - "array_contains": look for an element in a <ArrayType> Column
-            - "between": looks for value between provided lower_bound and upper_bound, inclusive
-            - "contains": look for a substring in a <StringType> Column
-            - "startswith": look for a string that starts with.
-            - "endswith": look for a string that ends with.
-            - "like": values matching a pattern using _ and % in a <StringType> Column
-            - "rlike": values matching a regex pattern in a <StringType> Column
-
-        value (Any, optional):
-            The value to compare against. Required for operators that compare against a
-            specific value (e.g., "eq", "gt", "isin"). Cannot be used with `compare_col`.
-            Defaults to None.
-
-        compare_col (str, optional):
-            The name of the column to compare against. Required for operators that compare
-            two columns (e.g., "eq", "gt"). Cannot be used with `value`. Defaults to None.
-
-    Raises:
-        AssertionError:
-            - If `operator` is not a string.
-            - If `operator` is not in the list of allowed operators.
-            - If `value` is a string when using "isin" or "isnotin".
-            - If `value` is not an iterable when using "isin" or "isnotin".
-            - If `None` is present in the iterable when using "isin" or "isnotin".
-            - If `value` is not a list or tuple when using "between".
-            - If `value` is not a string when using "contains", "startswith",
-                "endswith", "like", or "rlike".
-        TypeError:
-            - If `value` is a string when using "isin" or "isnotin".
-            - If `value` is not an iterable when using "isin" or "isnotin".
-        ValueError:
-            - If both `value` and `compare_col` are provided.
-            - If `compare_col` is provided with operators that do not support
-                column comparisons.
-            - If neither `value` nor `compare_col` is provided for operators
-                that require a comparison.
-            - If `value` is not a list or tuple of length 2 when using "between".
-            - If the regex pattern is invalid in "rlike".
-    """
-    assert_allowed(operator, _allowed_operators, "operator")
-    if operator in ALLOWED_SPARK_NULL_OPERATORS:
-        return
-
-    if (value is not None) and (compare_col is not None):
-        raise ValueError("Only one of 'value' and 'compare_col' must be provided!")
-
-    # From now on, handle spark operator (array_contains, like, ...)
-    # or standard operator (ge, eq, ...)
-
-    if operator in ALLOWED_STANDARD_OPERATORS:
-        return
-
-    # From now on, handle spark operator (array_contains, like, ...)
-    no_column_op = {"rlike", "between"}
-    if (operator in no_column_op) and (compare_col is not None):
-        msg = f"Column comparison is not allowed with {no_column_op} operators."
-        raise ValueError(msg)
-
-    if operator in {"isin", "isnotin"}:
-        if isinstance(value, str):
-            raise TypeError(
-                "With 'isin' / 'isnotin' the value provided "
-                "cannot be a string, use 'contains' for strings."
-            )
-        if not isinstance(value, Iterable):
-            raise TypeError(
-                "With 'isin' / 'isnotin' the value provided "
-                "must be an iterable (but not a string)."
-            )
-
-        if None in value:
-            raise TypeError(
-                "The 'isin' / 'isnotin' operator does not handle 'None' in the iterable"
-            )
-
-    elif operator == "between":
-        if not isinstance(value, (list, tuple)):
-            raise ValueError('With "between" operator, value must be <list> or <tuple>')
-        if len(value) != 2:
-            raise ValueError("Value must be a list or tuple of length 2!")
-
-    elif operator in {"contains", "startswith", "endswith", "like", "rlike"}:
-        if not isinstance(value, str):
-            raise AssertionError(f'With "{operator}" operator, the value must be <str>')
-
-        if operator == "rlike":
-            validate_regex_pattern(value)  # Raise ValueError if fails
-
-
 def get_column_data_type_name(df, column: str) -> str:
     """Return the base type name of the spark dataframe column.
 
@@ -646,109 +531,6 @@ def get_data_skew(df, as_dict: bool = False) -> dict[str, Any] | None:
         print(f"Number of partitions: {n_part}")
         print(f"Skewness: {msg}")
         return None
-
-
-def get_spark_condition(
-        df: "pyspark.sql.DataFrame",
-        col_str: str,
-        operator: str,
-        *,
-        value=None,
-        compare_col: str | None = None,
-) -> F.col:
-    """Verify if a condition is met.
-
-    Args:
-        df (pyspark.sql.DataFrame):
-            Input dataframe.
-        col_str (str):
-            Column name.
-        operator (str):
-            Valid operators:
-            - "eq", "ne", "le", "lt", "ge", "gt" (equality, greater, lower)
-            - "isNull", "isNotNull", "isNaN", "isNotNaN": look for null values
-            - "isin", "isnotin": check if a value is / is not in an iterable
-            - "array_contains": look for an element in a <ArrayType> Column
-            - "between": looks for value between provided lower_bound and upper_bound, inclusive
-            - "contains": look for a substring in a <StringType> Column
-            - "startswith": look for a string that starts with.
-            - "endswith": look for a string that ends with.
-            - "like": values matching a pattern using _ and % in a <StringType> Column
-            - "rlike": values matching a regex pattern in a <StringType> Column
-
-        value (any | None):
-            Value used for the comparison.
-        compare_col (str | None):
-            Name of column to be compared with col_str.
-
-        Either `value` or `compare_col` (not both) must be provided for
-        python operators that require a comparison value.
-
-    Returns (pyspark.sql.Column):
-        BooleanType field to use in operation like to use in df.filter,
-        df.where, F.when, ...
-    """
-    ensure_spark_condition(operator, value=value, compare_col=compare_col)
-    spark_col = F.col(col_str)
-    cond: F.col
-    compare_f_col = F.col(compare_col) if compare_col else None
-
-    if operator in ALLOWED_SPARK_NULL_OPERATORS:
-        if operator == "isNull":
-            cond = spark_col.isNull()
-        elif operator == "isNotNull":
-            cond = spark_col.isNotNull()
-        elif operator == "isNaN":
-            cond = F.isnan(spark_col)
-        else:  # isNotNaN
-            cond = ~F.isnan(spark_col)
-
-    elif operator in ALLOWED_SPARK_OPERATORS:
-        # Handle the within conditions:
-        #
-        # - "array_contains"
-        # - "between"
-        # - "contains"
-        # - "isin"
-        # - "isnotin"
-        # - "like"
-        # - "rlike"
-        # - "startswith"
-        # - "endswith"
-        if operator in {"isin", "isnotin"}:
-            if isinstance(value, Iterable):  # safer
-                value = list(value)
-            cond = spark_col.isin(value)
-            if operator == "isnotin":
-                cond = ~null_cond_to_false(cond)
-        elif operator == "array_contains":
-            cond = F.array_contains(spark_col, value)
-        elif operator == "between":
-            cond = spark_col.between(lowerBound=value[0], upperBound=value[1])
-        else:
-            cond = getattr(spark_col, operator)(value)
-
-    else:  # it is in ALLOWED_STANDARD_OPERATORS
-        to_compare = value if value is not None else compare_f_col
-        cmp = getattr(py_operator, operator)  # comparison
-        cond = cmp(spark_col, to_compare)
-
-        # in this spark version, 3.0.0, NaN behaves in *non-intuitive* way:
-        # (use the number 5 just for the example)
-        # NaN > 5: True
-        # NaN < 5: False
-        if operator in {"le", "lt", "ge", "gt"}:
-            type_c1 = get_column_data_type_name(df, col_str)
-            if type_c1 in {"double", "float"}:
-                cond &= ~F.isnan(spark_col)
-
-            if compare_col is not None:
-                type_c2 = get_column_data_type_name(df, compare_col)
-                if type_c2 in {"double", "float"}:
-                    cond &= ~F.isnan(compare_f_col)
-
-    return cond
-
 
 
 def is_broadcast(df) -> bool:

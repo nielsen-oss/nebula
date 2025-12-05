@@ -1,8 +1,7 @@
-import operator
-from typing import Iterable, Literal, Callable
+import operator as py_operator
+from typing import Iterable, Literal, Callable, Any
 
 import narwhals as nw
-import pandas as pd
 
 from nlsn.nebula import nebula_storage as ns
 from nlsn.nebula.auxiliaries import (
@@ -11,18 +10,21 @@ from nlsn.nebula.auxiliaries import (
     assert_at_least_one_non_null,
 )
 from nlsn.nebula.base import Transformer
+from nlsn.nebula.df_types import get_dataframe_type
+from nlsn.nebula.nw_util import null_cond_to_false, validate_operation, get_condition
+from nlsn.nebula.transformers._constants import NW_TYPES
 
 __all__ = [
     "AppendDataFrame",
     "DropNulls",
+    "Filter",
     "Join",
     "InjectData",
     "MathOperator",
     "Pivot",
     "Unpivot",
+    "When",
 ]
-
-from nlsn.nebula.transformers._constants import NW_TYPES
 
 
 class AppendDataFrame(Transformer):
@@ -76,7 +78,8 @@ class AppendDataFrame(Transformer):
             raise ValueError(msg)
 
         df_native = nw.to_native(df)
-        if isinstance(df_native, pd.DataFrame):
+        if get_dataframe_type(df) == "pandas":
+            import pandas as pd
             # Let pandas allow the missing columns in the best manner
             if isinstance(df_union, (nw.LazyFrame, nw.DataFrame)):
                 df_union = nw.to_native(df_union)
@@ -199,6 +202,208 @@ class DropNulls(Transformer):
         if subset and set(subset) != set(list(df.columns)):
             return df.dropna(self._how, subset=subset, thresh=self._thresh)
         return df.dropna(self._how, thresh=self._thresh)
+
+
+class Filter(Transformer):
+
+    def __init__(
+            self,
+            *,
+            input_col: str,
+            perform: str,
+            operator: str,
+            value=None,
+            compare_col: str | None = None,
+    ):
+        """Row filtering using Narwhals conditions.
+
+        Filter rows based on a condition applied to a single column. Supports both
+        value-based and column-to-column comparisons, with flexible 'keep' or 'remove'
+        semantics.
+
+        Args:
+            input_col: Name of the column to filter on.
+            operator: Comparison operator. Supported operators:
+
+                **Standard comparisons** (work with value or compare_col):
+                    - "eq": Equal to
+                    - "ne": Not equal to
+                    - "lt": Less than
+                    - "le": Less than or equal to
+                    - "gt": Greater than
+                    - "ge": Greater than or equal to
+
+                **Null/NaN checks** (no value or compare_col needed):
+                    - "is_null": Column value is null (None)
+                    - "is_not_null": Column value is not null
+                    - "is_nan": Column value is NaN (float NaN, distinct from null)
+                    - "is_not_nan": Column value is not NaN
+
+                **String operations** (require string value):
+                    - "contains": Column contains substring
+                    - "starts_with": Column starts with string
+                    - "ends_with": Column ends with string
+
+                **Set membership** (require iterable value):
+                    - "is_in": Column value is in the provided list/set
+                    - "is_not_in": Column value is not in the provided list/set
+
+                **Range check** (requires 2-element list/tuple):
+                    - "is_between": Column value is between [lower, upper] (inclusive)
+
+            value: Value to compare against. Required for most operators except null/NaN
+                checks. Cannot be used together with compare_col.
+
+                Type requirements by operator:
+                    - Standard comparisons: any comparable type
+                    - String operations: str
+                    - is_in/is_not_in: list, tuple, or set (cannot contain None)
+                    - is_between: list or tuple of exactly 2 elements [lower, upper]
+
+            compare_col: Name of another column to compare against. Allows column-to-column
+                comparisons (e.g., sales > target). Cannot be used together with value.
+                Not supported for string operations or is_between.
+
+            perform: Whether to "keep" or "remove" rows matching the condition.
+                - "keep" (default): Keep rows where condition is True, exclude others
+                - "remove": Remove rows where condition is True, keep others
+
+                **Important:** Cannot combine perform="remove" with negative operators
+                (ne, is_not_in, is_not_null, is_not_nan) as this creates confusing double
+                negation. Use perform="keep" with the opposite operator instead.
+
+        Raises:
+            ValueError: If invalid operator, incompatible parameters, or double negation
+                is attempted (perform="remove" with ne/is_not_in/is_not_null/is_not_nan).
+            TypeError: If value has wrong type for the operator.
+
+        Notes:
+            **Null Handling:**
+            - Standard comparisons (eq, ne, lt, etc.) with null values return null,
+              which is excluded by filter. Example: `age > 18` excludes null ages.
+            - The "ne" operator may seem to match nulls, but `null != value` returns
+              null (not True), so nulls are excluded. Use is_null explicitly if needed.
+            - When using perform="remove", nulls are typically KEPT (since they don't
+              match the removal condition). Example: removing "active" status keeps
+              null statuses.
+
+            **NaN vs Null:**
+            - is_null checks for None/null values only
+            - is_nan checks for float NaN values only
+            - These are distinct: a column can have both null and NaN values
+
+            **String Operations with Nulls (Pandas Limitation):**
+            - String operations (contains, starts_with, ends_with) may fail in pandas
+              when the column contains null values, due to NumPy object dtype limitations.
+            - Error: "Cannot use ignore_nulls=False in all_horizontal..."
+            - Solution: Filter out nulls first with is_not_null, then apply string operation.
+            - This is a known pandas/NumPy limitation, not a bug in Nebula.
+
+            **Performance:**
+            - Filters are pushed down to the underlying backend (pandas/Polars/Spark)
+            - For large datasets, consider using is_between instead of combining
+              operators (e.g., `is_between: [0, 100]` vs `ge: 0` + `le: 100`)
+
+        Examples:
+        Basic filtering:
+            >>> # Keep adults
+            >>> Filter(input_col="age", operator="gt", value=18)
+
+            >>> # Remove inactive users
+            >>> Filter(input_col="status", perform="remove", operator="eq", value="inactive")
+
+        Null handling:
+            >>> # Keep only rows with non-null age
+            >>> Filter(input_col="age", operator="is_not_null")
+
+            >>> # Remove rows with null email (keep all others)
+            >>> Filter(input_col="email", perform="remove", operator="is_null")
+
+        NaN handling:
+            >>> # Remove NaN scores (keep numeric and null scores)
+            >>> Filter(input_col="score", perform="remove", operator="is_nan")
+
+        String operations:
+            >>> # Keep company emails
+            >>> Filter(input_col="email", operator="contains", value="@company.com")
+
+            >>> # With nulls present (two-step approach for pandas):
+            >>> # Step 1: Filter(input_col="email", operator="is_not_null")
+            >>> # Step 2: Filter(input_col="email", operator="starts_with", value="admin")
+
+        Set membership:
+            >>> # Keep active or pending users
+            >>> Filter(input_col="status", operator="is_in", value=["active", "pending"])
+
+            >>> # Remove archived or deleted (keeps nulls!)
+            >>> Filter(
+            ...     input_col="status",
+            ...     perform="remove",
+            ...     operator="is_in",
+            ...     value=["archived", "deleted"]
+            ... )
+
+        Range checks:
+            >>> # Keep scores between 0 and 100 (inclusive)
+            >>> Filter(input_col="score", operator="is_between", value=[0, 100])
+
+        Column comparisons:
+            >>> # Keep rows where sales exceed target
+            >>> Filter(input_col="sales", operator="gt", compare_col="target")
+
+            >>> # Remove rows where actual equals expected
+            >>> Filter(
+            ...     input_col="actual",
+            ...     perform="remove",
+            ...     operator="eq",
+            ...     compare_col="expected"
+            ... )
+
+        Avoiding double negation:
+            >>> # WRONG - double negation is confusing and disallowed:
+            >>> # Filter(input_col="status", perform="remove", operator="is_not_in", value=["active"])
+            >>>
+            >>> # CORRECT - use positive logic:
+            >>> Filter(input_col="status", operator="is_in", value=["active"])
+
+        See Also:
+            - When: For creating new columns with conditional logic
+            - DropNulls: For removing rows with any null values across multiple columns
+            - get_condition: The underlying function that builds filter conditions
+        """
+        # Prevent confusing double negatives
+        if perform == "remove" and operator in {
+            "ne", "is_not_in", "is_not_null", "is_not_nan"
+        }:
+            raise ValueError(
+                f"Cannot use perform='remove' with operator '{operator}'. "
+                f"This creates double negation which is confusing. "
+                f"Use perform='keep' with the opposite operator instead.\n"
+                f"Example: Instead of perform='remove' + is_not_in, "
+                f"use perform='keep' + is_in."
+            )
+
+        assert_allowed(perform, {"keep", "remove"}, "perform")
+        validate_operation(operator, value, compare_col)
+
+        super().__init__()
+        self._input_col: str = input_col
+        self._perform: str = perform
+        self._operator: str = operator
+        self._value = value
+        self._compare_col: str | None = compare_col
+
+    def _transform_nw(self, df):
+        # Build the condition
+        condition = get_condition(
+            self._input_col,
+            self._operator,
+            value=self._value,
+            compare_col=self._compare_col,
+        )
+        if self._perform == "remove":
+            condition = ~null_cond_to_false(condition)
+        return df.filter(condition)
 
 
 class Join(Transformer):
@@ -463,11 +668,11 @@ class MathOperator(Transformer):
         super().__init__()
         self._strategy: list[dict] = strategy
         self._operators_map: dict[str, Callable] = {
-            "add": operator.add,
-            "sub": operator.sub,
-            "mul": operator.mul,
-            "div": operator.truediv,
-            "pow": operator.pow,
+            "add": py_operator.add,
+            "sub": py_operator.sub,
+            "mul": py_operator.mul,
+            "div": py_operator.truediv,
+            "pow": py_operator.pow,
         }
 
     @staticmethod
@@ -809,3 +1014,249 @@ class Unpivot(Transformer):
             variable_name=self._variable_col,
             value_name=self._value_col,
         )
+
+
+class When(Transformer):
+    """Create a new column using conditional logic (if-then-else).
+
+    Apply a chain of conditions to determine the output value for each row.
+    Conditions are evaluated in order, and the first matching condition's output
+    is used. If no conditions match, the 'otherwise' value is used.
+
+    This is the Narwhals equivalent of SQL CASE WHEN or Spark's F.when().
+    """
+
+    def __init__(
+            self,
+            *,
+            output_col: str,
+            conditions: list[dict[str, Any]],
+            otherwise_constant: Any = None,
+            otherwise_col: str | None = None,
+            cast_output: str | None = None,
+    ):
+        """Initialize When transformer.
+
+        Args:
+            output_col: Name of the output column to create.
+
+            conditions: List of condition dictionaries. Each dictionary specifies:
+                - 'input_col' (str): Column to evaluate the condition on
+                - 'operator' (str): Comparison operator (same as Filter operators)
+                - 'value' (Any, optional): Value to compare against
+                - 'compare_col' (str, optional): Column to compare against
+                - 'output_constant' (Any, optional): Value to output if condition matches
+                - 'output_col' (str, optional): Column to output if condition matches
+
+                **Important:** Either 'value' or 'compare_col' must be provided
+                (not both) for operators that need comparison.
+
+                **Important:** Either 'output_constant' or 'output_col' must be
+                provided (not both). If both are provided, 'output_col' takes precedence.
+
+            otherwise_constant: Default value if no conditions match.
+                Cannot be used with otherwise_col.
+
+            otherwise_col: Default column if no conditions match.
+                Cannot be used with otherwise_constant. If both are provided,
+                otherwise_col takes precedence.
+
+            cast_output: Cast the output column to this dtype (e.g., "Int64", "Float64",
+                "String"). Applied to all outputs (condition outputs and otherwise value).
+
+        Raises:
+            ValueError: If conditions have invalid operators or parameter combinations.
+            TypeError: If condition values have wrong types.
+
+        Notes:
+            **Condition Evaluation Order:**
+            Conditions are evaluated in the order provided. The first matching
+            condition determines the output. Subsequent conditions are not evaluated
+            for rows that already matched.
+
+            **Null Handling:**
+            - If a condition evaluates to null (e.g., null > 5 → null), it's treated
+              as False (condition doesn't match).
+            - The otherwise value is used for rows where no conditions match,
+              including rows where all conditions evaluated to null.
+
+            **Operator Support:**
+            Supports all operators from Filter:
+            - Standard: eq, ne, lt, le, gt, ge
+            - Null/NaN: is_null, is_not_null, is_nan, is_not_nan
+            - String: contains, starts_with, ends_with
+            - Set: is_in, is_not_in
+            - Range: is_between
+
+            See Filter documentation for detailed operator behavior.
+
+            **Type Casting:**
+            If cast_output is specified, all outputs (from conditions and otherwise)
+            are cast to that type. This ensures consistent output types across all
+            branches, which is important for strongly-typed backends like Polars.
+
+        Examples:
+            Simple categorization:
+                >>> When(
+                ...     output_col="age_group",
+                ...     conditions=[
+                ...         {"input_col": "age", "operator": "lt",
+                ...          "value": 18, "output_constant": "minor"},
+                ...         {"input_col": "age", "operator": "lt",
+                ...          "value": 65, "output_constant": "adult"},
+                ...     ],
+                ...     otherwise_constant="senior"
+                ... )
+
+            Using column outputs:
+                >>> When(
+                ...     output_col="best_score",
+                ...     conditions=[
+                ...         {"input_col": "score_a", "operator": "gt",
+                ...          "compare_col": "score_b", "output_col": "score_a"},
+                ...     ],
+                ...     otherwise_col="score_b"
+                ... )
+
+            Multiple conditions with type casting:
+                >>> When(
+                ...     output_col="status_code",
+                ...     conditions=[
+                ...         {"input_col": "status", "operator": "eq",
+                ...          "value": "active", "output_constant": 1},
+                ...         {"input_col": "status", "operator": "eq",
+                ...          "value": "pending", "output_constant": 2},
+                ...         {"input_col": "status", "operator": "is_null",
+                ...          "output_constant": -1},
+                ...     ],
+                ...     otherwise_constant=0,
+                ...     cast_output="int64"
+                ... )
+
+            String operations:
+                >>> When(
+                ...     output_col="email_domain",
+                ...     conditions=[
+                ...         {"input_col": "email", "operator": "contains",
+                ...          "value": "@company.com", "output_constant": "internal"},
+                ...         {"input_col": "email", "operator": "contains",
+                ...          "value": "@", "output_constant": "external"},
+                ...     ],
+                ...     otherwise_constant="invalid"
+                ... )
+
+            Set membership:
+                >>> When(
+                ...     output_col="priority",
+                ...     conditions=[
+                ...         {"input_col": "user_id", "operator": "is_in",
+                ...          "value": [1, 2, 3], "output_constant": "high"},
+                ...         {"input_col": "user_id", "operator": "is_in",
+                ...          "value": [4, 5, 6], "output_constant": "medium"},
+                ...     ],
+                ...     otherwise_constant="low"
+                ... )
+
+            Config-driven (YAML):
+                - transformer: When
+                  params:
+                    output_col: risk_level
+                    conditions:
+                      - input_col: amount
+                        operator: gt
+                        value: 10000
+                        output_constant: high
+                      - input_col: amount
+                        operator: gt
+                        value: 1000
+                        output_constant: medium
+                    otherwise_constant: low
+                    cast_output: string
+
+        See Also:
+            - Filter: For row filtering using the same condition operators
+            - FillNa: For simpler null value replacement
+            - Coalesce: For selecting first non-null value from multiple columns
+        """
+        super().__init__()
+
+        # Validate all conditions upfront
+        for i, cond in enumerate(conditions):
+            operator = cond.get("operator")
+            value = cond.get("value")
+            compare_col = cond.get("compare_col") or cond.get("comparison_column")
+
+            # Validate the condition parameters
+            validate_operation(operator, value=value, compare_col=compare_col)
+
+            # Ensure output is specified
+            has_output_constant = "output_constant" in cond
+            has_output_col = "output_col" in cond or "output_column" in cond
+
+            if not (has_output_constant or has_output_col):
+                raise ValueError(
+                    f"Condition {i} must specify either 'output_constant' or 'output_col'"
+                )
+
+        # Validate otherwise clause
+        if otherwise_constant is None and otherwise_col is None:
+            raise ValueError(
+                "Must specify either 'otherwise_constant' or 'otherwise_col'"
+            )
+
+        self._output_col: str = output_col
+        self._conditions = conditions
+        self._otherwise_constant = otherwise_constant
+        self._otherwise_col: str | None = otherwise_col
+        self._cast_output = NW_TYPES.get(cast_output)
+
+    def _transform_nw(self, df):
+        """Build the when-then-else expression using Narwhals.
+
+        Narwhals uses nested when expressions rather than chained ones.
+        We build from the inside out (reversed conditions) so that the
+        first condition in the list is evaluated first.
+        """
+
+        # Start with the otherwise clause (innermost)
+        if self._otherwise_col:
+            result_expr = nw.col(self._otherwise_col)
+        else:
+            result_expr = nw.lit(self._otherwise_constant)
+
+        # Cast if specified
+        if self._cast_output:
+            result_expr = result_expr.cast(self._cast_output)
+
+        # Build nested when-then-otherwise expressions
+        # Reverse so first condition in list is checked first
+        for cond in reversed(self._conditions):
+            # Extract condition parameters (support both naming conventions)
+            input_col = cond["input_col"]
+            operator = cond["operator"]
+            value = cond.get("value")
+            compare_col = cond.get("compare_col") or cond.get("comparison_column")
+
+            # Build the condition
+            condition = get_condition(
+                input_col,
+                operator,
+                value=value,
+                compare_col=compare_col,
+            )
+
+            # Determine the output (support both naming conventions)
+            output_col = cond.get("output_col") or cond.get("output_column")
+            if output_col:
+                output_expr = nw.col(output_col)
+            else:
+                output_expr = nw.lit(cond["output_constant"])
+
+            # Cast if specified
+            if self._cast_output:
+                output_expr = output_expr.cast(self._cast_output)
+
+            # Nest the when-then-otherwise
+            result_expr = nw.when(condition).then(output_expr).otherwise(result_expr)
+
+        return df.with_columns(result_expr.alias(self._output_col))
