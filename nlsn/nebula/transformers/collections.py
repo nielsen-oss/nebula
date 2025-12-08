@@ -6,8 +6,9 @@ import narwhals as nw
 from nlsn.nebula import nebula_storage as ns
 from nlsn.nebula.auxiliaries import (
     assert_allowed,
-    ensure_flat_list,
     assert_at_least_one_non_null,
+    ensure_flat_list,
+    assert_only_one_non_none,
 )
 from nlsn.nebula.base import Transformer
 from nlsn.nebula.df_types import get_dataframe_type
@@ -18,6 +19,7 @@ __all__ = [
     "AppendDataFrame",
     "DropNulls",
     "Filter",
+    "GroupBy",
     "Join",
     "InjectData",
     "MathOperator",
@@ -404,6 +406,205 @@ class Filter(Transformer):
         if self._perform == "remove":
             condition = ~null_cond_to_false(condition)
         return df.filter(condition)
+
+
+class GroupBy(Transformer):
+    _msg_err = (
+        "'prefix' and 'suffix' are allowed only for single "
+        "aggregation on multiple columns, like "
+        "{'sum': ['col_1', 'col_2']}"
+    )
+
+    _ALLOWED_GROUPBY_AGG = {
+        m for m in dir(nw.col())
+        if m.islower() and not m.startswith('_')
+    }
+
+    def __init__(
+            self,
+            *,
+            aggregations: dict[str, list[str]] | dict[str, str] | list[dict[str, str]],
+            groupby_columns: str | list[str] | None = None,
+            groupby_regex: str | None = None,
+            groupby_glob: str | None = None,
+            groupby_startswith: str | Iterable[str] | None = None,
+            groupby_endswith: str | Iterable[str] | None = None,
+            prefix: str = "",
+            suffix: str = "",
+    ):
+        """Perform GroupBy aggregation operations.
+
+        Supports two aggregation syntaxes:
+        1. Single aggregation on multiple columns with prefix/suffix:
+           {"sum": ["col_1", "col_2"]}
+        2. Explicit list of aggregation dictionaries:
+           [{"agg": "sum", "col": "dollars", "alias": "total"}]
+
+        Examples:
+            >>> # Simple sum with prefix
+            >>> t = GroupBy(
+            ...     groupby_columns=["user_id"],
+            ...     aggregations={"sum": ["sales", "revenue"]},
+            ...     prefix="total_"
+            ... )
+
+            >>> # Multiple aggregations with explicit aliases
+            >>> t = GroupBy(
+            ...     groupby_columns=["user_id", "date"],
+            ...     aggregations=[
+            ...         {"agg": "sum", "col": "sales", "alias": "total_sales"},
+            ...         {"agg": "mean", "col": "price", "alias": "avg_price"},
+            ...         {"agg": "count", "col": "transaction_id", "alias": "n_transactions"}
+            ...     ]
+            ... )
+
+            >>> # Group by columns matching a pattern
+            >>> t = GroupBy(
+            ...     groupby_regex="^id_",
+            ...     aggregations={"sum": ["amount"]},
+            ...     suffix="_total"
+            ... )
+
+        Args:
+            aggregations: Two possible formats:
+                1) Single aggregation on multiple columns:
+                   {"sum": ["col_1", "col_2"]}
+                   Use with prefix/suffix to create column aliases.
+                2) List of aggregation dictionaries:
+                   [{"agg": "sum", "col": "dollars", "alias": "total"}]
+                   Keys "agg" and "col" are mandatory, "alias" is optional.
+            groupby_columns: Columns to group by. Defaults to None.
+            groupby_regex: Regex pattern to select groupby columns. Defaults to None.
+            groupby_glob: Glob pattern to select groupby columns. Defaults to None.
+            groupby_startswith: Select columns starting with string(s). Defaults to None.
+            groupby_endswith: Select columns ending with string(s). Defaults to None.
+            prefix: Prefix for aggregated column names (single aggregation only).
+                Defaults to "".
+            suffix: Suffix for aggregated column names (single aggregation only).
+                Defaults to "".
+
+        Raises:
+            ValueError: If aggregation format is invalid.
+            TypeError: If column or alias types are incorrect.
+            ValueError: If no groupby selection is provided.
+            ValueError: If prefix/suffix used with multiple aggregations.
+        """
+        assert_only_one_non_none(groupby_columns, groupby_regex, groupby_glob, groupby_startswith, groupby_endswith)
+        super().__init__()
+
+        # Handle single-op syntax: {"sum": ["col_1", "col_2"]}
+        if isinstance(aggregations, list) and len(aggregations) == 1:
+            aggregations = self._check_single_op(aggregations[0], prefix, suffix)
+        elif isinstance(aggregations, dict):
+            aggregations = self._check_single_op(aggregations, prefix, suffix)
+        else:
+            if prefix or suffix:
+                raise ValueError(self._msg_err)
+
+        self._aggregations: list[dict[str, str]] = self._get_sanitized_aggregations(aggregations)
+
+        self._set_columns_selections(
+            columns=groupby_columns,
+            regex=groupby_regex,
+            glob=groupby_glob,
+            startswith=groupby_startswith,
+            endswith=groupby_endswith,
+        )
+
+    def _get_sanitized_aggregations(
+            self, aggregations: dict[str, str] | list[dict[str, str]]
+    ) -> list[dict[str, str]]:
+        if isinstance(aggregations, dict):
+            aggregations = [aggregations]
+
+        self._validate_aggregations(
+            aggregations,
+            required_keys={"agg", "col"},
+            allowed_keys={"agg", "col", "alias"},
+        )
+        return aggregations
+
+    def _validate_aggregations(
+            self,
+            aggregations: list[dict[str, str]],
+            *,
+            required_keys: set[str],
+            allowed_keys: set[str],
+    ) -> None:
+        """Validate the list of aggregations for groupBy operations."""
+        for d in aggregations:
+            keys = set(d)
+
+            if not keys.issuperset(required_keys):
+                raise ValueError(f"Mandatory keys for aggregations: {required_keys}")
+
+            if not keys.issubset(allowed_keys):
+                raise ValueError(f"Allowed keys for aggregations: {allowed_keys}")
+
+            # Type checks
+            alias = d.get("alias")
+            if alias and (not isinstance(alias, str)):
+                raise TypeError('If provided, "alias" must be <str>')
+
+            if not isinstance(d["col"], str):
+                raise TypeError('"col" must be <str>')
+
+            try:
+                assert_allowed(d["agg"], self._ALLOWED_GROUPBY_AGG, "aggregation")
+            except ValueError as e:
+                # Enhance error message
+                raise ValueError(
+                    f"{e}\nAvailable aggregations: {sorted(self._ALLOWED_GROUPBY_AGG)}"
+                )
+
+    def _check_single_op(
+            self, o: dict, prefix: str, suffix: str
+    ) -> dict[str, str] | list[dict[str, str]]:
+        """Check if this is single-operation syntax and expand it."""
+        values = list(o.values())
+        n = len(values)
+
+        if n == 1:
+            v = values[0]
+            if isinstance(v, list):
+                # Single operation on multiple columns: {"sum": ["col_1", "col_2"]}
+                op = list(o.keys())[0]
+                ret = []
+                for col_name in v:
+                    d = {"col": col_name, "agg": op}
+                    alias = f"{prefix}{col_name}{suffix}"
+                    d["alias"] = alias
+                    ret.append(d)
+                return ret
+
+        # Not single-op syntax
+        if prefix or suffix:
+            raise ValueError(self._msg_err)
+        return o
+
+    def _transform_nw(self, df):
+        """Transform using Narwhals for multi-backend support."""
+        groupby_cols: list[str] = self._get_selected_columns(df)
+
+        # Build aggregation expressions
+        agg_exprs = []
+        for agg_dict in self._aggregations:
+            col_name = agg_dict["col"]
+            agg_func = agg_dict["agg"]
+            alias = agg_dict.get("alias")
+
+            # Get the aggregation method
+            col_expr = nw.col(col_name)
+            agg_expr = getattr(col_expr, agg_func)()
+
+            # Apply alias if provided
+            if alias:
+                agg_expr = agg_expr.alias(alias)
+
+            agg_exprs.append(agg_expr)
+
+        # Perform groupby and aggregation
+        return df.group_by(groupby_cols).agg(agg_exprs)
 
 
 class Join(Transformer):

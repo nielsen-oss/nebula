@@ -1,4 +1,5 @@
 import operator as py_operator
+from random import randint
 
 import narwhals as nw
 import pandas as pd
@@ -188,6 +189,208 @@ class TestDropNulls:
         assert result["user_id"].to_list() == [1, 2]
         # Verify NaN is still present
         assert result["value"][1] != result["value"][1]  # NaN != NaN
+
+
+class TestGroupBy:
+    """Test GroupBy transformer across multiple backends."""
+
+    @pytest.mark.parametrize("prefix, suffix", [("a", ""), ("", "b"), ("a", "b")])
+    @pytest.mark.parametrize(
+        "agg",
+        [
+            {"agg": "sum", "col": "c1"},
+            [{"agg": "sum", "col": "c1"}],
+            [{"agg": "sum", "col": "c1"}, {"agg": "sum", "col": "c2"}],
+        ],
+    )
+    def test_invalid_single_op(self, agg, prefix, suffix):
+        """Test that prefix/suffix raise error when not in single-op format."""
+        with pytest.raises(ValueError, match="prefix.*suffix.*allowed only"):
+            GroupBy(
+                aggregations=agg,
+                groupby_columns="x",
+                prefix=prefix,
+                suffix=suffix
+            )
+
+    def test_invalid_aggregation(self, df_input):
+        """Test that invalid aggregation functions are caught."""
+        with pytest.raises(ValueError, match="aggregation"):
+            GroupBy(
+                aggregations={"not_a_real_agg": ["c1"]},
+                groupby_columns="c0"
+            )
+
+    def test_missing_groupby_selection(self):
+        """Test that at least one groupby selection method is required."""
+        with pytest.raises(AssertionError):
+            GroupBy(aggregations={"sum": ["c1"]})
+
+    def test_multiple_groupby_selections_disallowed(self, df_input):
+        """Test that only one groupby selection method can be used."""
+        with pytest.raises(AssertionError):
+            GroupBy(
+                aggregations={"sum": ["c1"]},
+                groupby_columns="c0",
+                groupby_regex="^c"
+            )
+
+    @staticmethod
+    @pytest.fixture(scope="class")
+    def df_input():
+        data = [{f"c{i}": randint(1, 1 << 8) for i in range(5)} for _ in range(20)]
+        return pd.DataFrame(data)
+
+    @staticmethod
+    def __reset_index(df, cols: list[str]) -> pd.DataFrame:
+        if isinstance(df, pd.DataFrame):
+            if df.index.name in {None, "index"}:
+                return df.sort_values(cols).reset_index(drop=True)
+            return df.reset_index().sort_values(cols).reset_index(drop=True)
+        return to_pandas(df).sort_values(cols).reset_index(drop=True)
+
+    def _compare(self, df_chk, df_exp):
+        cols = list(df_exp.columns)
+        df_chk = self.__reset_index(df_chk, cols)
+        df_exp = self.__reset_index(df_exp, cols)
+        pd.testing.assert_frame_equal(df_chk, df_exp, check_dtype=False)
+
+    @pytest.mark.parametrize("backend", TEST_BACKENDS)
+    @pytest.mark.parametrize("to_nw", [True, False])
+    @pytest.mark.parametrize(
+        "aggregations",
+        [
+            [
+                {
+                    "col": col,
+                    "agg": agg,
+                    **({"alias": alias} if alias is not None else {})
+                }
+                for col, agg, alias in zip(
+                (f"c{i}" for i in range(3, 5)),
+                ("sum", "count"),
+                (None, "out"),
+            )
+            ]
+        ],
+    )
+    @pytest.mark.parametrize("groupby_cols", [["c2"], ["c1", "c2"]])
+    def test_multiple_aggregations(
+            self, spark, backend, to_nw, df_input, aggregations, groupby_cols
+    ):
+        """Test multiple aggregations with and without aliases."""
+        t = GroupBy(aggregations=aggregations, groupby_columns=groupby_cols)
+        df_result = t.transform(from_pandas(df_input, backend, to_nw, spark=spark))
+
+        # Build expected result manually
+        df_nw = nw.from_native(df_input)
+        agg_exprs = []
+        for el in aggregations:
+            col_expr = nw.col(el["col"])
+            agg_expr = getattr(col_expr, el["agg"])()
+            if "alias" in el:
+                agg_expr = agg_expr.alias(el["alias"])
+            agg_exprs.append(agg_expr)
+
+        df_nw_exp = df_nw.group_by(groupby_cols).agg(agg_exprs)
+        self._compare(df_result, df_nw_exp)
+
+    @pytest.mark.parametrize("backend", TEST_BACKENDS)
+    @pytest.mark.parametrize("to_nw", [True, False])
+    @pytest.mark.parametrize("groupby_columns", [["c1"], ["c1", "c2"]])
+    def test_single_dict_aggregation(self, spark, backend, to_nw, df_input, groupby_columns):
+        """Test a single aggregation provided as a dict."""
+        aggregations = {"col": "c3", "agg": "sum", "alias": "result"}
+        t = GroupBy(aggregations=aggregations, groupby_columns=groupby_columns)
+        df_result = t.transform(df_input)
+
+        df_nw = nw.from_native(df_input)
+        df_nw_exp = df_nw.group_by(groupby_columns).agg(
+            nw.col("c3").sum().alias("result")
+        )
+        self._compare(df_result, df_nw_exp)
+
+    @pytest.mark.parametrize("backend", ["pandas", "polars"])
+    @pytest.mark.parametrize("to_nw", [True, False])
+    @pytest.mark.parametrize("prefix", ["pre_", ""])
+    @pytest.mark.parametrize("suffix", ["_post", ""])
+    def test_single_aggregation_multiple_columns(
+            self, spark, backend, to_nw, df_input, prefix: str, suffix: str
+    ):
+        """Test single aggregation on multiple columns with prefix/suffix."""
+        t = GroupBy(
+            aggregations={"sum": ["c2", "c3"]},
+            groupby_columns="c1",
+            prefix=prefix,
+            suffix=suffix,
+        )
+        df_result = t.transform(from_pandas(df_input, backend, to_nw, spark=spark))
+
+        df_nw = nw.from_native(df_input)
+        agg_exprs = [
+            nw.col(col).sum().alias(f"{prefix}{col}{suffix}")
+            for col in ["c2", "c3"]
+        ]
+        df_nw_exp = df_nw.group_by("c1").agg(agg_exprs)
+        self._compare(df_result, df_nw_exp)
+
+    @pytest.mark.parametrize("backend", ["pandas", "polars"])
+    @pytest.mark.parametrize("to_nw", [True, False])
+    def test_with_regex(self, spark, backend, to_nw, df_input):
+        """Test groupby column selection with regex."""
+        t = GroupBy(
+            aggregations={"sum": ["c3"]},
+            groupby_regex="^c[12]$",  # matches c1 and c2
+        )
+        df_result = t.transform(from_pandas(df_input, backend, to_nw, spark=spark))
+
+        df_nw = nw.from_native(df_input)
+        df_nw_exp = df_nw.group_by(["c1", "c2"]).agg(
+            nw.col("c3").sum().alias("c3")
+        )
+        self._compare(df_result, df_nw_exp)
+
+    @pytest.mark.parametrize("backend", ["pandas", "polars"])
+    @pytest.mark.parametrize("to_nw", [True, False])
+    def test_with_startswith(self, spark, backend, to_nw, df_input):
+        """Test groupby column selection with startswith."""
+        # Add a column that doesn't start with 'c'
+        df_modified = df_input.copy()
+        df_modified["other"] = df_modified["c0"].copy()
+
+        t = GroupBy(
+            aggregations={"count": ["c0"]},
+            groupby_startswith="c",
+            suffix="_count"
+        )
+        df_result = t.transform(from_pandas(df_modified, backend, to_nw, spark=spark))
+
+        # Should group by all columns starting with 'c'
+        groupby_cols = [c for c in df_modified.columns if c.startswith("c")]
+        df_nw = nw.from_native(df_input)
+        df_nw_exp = df_nw.group_by(groupby_cols).agg(
+            nw.col("c0").count().alias("c0_count")
+        )
+        self._compare(df_result, df_nw_exp)
+
+    @pytest.mark.parametrize("backend", ["pandas", "polars"])
+    @pytest.mark.parametrize("to_nw", [True, False])
+    @pytest.mark.parametrize(
+        "agg_func",
+        ["sum", "mean", "median", "min", "max", "std", "var", "count", "first", "last"]
+    )
+    def test_various_aggregations(self, spark, backend, to_nw, df_input, agg_func):
+        """Test that various common aggregation functions work."""
+        t = GroupBy(
+            aggregations={agg_func: ["c3"]},
+            groupby_columns="c1",
+            suffix=f"_{agg_func}"
+        )
+        df_result = t.transform(from_pandas(df_input, backend, to_nw, spark=spark))
+
+        # Just verify it runs without error and produces expected column
+        assert f"c3_{agg_func}" in df_result.columns
+        assert "c1" in df_result.columns
 
 
 class TestJoin:
