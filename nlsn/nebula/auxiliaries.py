@@ -45,16 +45,13 @@ def assert_allowed(value, allowed: set, name: str) -> None:
         raise ValueError(msg)
 
 
-def _assert_args(frame, args, func) -> tuple[int, str, str]:
-    frame = inspect.getouterframes(frame)[1]
-    string = inspect.getframeinfo(frame[0]).code_context[0].strip()
-    full_names = string[string.find("(") + 1: -1].split(",")
-    full_names = [i.strip() for i in full_names]
-
+def _assert_args(kws, func) -> tuple[int, str, str]:
     s: int = 0
+    full_names = []
     names = []
-    for el, name in zip(args, full_names):
-        if func(el):
+    for name, v in kws.items():
+        full_names.append(name)
+        if func(v):
             continue
         s += 1
         names.append(name)
@@ -65,21 +62,17 @@ def _assert_args(frame, args, func) -> tuple[int, str, str]:
     return s, names_joined, full_names_joined
 
 
-def assert_at_least_one_non_null(*args):
+def assert_at_least_one_non_null(**kws):
     """Assert that at least one variable in '*args' is not None."""
-    # Get the variable names in args
-    frame = inspect.currentframe()
-    s, _, full_names_joined = _assert_args(frame, args, lambda x: x is None)
+    s, _, full_names_joined = _assert_args(kws, lambda x: x is None)
     if s == 0:
         msg = f"At least one argument among {full_names_joined} must be non-null."
         raise AssertionError(msg)
 
 
-def assert_at_most_one_args(*args):
+def assert_at_most_one_args(**kws):
     """Assert that at most, only one variable in '*args' is True."""
-    # Get the variable names in args
-    frame = inspect.currentframe()
-    s, names_joined, full_names_joined = _assert_args(frame, args, lambda x: not x)
+    s, names_joined, full_names_joined = _assert_args(kws, lambda x: not x)
 
     if s > 1:
         msg = f"Only one among {full_names_joined} can be set. "
@@ -87,11 +80,9 @@ def assert_at_most_one_args(*args):
         raise AssertionError(msg)
 
 
-def assert_only_one_non_none(*args):
+def assert_only_one_non_none(**kws):
     """Assert that only one variable in '*args' is not None."""
-    # Get the variable names in args
-    frame = inspect.currentframe()
-    s, names_joined, full_names_joined = _assert_args(frame, args, lambda x: x is None)
+    s, names_joined, full_names_joined = _assert_args(kws, lambda x: x is None)
     if s == 0:
         msg = f"One and only one argument among {full_names_joined} must be non-null."
         raise AssertionError(msg)
@@ -395,7 +386,13 @@ def select_columns(
 
     # Handle startswith and endswith
     if startswith or endswith:
-        assert_only_one_non_none(columns, regex, glob, startswith, endswith)
+        assert_only_one_non_none(
+            columns=columns,
+            regex=regex,
+            glob=glob,
+            startswith=startswith,
+            endswith=endswith
+        )
         if startswith:
             start: tuple[str] = tuple(ensure_list(startswith))
             return [i for i in input_columns if i.startswith(start)]

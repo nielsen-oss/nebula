@@ -880,7 +880,9 @@ class AggregateOverWindow(_Window):
             order_cols (str | list(str) | None):
                 Columns to order the partition by. If provided, the partition
                 will be ordered based on these columns. Defaults to None."""
-        assert_at_most_one_args(rows_between, range_between)
+        assert_at_most_one_args(
+            rows_between=rows_between, range_between=range_between
+        )
 
         if isinstance(aggregations, dict):
             aggregations = [aggregations]
@@ -957,7 +959,9 @@ class LagOverWindow(_Window):
             output_col (str):
                 Name of the output column containing the windowed result.
         """
-        assert_at_most_one_args(rows_between, range_between)
+        assert_at_most_one_args(
+            rows_between=rows_between, range_between=range_between
+        )
 
         super().__init__(
             partition_cols=partition_cols,

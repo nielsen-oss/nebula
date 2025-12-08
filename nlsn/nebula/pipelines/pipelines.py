@@ -1121,7 +1121,8 @@ class TransformerPipeline:
             if self._pipe_type == NodeType.SPLIT_PIPELINE:
                 # They cannot be both True
                 assert_at_most_one_args(
-                    cast_subset_to_input_schema, allow_missing_columns
+                    cast_subset_to_input_schema=cast_subset_to_input_schema,
+                    allow_missing_columns=allow_missing_columns,
                 )
                 ensure_no_branch_or_apply_to_rows_in_split_pipeline(
                     branch, apply_to_rows
@@ -1196,7 +1197,8 @@ class TransformerPipeline:
             # Create stages for a split pipeline
             elif self._pipe_type == NodeType.SPLIT_PIPELINE:
                 assert_at_most_one_args(
-                    repartition_output_to_original, coalesce_output_to_original
+                    repartition_output_to_original=repartition_output_to_original,
+                    coalesce_output_to_original=coalesce_output_to_original,
                 )
                 self._make_stages_in_split_pipe(
                     data,

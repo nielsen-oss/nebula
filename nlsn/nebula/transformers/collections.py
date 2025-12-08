@@ -489,7 +489,13 @@ class GroupBy(Transformer):
             ValueError: If no groupby selection is provided.
             ValueError: If prefix/suffix used with multiple aggregations.
         """
-        assert_only_one_non_none(groupby_columns, groupby_regex, groupby_glob, groupby_startswith, groupby_endswith)
+        assert_only_one_non_none(
+            groupby_columns=groupby_columns,
+            groupby_regex=groupby_regex,
+            groupby_glob=groupby_glob,
+            groupby_startswith=groupby_startswith,
+            groupby_endswith=groupby_endswith
+        )
         super().__init__()
 
         # Handle single-op syntax: {"sum": ["col_1", "col_2"]}
@@ -1102,7 +1108,13 @@ class Pivot(Transformer):
             ... )
         """
         super().__init__()
-        assert_at_least_one_non_null(id_cols, id_regex, id_glob, id_startswith, id_endswith)
+        assert_at_least_one_non_null(
+            id_cols=id_cols,
+            id_regex=id_regex,
+            id_glob=id_glob,
+            id_startswith=id_startswith,
+            id_endswith=id_endswith
+        )
         self._pivot_col = pivot_col
         self._aggregate_function = aggregate_function
         self._separator = separator
@@ -1181,7 +1193,10 @@ class Unpivot(Transformer):
             variable_col: Name for the new variable column
             value_col: Name for the new value column
         """
-        assert_at_least_one_non_null(melt_cols, melt_regex)
+        assert_at_least_one_non_null(
+            melt_cols=melt_cols,
+            melt_regex=melt_regex
+        )
         super().__init__()
 
         self._id_cols = id_cols

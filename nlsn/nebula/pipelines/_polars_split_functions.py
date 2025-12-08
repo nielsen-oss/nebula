@@ -90,7 +90,7 @@ def polars_split_function(
             msk = ~msk
 
     else:
-        assert_only_one_non_none(value, compare_col)
+        assert_only_one_non_none(value=value, compare_col=compare_col)
 
         if operator in {"eq", "ne", "le", "lt", "ge", "gt"}:
             if value is not None:

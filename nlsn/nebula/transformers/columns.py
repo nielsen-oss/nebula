@@ -56,7 +56,13 @@ class DropColumns(Transformer):
             AssertionError: If `allow_excess_columns` is False, and the column
             list contains columns that are not present in the DataFrame.
         """
-        assert_at_least_one_non_null(columns, regex, glob, startswith, endswith)
+        assert_at_least_one_non_null(
+            columns=columns,
+            regex=regex,
+            glob=glob,
+            startswith=startswith,
+            endswith=endswith
+        )
         super().__init__()
         self._set_columns_selections(
             columns=columns,
@@ -120,7 +126,11 @@ class RenameColumns(Transformer):
                 (columns + columns_renamed), the latter will overwrite the
                 mapping of the former.
         """
-        assert_only_one_non_none(columns, mapping, regex_pattern)
+        assert_only_one_non_none(
+            columns=columns,
+            mapping=mapping,
+            regex_pattern=regex_pattern
+        )
         super().__init__()
 
         if bool(regex_pattern) != bool(regex_replacement):
@@ -195,7 +205,13 @@ class SelectColumns(Transformer):
                 Select all the columns whose names end with the provided
                 string(s). Defaults to None.
         """
-        assert_at_least_one_non_null(columns, regex, glob, startswith, endswith)
+        assert_at_least_one_non_null(
+            columns=columns,
+            regex=regex,
+            glob=glob,
+            startswith=startswith,
+            endswith=endswith
+        )
         super().__init__()
         self._set_columns_selections(
             columns=columns,

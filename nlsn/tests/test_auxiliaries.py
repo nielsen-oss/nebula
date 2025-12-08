@@ -28,57 +28,57 @@ def test_assert_at_least_one_non_null():
     """Test 'assert_at_least_one_non_null' function."""
     a, b, c = None, None, None
     with pytest.raises(AssertionError):
-        assert_at_least_one_non_null(a, b, c)
+        assert_at_least_one_non_null(a=a, b=b, c=c)
 
     d, e = None, True
-    assert_at_least_one_non_null(d, e)
+    assert_at_least_one_non_null(d=d, e=e)
 
     d, e = None, False
-    assert_at_least_one_non_null(d, e)
+    assert_at_least_one_non_null(d=d, e=e)
 
     i = False
-    assert_at_least_one_non_null(i)
+    assert_at_least_one_non_null(i=i)
 
 
 def test_assert_at_most_one_args():
     """Test 'assert_at_most_one_true' function."""
     a, b, c = None, None, None
-    assert_at_most_one_args(a, b, c)
+    assert_at_most_one_args(a=a, b=b, c=c)
 
     d, e = None, True
-    assert_at_most_one_args(d, e)
+    assert_at_most_one_args(d=d, e=e)
 
     f, g, h = 1, None, True
     with pytest.raises(AssertionError):
-        assert_at_most_one_args(f, g, h)
+        assert_at_most_one_args(f=f, g=g, h=h)
 
     i, j, k = False, False, False
-    assert_at_most_one_args(i, j, k)
+    assert_at_most_one_args(i=i, j=j, k=k)
 
     l, m = "letter", 1
     with pytest.raises(AssertionError):
-        assert_at_most_one_args(l, m)
+        assert_at_most_one_args(l=l, m=m)
 
 
 def test_assert_only_one_not_none():
     """Test 'assert_only_one_non_none' function."""
     a, b, c = None, None, None
     with pytest.raises(AssertionError):
-        assert_only_one_non_none(a, b, c)
+        assert_only_one_non_none(a=a, b=b, c=c)
 
     d, e = None, 0
-    assert_only_one_non_none(d, e)
+    assert_only_one_non_none(d=d, e=e)
 
     f, g, h = 0, None, 0
     with pytest.raises(AssertionError):
-        assert_only_one_non_none(f, g, h)
+        assert_only_one_non_none(f=f, g=g, h=h)
 
     i, j = "letter", 1
     with pytest.raises(AssertionError):
-        assert_only_one_non_none(i, j)
+        assert_only_one_non_none(i=i, j=j)
 
     k, l = "letter", None
-    assert_only_one_non_none(k, l)
+    assert_only_one_non_none(k=k, l=l)
 
 
 @pytest.mark.parametrize("names", [None, ["li_1", "li_2", "li_3"], ["li_1"]])
