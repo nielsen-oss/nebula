@@ -22,18 +22,3 @@ ALLOWED_GROUPBY_AGG: set[str] = {
     "var_samp",
     "var_pop",
 }
-
-ALLOWED_WINDOW_AGG: set[str] = {
-    "avg",
-    "collect_list",
-    "collect_set",
-    "countDistinct",
-    "first",
-    "last",
-    "max",
-    "mean",
-    "min",
-    "stddev",
-    "sum",
-    "variance",
-}

@@ -32,6 +32,7 @@ __all__ = [
     "select_columns",
     "split_string_in_chunks",
     "truncate_long_string",
+    "validate_aggregations",
     "validate_keys",
     "validate_regex_pattern",
 ]
@@ -489,6 +490,34 @@ def truncate_long_string(s: str, w: int) -> str:
         return s[:half_w] + " ... " + s[-half_w:]
     else:
         return s
+
+
+def validate_aggregations(
+        o: list[dict[str, str]],
+        allowed_agg: set[str],
+        *,
+        exact_keys: set[str] = None,
+        required_keys: set[str] = None,
+        allowed_keys: set[str] = None,
+) -> None:
+    """Validate the list of aggregations for groupBy and window functions."""
+    for d in o:
+        keys = set(d)
+        if exact_keys and (keys != exact_keys):
+            raise ValueError(f"Requested keys for aggregations: {exact_keys}")
+
+        if allowed_keys and not keys.issubset(allowed_keys):
+            raise ValueError(f"Allowed keys for aggregations: {allowed_keys}")
+
+        if required_keys and not keys.issuperset(required_keys):
+            raise ValueError(f"Mandatory keys for aggregations: {required_keys}")
+
+        alias = d.get("alias")
+        if alias and (not isinstance(alias, str)):
+            raise TypeError('If provided, "alias" must be <str>')
+        if not isinstance(d["col"], str):
+            raise TypeError('"col" must be <str>')
+        assert_allowed(d["agg"], allowed_agg, "aggregation")
 
 
 def validate_keys(

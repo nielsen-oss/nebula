@@ -436,6 +436,66 @@ def test_truncate_long_string():
             assert chk == s
 
 
+class TestValidateAggregations:
+    ALLOWED: set[str] = {
+        "avg",
+        "first",
+        "last",
+        "max",
+        "mean",
+        "min",
+        "stddev",
+        "sum",
+        "variance",
+    }
+
+    @pytest.mark.parametrize(
+        "aggregations",
+        [
+            {"agg": "first"},
+            {"col": "time_bin"},
+            {"agg": "mean", "alias": "time_bin"},
+            {"aggr": "max", "col": "time_bin"},
+            {"agg": "sum", "col": "time_bin", "alias": "alias", "wrong": "x"},
+        ],
+    )
+    @pytest.mark.parametrize(
+        "required_keys, allowed_keys, exact_keys",
+        [
+            [{"agg", "col"}, {"agg", "col", "alias"}, None],
+            [None, None, {"agg", "col", "alias"}],
+        ],
+    )
+    def test(self, aggregations, required_keys, allowed_keys, exact_keys):
+        """Test 'validate_aggregations' auxiliary function."""
+        with pytest.raises(ValueError):
+            validate_aggregations(
+                [aggregations],
+                self.ALLOWED,
+                required_keys=required_keys,
+                allowed_keys=allowed_keys,
+                exact_keys=exact_keys,
+            )
+
+    @pytest.mark.parametrize(
+        "aggregations",
+        [
+            ({"agg": "sum", "col": 1}),
+            ({"agg": "sum", "col": "time_bin", "alias": 1}),
+        ],
+    )
+    def test_types(self, aggregations):
+        """Test 'validate_aggregations' types auxiliary function."""
+        with pytest.raises(TypeError):
+            validate_aggregations(
+                [aggregations],
+                self.ALLOWED,
+                required_keys={"agg", "col"},
+                allowed_keys={"agg", "col", "alias"},
+                exact_keys=None,
+            )
+
+
 class TestValidateKeys:
     """Test 'validate_keys'."""
 

@@ -1,17 +1,19 @@
 """Unit-tests for spark transformers."""
 
+from string import ascii_lowercase
+
+import numpy as np
+import pandas as pd
 import pytest
 from chispa import assert_df_equality
+from pyspark.sql import Window
 from pyspark.sql import functions as F
 from pyspark.sql.types import (
     ArrayType,
-    IntegerType,
     MapType,
-    StringType,
-    StructField,
-    StructType,
     Row,
 )
+from pyspark.sql.types import IntegerType, StringType, StructField, StructType
 from pyspark.sql.utils import AnalysisException
 
 from nlsn.nebula.auxiliaries import is_list_uniform
@@ -20,7 +22,8 @@ from nlsn.nebula.spark_util import (
     get_default_spark_partitions,
 )
 from nlsn.nebula.transformers.spark_transformers import *
-from nlsn.nebula.transformers.spark_transformers import _Partitions
+from nlsn.nebula.transformers.spark_transformers import _Partitions, _Window
+from nlsn.nebula.transformers.spark_transformers import validate_window_frame_boundaries
 
 
 def test_cpu_info(spark):
@@ -40,6 +43,139 @@ def test_log_data_skew(spark):
 
     t = LogDataSkew()
     t.transform(df)
+
+
+class TestAggregateOverWindow:
+    """Test AggregateOverWindow transformer."""
+
+    @staticmethod
+    @pytest.mark.parametrize("order_cols, partition_cols", [("x", None), (None, "x")])
+    def test_invalid_alias_overriding(order_cols, partition_cols):
+        """Test with overriding aliases."""
+        with pytest.raises(AssertionError):
+            AggregateOverWindow(
+                order_cols=order_cols,
+                partition_cols=partition_cols,
+                aggregations=[{"agg": "sum", "col": "a", "alias": "x"}],
+            )
+
+    @staticmethod
+    @pytest.fixture(scope="class", name="df_input")
+    def _get_df_input(spark):
+        n_rows = 200
+
+        li_ids = np.random.randint(0, 50, n_rows).tolist()
+        li_cat = np.random.choice(list(ascii_lowercase), n_rows).tolist()
+        li_plt = np.random.choice(list("ABC"), n_rows).tolist()
+
+        data = list(zip(li_ids, li_cat, li_plt))
+
+        fields = [
+            StructField("id", IntegerType(), True),
+            StructField("category", StringType(), True),
+            StructField("platform", StringType(), True),
+        ]
+        return spark.createDataFrame(data, schema=StructType(fields)).persist()
+
+    @pytest.mark.parametrize("ascending", [True, False])
+    @pytest.mark.parametrize(
+        "order_cols, rows_between, range_between",
+        [
+            [None, None, None],
+            ["id", None, None],
+            [None, (0, 2), None],
+            [None, ("start", "end"), None],
+            ["id", (0, 2), None],
+            ["id", ("start", "end"), None],
+            ["id", None, (0, 1)],
+            ["id", None, ("start", "end")],
+        ],
+    )
+    def test(
+            self, df_input, ascending, order_cols, rows_between, range_between
+    ):
+        """Test with multiple cases."""
+        aggregations = [
+            {"agg": "min", "col": "id", "alias": "min_id"},
+            {"agg": "sum", "col": "id", "alias": "sum_id"},
+        ]
+        t = AggregateOverWindow(
+            partition_cols="category",
+            order_cols=order_cols,
+            aggregations=aggregations,
+            ascending=ascending,
+            rows_between=rows_between,
+            range_between=range_between,
+        )
+        df_chk = t.transform(df_input)
+
+        window = Window.partitionBy("category")
+        if order_cols is not None:
+            col_id = F.col("id")
+            if not ascending:
+                col_id = col_id.desc()
+            window = window.orderBy(col_id)
+        if rows_between is not None:
+            start, end = validate_window_frame_boundaries(*rows_between)
+            window = window.rowsBetween(start, end)
+        if range_between is not None:
+            start, end = validate_window_frame_boundaries(*range_between)
+            window = window.rangeBetween(start, end)
+
+        df_exp = df_input.withColumn("min_id", F.min("id").over(window)).withColumn(
+            "sum_id", F.sum("id").over(window)
+        )
+
+        assert_df_equality(df_chk, df_exp, ignore_row_order=True, ignore_column_order=True)
+
+    @pytest.mark.parametrize("ascending", [[True, False], [False, True]])
+    def test_ascending(self, df_input, ascending):
+        """Test with ascending as <list<bool>>."""
+        order_cols = ["platform", "id"]
+
+        t = AggregateOverWindow(
+            partition_cols="category",
+            order_cols=order_cols,
+            ascending=ascending,
+            aggregations=[{"agg": "first", "col": "id", "alias": "first_value"}],
+        )
+        df_chk = t.transform(df_input)
+
+        # Set the order
+        li_asc = ascending if isinstance(ascending, list) else [ascending] * 2
+        orders = [
+            F.col(i).asc() if j else F.col(i).desc() for i, j in zip(order_cols, li_asc)
+        ]
+        win = Window.partitionBy("category").orderBy(orders)
+        df_exp = df_input.withColumn("first_value", F.first("id").over(win))
+
+        assert_df_equality(df_chk, df_exp, ignore_row_order=True, ignore_column_order=True)
+
+    def test_single_aggregation(self, df_input):
+        """Test w/o partitioning."""
+        t = AggregateOverWindow(
+            aggregations=[{"agg": "sum", "col": "id", "alias": "sum_id"}],
+            rows_between=("start", "end"),
+        )
+        df_chk = t.transform(df_input)
+
+        win = Window.rowsBetween(Window.unboundedPreceding, Window.unboundedFollowing)
+
+        df_exp = df_input.withColumn("sum_id", F.sum("id").over(win))
+        assert_df_equality(df_chk, df_exp, ignore_row_order=True, ignore_column_order=True)
+
+    def test_override(self, df_input):
+        """Test with 'id' column overridden."""
+        t = AggregateOverWindow(
+            partition_cols="category",
+            aggregations={"agg": "min", "col": "id", "alias": "id"},
+        )
+        df_chk = t.transform(df_input)
+
+        win = Window.partitionBy("category")
+
+        df_exp = df_input.withColumn("id", F.min("id").over(win).cast("int"))
+        assert_df_equality(df_chk, df_exp, ignore_row_order=True, ignore_column_order=True)
 
 
 class TestColumnsToMap:
@@ -114,47 +250,6 @@ class TestColumnsToMap:
             self._check(v2_exp, v2_chk, cast_values)
 
 
-class TestPartitions:
-    """Test private class '_Partitions'."""
-
-    @pytest.mark.parametrize(
-        "kwargs",
-        [
-            {"num_partitions": "x"},
-            {"rows_per_partition": "x"},
-            {"num_partitions": [1, "x"]},
-            {"num_partitions": 0},
-            {"rows_per_partition": 0},
-            {"num_partitions": 1, "rows_per_partition": 1},
-        ],
-    )
-    def test_invalid(self, kwargs):
-        """Test _Partitions with wrong parameters."""
-        with pytest.raises(AssertionError):
-            _Partitions(**kwargs)
-
-    @pytest.fixture(scope="class", name="df_input")
-    def _get_df_input(self, spark):
-        data = [[f"{i}"] for i in range(1000)]
-        return spark.createDataFrame(data, ["c1"])
-
-    @pytest.mark.parametrize(
-        "kwargs, exp",
-        [
-            ({"num_partitions": 10}, 10),
-            ({}, None),
-            ({"rows_per_partition": 50}, 1000 // 50),
-        ],
-    )
-    def test_get_num_partitions(self, df_input, kwargs, exp):
-        """Test '_get_requested_partitions' method."""
-        t = _Partitions(**kwargs)
-        chk = t._get_requested_partitions(df_input, "unit-test")
-        if exp is None:
-            exp = get_default_spark_partitions(df_input)
-        assert chk == exp
-
-
 class TestCoalesceRepartition:
     """Test Coalesce and Repartition transformer."""
 
@@ -221,6 +316,59 @@ class TestCoalesceRepartition:
         t = Repartition(num_partitions=10, columns="wrong")
         with pytest.raises(AssertionError):
             t.transform(df_input)
+
+
+class TestLagOverWindow:
+    """Test LagOverWindow transformer."""
+
+    @staticmethod
+    @pytest.fixture(scope="class", name="df_input")
+    def _get_df_input(spark):
+        data = [
+            ["group_1", 2, 10000],
+            ["group_1", 1, 2000],
+            ["group_1", 3, 50],
+            ["group_1", 4, 40],
+            ["group_2", 7, 16000],
+            ["group_2", 5, 12000],
+            ["group_2", 2, 11000],
+            ["group_3", 12, 900],
+            ["group_3", 13, 600],
+        ]
+        schema_str = "group: string, index: int, value: int"
+        return spark.createDataFrame(data, schema=schema_str).persist()
+
+    @pytest.mark.parametrize("lag", [2, -1, -2])
+    def test(self, df_input, lag):
+        partition_cols = ["group"]
+        order_cols = ["index"]
+        lag_col = "value"
+        output_col = "value_lag"
+
+        t = LagOverWindow(
+            partition_cols=partition_cols,
+            order_cols=order_cols,
+            lag_col=lag_col,
+            lag=lag,
+            output_col=output_col,
+        )
+
+        df_chk = t.transform(df_input).toPandas()
+
+        # Assert that the number of nulls in the lagged column is equal to the number of groups
+        n_nulls = df_chk[output_col].isna().sum()
+        expected_nulls = int(df_chk[partition_cols].nunique()) * abs(lag)
+        assert n_nulls == expected_nulls
+
+        # Perform the same operation in Pandas
+        df_exp = df_input.toPandas().sort_values(by=order_cols)
+        df_exp[output_col] = df_exp.groupby(partition_cols)[lag_col].shift(lag)
+
+        # Assert equality of dataframe
+        pd.testing.assert_frame_equal(
+            df_exp.sort_values(df_exp.columns.tolist()).reset_index(drop=True),
+            df_chk.sort_values(df_chk.columns.tolist()).reset_index(drop=True),
+        )
 
 
 class TestMapToColumns:
@@ -308,6 +456,74 @@ class TestMapToColumns:
         """Test MapToColumns passing a wrong type of 'output_columns'."""
         with pytest.raises(TypeError):
             MapToColumns(input_column="map_col", output_columns=output_columns)
+
+
+class TestPartitions:
+    """Test private class '_Partitions'."""
+
+    @pytest.mark.parametrize(
+        "kwargs",
+        [
+            {"num_partitions": "x"},
+            {"rows_per_partition": "x"},
+            {"num_partitions": [1, "x"]},
+            {"num_partitions": 0},
+            {"rows_per_partition": 0},
+            {"num_partitions": 1, "rows_per_partition": 1},
+        ],
+    )
+    def test_invalid(self, kwargs):
+        """Test _Partitions with wrong parameters."""
+        with pytest.raises(AssertionError):
+            _Partitions(**kwargs)
+
+    @pytest.fixture(scope="class", name="df_input")
+    def _get_df_input(self, spark):
+        data = [[f"{i}"] for i in range(1000)]
+        return spark.createDataFrame(data, ["c1"])
+
+    @pytest.mark.parametrize(
+        "kwargs, exp",
+        [
+            ({"num_partitions": 10}, 10),
+            ({}, None),
+            ({"rows_per_partition": 50}, 1000 // 50),
+        ],
+    )
+    def test_get_num_partitions(self, df_input, kwargs, exp):
+        """Test '_get_requested_partitions' method."""
+        t = _Partitions(**kwargs)
+        chk = t._get_requested_partitions(df_input, "unit-test")
+        if exp is None:
+            exp = get_default_spark_partitions(df_input)
+        assert chk == exp
+
+
+class TestValidateWindowFrameBoundaries:
+    """Unit-test for 'validate_window_frame_boundaries' auxiliary function."""
+
+    def test_valid_window(self):
+        """Valid windows."""
+        # Test valid integer boundaries
+        assert validate_window_frame_boundaries(1, 10) == (1, 10)
+        assert validate_window_frame_boundaries(-5, 5) == (-5, 5)
+        start, end = validate_window_frame_boundaries("start", "end")
+        assert start < 0
+        assert end > 5
+
+    def test_invalid_window(self):
+        """Invalid windows."""
+        # Test None values
+        with pytest.raises(ValueError):
+            validate_window_frame_boundaries(None, 5)
+        with pytest.raises(ValueError):
+            validate_window_frame_boundaries(1, None)
+
+        # Test invalid string values
+        with pytest.raises(ValueError):
+            validate_window_frame_boundaries("invalid", 5)
+        with pytest.raises(ValueError):
+            validate_window_frame_boundaries(1, "invalid")
 
 
 class TestSparkColumnMethod:
@@ -589,3 +805,29 @@ class TestSparkSqlFunction:
 
         n_null: int = df_chk.filter(F.col("result").isNull()).count()
         assert n_null == 0
+
+
+class TestWindow:
+    """Unit-tests for '_Window' parent class."""
+
+    def test_order_cols_range_between(self):
+        """'order_cols' is null when 'range_between' is provided."""
+        with pytest.raises(AssertionError):
+            _Window(
+                partition_cols=["a"],
+                order_cols=None,
+                ascending=False,
+                rows_between=None,
+                range_between=(0, 10),
+            )
+
+    def test_aggregate_over_window_wrong_ascending(self):
+        """Wrong ascending length."""
+        with pytest.raises(AssertionError):
+            _Window(
+                partition_cols=["a"],
+                order_cols=["category", "group"],
+                ascending=[True, False, False],
+                rows_between=None,
+                range_between=None,
+            )
