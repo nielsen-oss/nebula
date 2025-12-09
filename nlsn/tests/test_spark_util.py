@@ -6,12 +6,10 @@ from chispa.dataframe_comparer import assert_df_equality
 from pyspark.sql import functions as F
 from pyspark.sql.types import (
     ArrayType,
-    BooleanType,
     FloatType,
     IntegerType,
     LongType,
     MapType,
-    NullType,
     StringType,
     StructField,
     StructType,
@@ -20,30 +18,6 @@ from pyspark.sql.types import (
 from nlsn.nebula.spark_util import *
 
 _nan = float("nan")
-
-
-def test_get_column_data_type_name(spark):
-    """Test the 'get_column_data_type_name' function."""
-    fields = [
-        StructField("c1", NullType(), True),
-    ]
-    df = spark.createDataFrame([[None]], schema=StructType(fields))
-
-    types = [
-        (IntegerType(), "integer"),
-        (LongType(), "long"),
-        ("timestamp", "timestamp"),
-        (BooleanType(), "boolean"),
-        ("float", "float"),
-        ("double", "double"),
-        ("decimal(10, 0)", "decimal"),
-        ("array<string>", "array"),
-        ("map<string,double>", "map"),
-    ]
-    for t, exp in types:
-        df_cast = df.withColumn("c2", F.col("c1").cast(t))
-        chk = get_column_data_type_name(df_cast, "c2")
-        assert chk == exp
 
 
 def test_is_broadcast(spark):
@@ -56,47 +30,6 @@ def test_is_broadcast(spark):
     df = spark.createDataFrame(data, schema=StructType(fields))
     assert not is_broadcast(df)
     assert is_broadcast(F.broadcast(df))
-
-
-class TestSplitDfBoolCondition:
-    """Test the 'split_df_bool_condition' function."""
-
-    @staticmethod
-    def _check_split_df_bool_condition(df1, exp_1, df2, exp_2, tot):
-        assert (exp_1 + exp_2) == tot
-
-        count_1 = df1.count()
-        assert count_1 == exp_1
-
-        count_2 = df2.count()
-        assert count_2 == exp_2
-
-    def test_split_df_bool_condition(self, spark):
-        """Test the 'split_df_bool_condition' function."""
-        fields = [
-            StructField("c1", StringType(), True),
-            StructField("c2", FloatType(), True),
-        ]
-        schema = StructType(fields)
-
-        input_data = [
-            ["a", 0.0],
-            ["b", 2.0],
-            ["", _nan],
-            [None, None],
-        ]
-
-        row_count = len(input_data)
-
-        df_input = spark.createDataFrame(input_data, schema=schema)
-
-        cond_str = F.col("c1") == "a"
-        df1_str, df2_str = split_df_bool_condition(df_input, cond_str)
-        self._check_split_df_bool_condition(df1_str, 1, df2_str, 3, row_count)
-
-        cond_num = F.col("c2") == 2.0
-        df1_num, df2_num = split_df_bool_condition(df_input, cond_num)
-        self._check_split_df_bool_condition(df1_num, 1, df2_num, 3, row_count)
 
 
 class TestCacheIfNeeded:
@@ -473,48 +406,3 @@ class TestFunctionHashDataFrame:
             ignore_nullable=True,
             allow_nan_equality=True,
         )
-
-
-class TestSparkSchemaUtilities:
-    """Test spark schema utilities."""
-
-    @staticmethod
-    @pytest.fixture(scope="class", name="df_input")
-    def _get_input_df(spark):
-        # value | column name | datatype
-        input_data = [
-            ("string A", "col_1", StringType()),
-            (1.5, "col_2", FloatType()),
-            (3, "col_3", IntegerType()),
-            ([1, 2, 3], "col_4", ArrayType(IntegerType())),
-            ({"a": 1}, "col_5", MapType(StringType(), IntegerType())),
-            ([[1, 2], [2, 3]], "col_6", ArrayType(ArrayType(IntegerType()))),
-            (
-                {"a": {"b": 2}},
-                "col_7",
-                MapType(StringType(), MapType(StringType(), IntegerType())),
-            ),
-        ]
-
-        data = [[i[0] for i in input_data]]
-        fields = [StructField(*i[1:]) for i in input_data]
-        schema = StructType(fields)
-        return spark.createDataFrame(data, schema=schema)
-
-    @pytest.mark.parametrize("full_type_name", [True, False])
-    def test_get_schema_as_str(self, df_input, full_type_name: bool):
-        """Test get_schema_as_str function."""
-        li_fields: list[tuple[str, str]] = get_schema_as_str(df_input, full_type_name)
-
-        meth = "simpleString" if full_type_name else "typeName"
-
-        assert len(li_fields) == len(df_input.schema)
-        for idx, field in enumerate(df_input.schema):
-            name = field.name
-            datatype = field.dataType
-
-            name_chk, datatype_str = li_fields[idx]
-            assert name == name_chk
-
-            type_name_exp: str = getattr(datatype, meth)()
-            assert type_name_exp == datatype_str

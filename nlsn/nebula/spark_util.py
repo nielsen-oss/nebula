@@ -5,10 +5,9 @@ import warnings
 from io import StringIO
 from typing import Any, Union
 
-import narwhals as nw
 import pyspark.sql
 import pyspark.sql.functions as F
-from pyspark.sql.types import StructField, StructType
+from pyspark.sql.types import StructType
 
 from nlsn.nebula.auxiliaries import (
     assert_allowed,
@@ -23,33 +22,15 @@ __all__ = [
     "cast_to_schema",
     "compare_dfs",
     "drop_duplicates_no_randomness",
-    "get_column_data_type_name",
     "get_data_skew",
     "get_default_spark_partitions",
-    "get_schema_as_str",
     "get_spark_session",
     "hash_dataframe",
     "is_broadcast",
     "null_cond_to_false",
-    "split_df_bool_condition",
 ]
 
 ALLOWED_SPARK_HASH = {"md5", "crc32", "sha1", "sha2", "xxhash64"}
-
-ALLOWED_STANDARD_OPERATORS = {"eq", "ne", "le", "lt", "ge", "gt"}
-
-ALLOWED_SPARK_NULL_OPERATORS = {"isNull", "isNotNull", "isNaN", "isNotNaN"}
-ALLOWED_SPARK_OPERATORS = {
-    "array_contains",
-    "between",
-    "contains",
-    "isin",
-    "isnotin",
-    "like",
-    "rlike",
-    "startswith",
-    "endswith",
-}
 
 _psql = pyspark.sql  # keep it for linting
 
@@ -306,29 +287,6 @@ def drop_duplicates_no_randomness(
     return df.groupby(subset).agg(*list_agg)
 
 
-def get_column_data_type_name(df, column: str) -> str:
-    """Return the base type name of the spark dataframe column.
-
-    Args:
-        df (pyspark.sql.DataFrame):
-            The input dataframe.
-        column (str):
-            The column from which to retrieve the data type name.
-
-    Returns (str):
-        Data type name of the specified column. I.e.:
-        - "boolean"
-        - "integer" (not "int")
-        - "long"
-        - "double"
-        - "float"
-        - "decimal"
-        - "array"
-        - "map"
-    """
-    return df.select(column).schema[0].dataType.typeName()
-
-
 def get_spark_session(df) -> "pyspark.sql.SparkSession":
     """Retrieve the sparkSession instance from a dataframe."""
     return df.sql_ctx.sparkSession
@@ -339,53 +297,6 @@ def get_default_spark_partitions(df: "pyspark.sql.DataFrame") -> int:
     ss = get_spark_session(df)
     partitions: str = ss.conf.get("spark.sql.shuffle.partitions")
     return int(partitions)
-
-
-def get_schema_as_str(
-        df: "pyspark.sql.DataFrame", full_type_name: bool
-) -> list[tuple[str, str]]:
-    """Return the dataframe schema as a List of 2-string tuples.
-
-    The first string represents the column, the latter its data-types.
-
-    For full_type_name=True:
-    [
-        ('col_1', 'string'),
-        ('col_2', 'map<string, int>'),
-        ('col_3', 'array<array<int>>'),
-    ]
-
-    For full_type_name=False:
-    [
-        ('col_1', 'string'),
-        ('col_2', 'map'),
-        ('col_3', 'array'),
-    ]
-
-    Args:
-        df: (pyspark.sdl.Dataframe)
-            Input dataframe.
-        full_type_name: (bool)
-            If True returns the full name for complex types, like:
-                - 'map<string, map<string, int>>'
-                - 'array<array<int>>'
-            If False returns only the outermost data type name like:
-                - 'map'
-                - 'array'
-
-    Returns: (list(tuple(str, str)))
-        [(col_1, data-type name), (col_2, data-type, name), ...]
-    """
-    meth = "simpleString" if full_type_name else "typeName"
-
-    fields: list[StructField] = df.schema.fields
-    ret: list[tuple[str, str]] = []
-    for field in fields:
-        name: str = field.name  # columns name
-        data_type = field.dataType
-        type_name: str = getattr(data_type, meth)()  # data type name
-        ret.append((name, type_name))
-    return ret
 
 
 def hash_dataframe(
@@ -546,82 +457,6 @@ def is_broadcast(df) -> bool:
     # Check if "Broadcast" is in the captured output
     explain_output = my_stdout.getvalue()
     return "broadcast" in explain_output.lower()
-
-
-def split_df_bool_condition(
-        df: "pyspark.sql.DataFrame",
-        cond: F.col,
-) -> tuple["pyspark.sql.DataFrame", "pyspark.sql.DataFrame"]:
-    """Split a dataframe into two dataframes given a certain condition.
-
-    Given a spark condition like:
-        F.col("col_1") == "my_string"
-    Returns 2 dataframes, the first one is the one that meets the condition.
-    The second one contains all the remaining rows, null-values in "col_1" included.
-
-    This function handles the null-value in a different way than logical
-    negation "~":
-    my_cond = F.col("col_1") == "my_string"
-    df1 = df.filter(my_cond)
-    df2 = df.filter(~my_cond)
-    Neither df1 nor df2 contains null-values since negating null-values
-    returns the same null-values.
-
-    Check the unittest for details.
-
-    NB: this function does not handle NaN:
-
-    df_in.show()
-    +----+----+
-    |  c1|  c2|
-    +----+----+
-    |   a| 0.0|
-    |   b| 2.0|
-    |   c| NaN|
-    |   d|null|
-    +----+----+
-
-    df1, df2 = split_df_bool_condition(df_in, F.col("c2") > 1)
-
-    df1.show()
-    +---+---+
-    | c1| c2|
-    +---+---+
-    |  b|2.0|
-    |  c|NaN|
-    +---+---+
-
-    df2.show()
-    +----+----+
-    |  c1|  c2|
-    +----+----+
-    |   a| 0.0|
-    |   d|null|
-    +----+----+
-
-    Args:
-        df: (pyspark.sql.DataFrame)
-            Input dataframe
-        cond: (pyspark.sql.column.Column)
-            Spark condition(s) E.g.:
-                - F.col("col_1") == 5
-                - F.col("col_1").isin(["str1", "str2"])
-
-    Returns: (pyspark.sql.DataFrame, pyspark.sql.DataFrame)
-        - DataFrame that meets the condition
-        - DataFrame with remaining rows that does not meet the condition
-    """
-    ret_1 = df.filter(cond)
-    cond_fix = null_cond_to_false(cond)
-    ret_2 = df.filter(~cond_fix)
-
-    return ret_1, ret_2
-
-
-def nw_to_spark(df) -> tuple[bool, "pyspark.sql.DataFrame"]:
-    if isinstance(df, (nw.DataFrame, nw.LazyFrame)):
-        return True, df.to_native()
-    return False, df
 
 
 def cache_if_needed(df, do_cache: bool):  # FIXME: useful ?
