@@ -223,6 +223,7 @@ class WithColumns(Transformer):
             startswith: str | Iterable[str] | None = None,
             endswith: str | Iterable[str] | None = None,
             method: str,
+            alias: str | None = None,
             args: list[Any] | None = None,
             kwargs: dict[str, Any] | None = None,
             prefix: str | None = None,
@@ -247,6 +248,9 @@ class WithColumns(Transformer):
                 string(s). Defaults to None.
             method (str):
                 Method name (e.g., 'round', 'str.strip_chars', 'dt.year').
+            alias (str | None):
+                If provided, create a new column to store the output of
+                the operation. Defaults to None.
             args:
                 Positional arguments for the method.
             kwargs:
@@ -256,6 +260,10 @@ class WithColumns(Transformer):
             suffix (str | None):
                 Add suffix to output column names.
         """
+        if alias:
+            if (prefix is not None) or (suffix is not None):
+                raise AssertionError("'prefix'/'suffix' cannot be provided with 'alias'")
+
         super().__init__()
         self._set_columns_selections(
             columns=columns,
@@ -287,6 +295,7 @@ class WithColumns(Transformer):
 
         self._args: list = args if args else []
         self._kwargs: dict[str, Any] = kwargs if kwargs else {}
+        self._alias: str | None = alias
         self._prefix: str | None = prefix
         self._suffix: str | None = suffix
 
@@ -303,6 +312,9 @@ class WithColumns(Transformer):
         meth = getattr(meth, self._method_name)
 
         func = meth(*self._args, **self._kwargs)
+
+        if self._alias:
+            func = func.alias(self._alias)
 
         if self._prefix:
             func = func.name.prefix(self._prefix)

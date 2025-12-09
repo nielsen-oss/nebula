@@ -64,19 +64,9 @@ load_pipeline(..., extra_transformers=[my_transformer_module, ExtraTransformers]
 _cache = {}
 
 
-def _cache_transformer_packages(ext_transformers: Optional[list], t: Optional[str]):
+def _cache_transformer_packages(ext_transformers: Optional[list]):
     """Create a list of transformer packages w/ the right priority."""
-    if t is not None:
-        if t == "spark":  # pragma: no cover
-            from nlsn.nebula import spark_transformers as nebula_transformers
-        elif t == "pandas":  # pragma: no cover
-            from nlsn.nebula import pandas_polars_transformers as nebula_transformers
-        elif t == "polars":  # pragma: no cover
-            from nlsn.nebula import pandas_polars_transformers as nebula_transformers
-        else:  # pragma: no cover
-            raise ValueError
-    else:
-        from nlsn.nebula import spark_transformers as nebula_transformers
+    from nlsn.nebula import transformers as nebula_transformers
 
     _cache["transformer_packages"] = (ext_transformers or []) + [nebula_transformers]
 
@@ -114,10 +104,7 @@ def _load_transformer(d: dict, **kwargs) -> Optional[Transformer]:
             t = getattr(pkg, name)
             break
     else:
-        msg = f'Unknown transformer "{name}". Maybe it is a pandas/polars '
-        msg += 'one and you have to set backend="pandas/polars"'
-        msg += " in the outermost dictionary configuration?"
-        raise NameError(msg)
+        raise NameError(f'Unknown transformer "{name}"')
 
     try:
         if is_lazy:
@@ -290,14 +277,14 @@ def _load_pipeline(o, *, extra_funcs) -> TransformerPipeline:
 
 
 def load_pipeline(
-    o: Union[dict, list, tuple],
-    *,
-    extra_functions: Optional[
-        Union[Callable, list[Callable], dict[str, Callable]]
-    ] = None,
-    extra_transformers: Optional[ModuleType] = None,
-    backend: Optional[str] = None,
-    evaluate_loops: bool = True,
+        o: Union[dict, list, tuple],
+        *,
+        extra_functions: Optional[
+            Union[Callable, list[Callable], dict[str, Callable]]
+        ] = None,
+        extra_transformers: Optional[ModuleType] = None,
+        backend: Optional[str] = None,
+        evaluate_loops: bool = True,
 ) -> TransformerPipeline:
     """Load a Nebula pipeline object starting from a dictionary.
 
@@ -366,7 +353,7 @@ def load_pipeline(
         if not isinstance(extra_transformers, (list, tuple)):
             raise TypeError(_MSG_ERR_EXTRA_TRANSFORMER)
 
-    _cache_transformer_packages(extra_transformers, backend)
+    _cache_transformer_packages(extra_transformers)
 
     # Load the user-defined functions.
     extra_funcs = create_dict_extra_functions(extra_functions)

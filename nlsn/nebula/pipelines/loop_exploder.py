@@ -106,7 +106,7 @@ Notes:
 
 from copy import deepcopy
 from itertools import product
-from typing import Any, Optional
+from typing import Any
 
 __all__ = ["explode_loops_in_pipeline"]
 
@@ -157,7 +157,7 @@ def convert_product_to_linear(d_orig: dict) -> dict:
     Returns:
         dict: Original dict if linear, new dict with cross-product if product
     """
-    gen_type: Optional[str] = d_orig.get("generation_type")
+    gen_type: str | None = d_orig.get("generation_type")
     if gen_type is None:
         return d_orig
 

@@ -10,25 +10,24 @@ pipeline_1:
           params:
             cast:
               col_2: "float"
-        - transformer: EmptyStringToNull
+        - transformer: DropNulls
           params:
             columns: "col_2"
-        - transformer: Count
+        - transformer: AssertNotEmpty
           params:  # try w/ empty params
-        - transformer: Count  # try w/o params
+        - transformer: AssertNotEmpty  # try w/o params
 
-    - name: SPLIT-PANELISTS
+    - name: SPLIT-PIPELINE
       pipeline:
-        active_panelists:
+        split_n_1:
           - transformer: Cast
             params:
               cast:
                 col_1: "int"
-        non_active_panelists:
-          - transformer: IterableSize
+        split_n_2:
+          - transformer: DropNulls
             params:
-              input_col: "col_x"
-              output_col: "col_t"
+              columns: "col_x"
           - transformer: Cast
             params:
               cast:
@@ -39,7 +38,7 @@ pipeline_1:
               cast:
                 col_3: "float"
             perform: false
-          - transformer: EmptyStringToNull
+          - transformer: DropNulls
             params:
               columns: "col_4"
       split_apply_before_appending:
@@ -50,7 +49,7 @@ pipeline_1:
       split_function: my_split_function
       coalesce_output_to_original: true
 
-    - transformer: EmptyArrayToNull
+    - transformer: DropNulls
       params:
         columns: "col_array"
 

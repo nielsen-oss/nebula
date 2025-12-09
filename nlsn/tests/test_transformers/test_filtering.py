@@ -22,8 +22,6 @@ class TestDropNulls:
             StructField("b_2", StringType(), True),
             StructField("b_3", StringType(), True),
         ]
-        schema = StructType(fields)
-
         data = [
             ("1", "11", None, "4", "41", "411"),
             ("1", "12", "120", "4", None, "412"),
@@ -32,7 +30,7 @@ class TestDropNulls:
             ("1", "12", "120", "4", "41", None),
             (None, None, None, "4", "41", "412"),
         ]
-        return spark.createDataFrame(data, schema=schema).persist()
+        return spark.createDataFrame(data, schema=StructType(fields)).persist()
 
     def test_spark_no_subset(self, df_input_spark):
         """Test DiscardNulls transformer w/o any subsets."""
@@ -136,6 +134,45 @@ class TestDropNulls:
         assert result["user_id"].to_list() == [1, 2]
         # Verify NaN is still present
         assert result["value"][1] != result["value"][1]  # NaN != NaN
+
+
+    @pytest.mark.parametrize("how", ["any", "all"])
+    def test_pandas_how(self, how: str):
+        """Test 'how' parameter in pandas."""
+        df = pd.DataFrame({
+            "user_id": [1, 2, 3, 4, 5],
+            "age": [25.0, float('nan'), float('nan'), float('nan'), 45.0],
+            "score": [100.0, 200.0, float('nan'), 400.0, 500.0],
+        })
+        t = DropNulls(how=how)
+        df_chk = t.transform(df)
+        df_exp = df.dropna(how=how)
+        pd.testing.assert_frame_equal(df_chk, df_exp)
+
+    @pytest.mark.parametrize("thresh", [1, 2])
+    def test_pandas_thresh(self, thresh: int):
+        """Test 'thresh' parameter in pandas."""
+        df = pd.DataFrame({
+            "user_id": [1, 2, 3, 4, 5],
+            "age": [25.0, float('nan'), float('nan'), float('nan'), 45.0],
+            "score": [100.0, 200.0, None, 400.0, 500.0],
+        })
+        t = DropNulls(thresh=thresh)
+        df_chk = t.transform(df)
+        df_exp = df.dropna(thresh=thresh)
+        pd.testing.assert_frame_equal(df_chk, df_exp)
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 class TestFilterValidation:

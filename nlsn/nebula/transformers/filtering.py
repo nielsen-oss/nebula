@@ -6,8 +6,8 @@ from nlsn.nebula.auxiliaries import assert_allowed
 from nlsn.nebula.base import Transformer
 from nlsn.nebula.nw_util import validate_operation, get_condition, null_cond_to_false
 
-
 __all__ = ["DropNulls", "Filter"]
+
 
 class DropNulls(Transformer):
     def __init__(
@@ -67,10 +67,18 @@ class DropNulls(Transformer):
         )
 
     def _transform_pandas(self, df):
+        kws = {}
+        # pandas cannot accept both 'how' and 'thresh'
+        if self._thresh is not None:
+            kws["thresh"] = self._thresh
+        else:
+            kws["how"] = self._how
+
         subset: list[str] = self._get_selected_columns(df)
         if subset and set(subset) != set(list(df.columns)):
-            return df.dropna(self._how, subset=subset, thresh=self._thresh)
-        return df.dropna(self._how, thresh=self._thresh)
+            kws["subset"] = subset
+
+        return df.dropna(**kws)
 
     def _transform_polars(self, df):
         import polars as pl
@@ -302,4 +310,3 @@ class Filter(Transformer):
         if self._perform == "remove":
             condition = ~null_cond_to_false(condition)
         return df.filter(condition)
-

@@ -254,6 +254,11 @@ class TestWithColumns:
         with pytest.raises(ValueError):
             WithColumns(columns="a", method=meth)
 
+    @pytest.mark.parametrize("prefix, suffix", [("xx", None), (None, "xx"), ("xx", "xx")])
+    def test_invalid_alias(self, prefix, suffix):
+        with pytest.raises(AssertionError):
+            WithColumns(columns="a", method="round", prefix=prefix, suffix=suffix, alias="alias")
+
     def test_single_column_string_method(self):
         """Test applying str.strip_chars to a single column."""
         df = pl.DataFrame({
@@ -501,14 +506,18 @@ class TestWithColumns:
         t = WithColumns(
             columns="int_col",
             method="cast",
-            args=[nw.Float64]
+            args=[nw.Float64],
+            alias="new_col"
         )
         df_out = t.transform(df_nw)
 
         result = nw.to_native(df_out)
 
-        # Check that int_col is now float
-        assert result.schema["int_col"] == pl.Float64
+        expected = df.with_columns(pl.col("int_col").cast(pl.Float64).alias("new_col"))
+        assert result.equals(expected)
+
+        # Check that int_col is still Int64
+        assert df_out.schema["int_col"] == nw.Int64
 
     def test_empty_selection_returns_unchanged(self):
         """Test that empty column selection returns df unchanged."""

@@ -8,7 +8,7 @@ import pytest
 from nlsn.nebula import nebula_storage as ns
 from nlsn.nebula.base import Transformer
 from nlsn.nebula.pipelines.pipelines import TransformerPipeline
-from nlsn.nebula.shared_transformers import Count, PrintSchema, SelectColumns
+from nlsn.nebula.transformers import SelectColumns, AssertNotEmpty, DropNulls
 
 
 class AddOne:
@@ -25,7 +25,7 @@ class ForcedTransformer(Transformer):
         """Force interleaved transformer."""
         super().__init__()
 
-    def _transform(self, df):
+    def _transform_pandas(self, df):
         n = ns.get("num_forced_transformer")
         n += 1
         ns.set("num_forced_transformer", n)
@@ -57,7 +57,7 @@ def test_transformer_no_parent_class_in_pipeline(df_input):
 
 @pytest.mark.parametrize("backend", ["pandas", None])
 def test_backend_pandas(df_input, backend: Optional[str]):
-    """Test explicit and implicit pandas backend."""
+    """Test explicit and implicit Pandas backend."""
     pipe = TransformerPipeline(SelectColumns(glob="c*"), backend=backend)
     pipe.show_pipeline()
     pipe._print_dag()
@@ -70,7 +70,7 @@ def test_backend_pandas(df_input, backend: Optional[str]):
 def test_forced_transformer(df_input):
     """Ensure the forced transformer is executed after each transformer."""
     list_trf_1 = [SelectColumns(glob="*")]
-    list_trf_2 = [Count(), PrintSchema()]
+    list_trf_2 = [AssertNotEmpty(), DropNulls()]
 
     pipe_1 = TransformerPipeline(list_trf_1, backend="pandas")
     pipe_2 = TransformerPipeline(list_trf_2)
