@@ -1,7 +1,7 @@
 """Pipeline yaml loader."""
 
 from types import ModuleType
-from typing import Callable, Optional, Union
+from typing import Callable
 
 from nlsn.nebula.auxiliaries import extract_kwarg_names
 from nlsn.nebula.base import LazyWrapper, Transformer
@@ -64,7 +64,7 @@ load_pipeline(..., extra_transformers=[my_transformer_module, ExtraTransformers]
 _cache = {}
 
 
-def _cache_transformer_packages(ext_transformers: Optional[list]):
+def _cache_transformer_packages(ext_transformers: list | None):
     """Create a list of transformer packages w/ the right priority."""
     from nlsn.nebula import transformers as nebula_transformers
 
@@ -87,7 +87,7 @@ def extract_lazy_params(input_params: dict, extra_funcs: dict[str, Callable]) ->
     return ret
 
 
-def _load_transformer(d: dict, **kwargs) -> Optional[Transformer]:
+def _load_transformer(d: dict, **kwargs) -> Transformer | None:
     if d.get("skip") or (d.get("perform") is False):
         return None
     name: str = d["transformer"]
@@ -122,7 +122,7 @@ def _load_transformer(d: dict, **kwargs) -> Optional[Transformer]:
         raise type(e)(msg)
 
 
-def _load_generic(o, **kwargs) -> Union[TransformerPipeline, Optional[Transformer]]:
+def _load_generic(o, **kwargs) -> TransformerPipeline | Transformer | dict:
     if "transformer" in o:
         return _load_transformer(o, **kwargs)
     elif "pipeline" in o:
@@ -277,13 +277,11 @@ def _load_pipeline(o, *, extra_funcs) -> TransformerPipeline:
 
 
 def load_pipeline(
-        o: Union[dict, list, tuple],
+        o: dict | list | tuple,
         *,
-        extra_functions: Optional[
-            Union[Callable, list[Callable], dict[str, Callable]]
-        ] = None,
-        extra_transformers: Optional[ModuleType] = None,
-        backend: Optional[str] = None,
+        extra_functions: Callable | list[Callable] | dict[str, Callable] | None = None,
+        extra_transformers: ModuleType | None = None,
+        backend: str | None = None,
         evaluate_loops: bool = True,
 ) -> TransformerPipeline:
     """Load a Nebula pipeline object starting from a dictionary.

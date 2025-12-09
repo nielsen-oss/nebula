@@ -3,7 +3,7 @@
 from enum import Enum
 from typing import Optional, Union
 
-from nlsn.nebula.pipelines.auxiliaries import *
+from nlsn.nebula.pipelines.pipe_aux import *
 from nlsn.nebula.pipelines.transformer_type_util import is_transformer
 
 __all__ = ["create_dag", "print_dag"]

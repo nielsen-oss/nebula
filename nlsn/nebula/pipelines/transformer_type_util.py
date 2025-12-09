@@ -2,7 +2,7 @@
 
 import inspect
 from inspect import Parameter
-from typing import List, Mapping
+from typing import Mapping
 
 from nlsn.nebula.base import Transformer
 
@@ -15,7 +15,7 @@ def is_transformer(o) -> bool:
 
 
 def _check_multiple_args(
-        param_names: List[str], params: Mapping[str, Parameter]
+        param_names: list[str], params: Mapping[str, Parameter]
 ) -> bool:
     """Check if additional parameters (after 'df') have default values.
 
@@ -42,7 +42,7 @@ def is_generic_transformer(o) -> bool:
 
     meth = getattr(o, "transform")
     params: Mapping[str, Parameter] = inspect.signature(meth).parameters
-    param_names: List[str] = list(params)
+    param_names: list[str] = list(params)
 
     # If 'o' is a class and not an object yet, remove the 'self' parameter
     # if 'transform' is not a static method.

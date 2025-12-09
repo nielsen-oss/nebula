@@ -20,7 +20,7 @@ from nlsn.nebula.df_types import GenericDataFrame, get_dataframe_type
 from nlsn.nebula.logger import logger
 from nlsn.nebula.pipelines._checks import *
 from nlsn.nebula.pipelines._dag import create_dag, print_dag
-from nlsn.nebula.pipelines.auxiliaries import *
+from nlsn.nebula.pipelines.pipe_aux import *
 from nlsn.nebula.pipelines.exceptions import *
 from nlsn.nebula.pipelines.transformer_type_util import is_transformer
 from nlsn.nebula.pipelines.util import *

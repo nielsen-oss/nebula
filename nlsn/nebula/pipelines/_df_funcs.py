@@ -1,7 +1,6 @@
 """functions for TransformerPipeline."""
 
 from functools import partial, reduce
-from typing import List, Optional, Tuple
 
 from nlsn.nebula.auxiliaries import get_symmetric_differences_in_sets
 from nlsn.nebula.df_types import GenericDataFrame, get_dataframe_type
@@ -15,7 +14,7 @@ __all__ = [
 ]
 
 
-def _ensure_same_cols_in_dfs(li_df: List["GenericDataFrame"]) -> None:
+def _ensure_same_cols_in_dfs(li_df: list["GenericDataFrame"]) -> None:
     sets = []
     for df in li_df:
         sets.append(set(df.columns))
@@ -26,7 +25,7 @@ def _ensure_same_cols_in_dfs(li_df: List["GenericDataFrame"]) -> None:
 
 
 def append_df(
-    li_df: List["GenericDataFrame"], allow_missing_cols: bool
+        li_df: list["GenericDataFrame"], allow_missing_cols: bool
 ) -> "GenericDataFrame":
     """Append a list of dataFrames."""
     df_type_name: str = get_dataframe_type(li_df[0])
@@ -71,7 +70,7 @@ def df_is_empty(df) -> bool:
 
 
 def join_dfs(
-    df_left, df_right, on, how: str, *, broadcast: Optional[bool] = None
+        df_left, df_right, on, how: str, *, broadcast: bool | None = None
 ) -> "GenericDataFrame":
     """Join two dataframes."""
     df_type_name: str = get_dataframe_type(df_left)
@@ -89,7 +88,7 @@ def join_dfs(
         raise ValueError(f"Unsupported dataframe type: {df_type_name}")
 
 
-def split_df(df, cfg: dict) -> Tuple["GenericDataFrame", "GenericDataFrame"]:
+def split_df(df, cfg: dict) -> tuple["GenericDataFrame", "GenericDataFrame"]:
     """Split a dataframe according to the given configuration."""
     df_type_name: str = get_dataframe_type(df)
     if df_type_name == "spark":
@@ -116,7 +115,7 @@ def split_df(df, cfg: dict) -> Tuple["GenericDataFrame", "GenericDataFrame"]:
     )
 
 
-def to_schema(li_df: list, schema) -> List["GenericDataFrame"]:
+def to_schema(li_df: list, schema) -> list["GenericDataFrame"]:
     """Cast a list of dataframes to a schema."""
     df_type_name: str = get_dataframe_type(li_df[0])
     if df_type_name == "spark":

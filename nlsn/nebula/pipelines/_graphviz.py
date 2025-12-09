@@ -7,13 +7,13 @@ dot.edge_attr.update(minlen="0")
 dot.graph_attr['rankdir'] = 'LR'
 """
 
-from typing import Any, Dict, Iterable, List, Tuple, Union
+from typing import Any, Iterable
 
 import yaml
 from graphviz import Digraph
 
 from nlsn.nebula.auxiliaries import split_string_in_chunks
-from nlsn.nebula.pipelines.auxiliaries import Node, NodeType
+from nlsn.nebula.pipelines.pipe_aux import Node, NodeType
 from nlsn.nebula.pipelines.util import get_transformer_name
 
 __all__ = ["create_graph"]
@@ -25,13 +25,13 @@ _MERGE_SHAPE: str = "rectangle"  # "invhouse", "invtrapezium", "ellipse", "invtr
 _MERGE_COLOR: str = "#067d17"  # "#595959", "#f40953", "#32bbb9" "purple"
 _INPUT_OUTPUT_DF_COLOR: str = "blue"
 
-_MERGE_BLOCK_STYLE: Dict[str, str] = {
+_MERGE_BLOCK_STYLE: dict[str, str] = {
     "shape": _MERGE_SHAPE,
     "color": _MERGE_COLOR,
     "style": "rounded",
 }
 
-_FONT_STYLE: Dict[str, str] = {  # keys & values must be <str>
+_FONT_STYLE: dict[str, str] = {  # keys & values must be <str>
     "fontname": "helvetica, verdana",
     "fontsize": "12",
 }
@@ -70,7 +70,7 @@ def __get_kws_row_html(a: str, b) -> str:
     return s
 
 
-def __get_kws_html(data: List[Tuple[str, Any]]) -> str:
+def __get_kws_html(data: list[tuple[str, Any]]) -> str:
     """Create the block: keywords without the tile and the final <>."""
     s = f'<FONT POINT-SIZE="{_KWS_FONT_SIZE}" FACE="{_KWS_FONT_NAME}">'
 
@@ -81,7 +81,7 @@ def __get_kws_html(data: List[Tuple[str, Any]]) -> str:
     return s
 
 
-def __get_block_html(title: str, data: List[Tuple[str, Any]]) -> str:
+def __get_block_html(title: str, data: list[tuple[str, Any]]) -> str:
     """Create the block: title + keywords."""
     s = f"<B>{title}</B><br/>"
     if data:
@@ -146,13 +146,13 @@ def __get_replace_with_stored_df_msg(x: str) -> str:
     return f'Replace DF with "{x}"'
 
 
-def __get_transformer_name(x: Node, add_params: bool = False) -> List[str]:
+def __get_transformer_name(x: Node, add_params: bool = False) -> list[str]:
     return get_transformer_name(
         x.data, add_params=add_params, as_list=add_params, max_len=-1
     )
 
 
-_STYLES: Dict[int, dict] = {
+_STYLES: dict[int, dict] = {
     NodeType.TRANSFORMER.value: {
         "shape": "rectangle",
         "color": "black",
@@ -295,14 +295,14 @@ def _add_transformer_description(el) -> str:
 
 
 def create_graph(
-    dag: List[Union[Node, dict]],
-    add_transformer_params: bool = False,
-    add_transformer_description: bool = False,
+        dag: list[Node | dict],
+        add_transformer_params: bool = False,
+        add_transformer_description: bool = False,
 ) -> Digraph:
     """Create the graphviz plot from the pipeline dag."""
     dot = Digraph()
 
-    el: Union[Node, dict]
+    el: Node | dict
 
     for el in dag:
         if isinstance(el, dict):
