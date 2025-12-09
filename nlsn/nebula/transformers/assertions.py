@@ -1,4 +1,4 @@
-"""Transformers to assert certain conditions."""
+"""Validations."""
 
 from nlsn.nebula.auxiliaries import ensure_flat_list
 from nlsn.nebula.base import Transformer

@@ -1,9 +1,4 @@
-"""Schema transformation operations.
-
-Transformers for modifying dataframe schema:
-- Type conversion of existing columns
-- Addition of new literal columns
-"""
+"""Type and schema operations."""
 
 import narwhals as nw
 
