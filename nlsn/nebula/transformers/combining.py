@@ -61,7 +61,7 @@ class AppendDataFrame(Transformer):
             raise ValueError(msg)
 
         df_native = nw.to_native(df)
-        if get_dataframe_type(df) == "pandas":
+        if get_dataframe_type(df_native) == "pandas":
             import pandas as pd
             # Let pandas allow the missing columns in the best manner
             if isinstance(df_union, (nw.LazyFrame, nw.DataFrame)):
