@@ -185,7 +185,7 @@ class ColumnsToMap(Transformer):
         self._cast_value: str | None = cast_values
         self._drop: bool = drop_input_columns
 
-    def _transform(self, df):
+    def _transform_spark(self, df):
         input_columns: list[str] = self._get_selected_columns(df)
         if self._excl_cols:
             input_columns = [i for i in input_columns if i not in self._excl_cols]
@@ -383,7 +383,7 @@ class MapToColumns(Transformer):
             msg = "All values provided for column aliases must not contain duplicates"
             raise TypeError(msg)
 
-    def _transform(self, df):
+    def _transform_spark(self, df):
         col_data_type = df.schema[self._input_col].dataType
         if not isinstance(col_data_type, MapType):
             raise TypeError(f"Column '{self._input_col}' is not of MapType.")
@@ -909,7 +909,7 @@ class AggregateOverWindow(_Window):
         if ints:
             raise AssertionError(f'Some aliased override "{name}": {ints}')
 
-    def _transform(self, df):
+    def _transform_spark(self, df):
         list_agg: list[tuple[F.col, str]] = []
         for el in self._aggregations:
             agg: F.col = getattr(F, el["agg"])(el["col"])
@@ -975,7 +975,7 @@ class LagOverWindow(_Window):
         self._output_col: str = output_col
         self._lag: int = lag
 
-    def _transform(self, df):
+    def _transform_spark(self, df):
         win = self._get_window
         return df.withColumn(
             self._output_col, F.lag(self._lag_col, self._lag).over(win)

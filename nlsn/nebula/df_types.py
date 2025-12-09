@@ -76,7 +76,7 @@ def get_dataframe_type(df) -> str:
         if isinstance(df, ps_DF):
             return "spark"
 
-    # Build helpful error message
+    # Build a helpful error message
     supported = []
     if HAS_PANDAS:
         supported.append("pandas.DataFrame")
