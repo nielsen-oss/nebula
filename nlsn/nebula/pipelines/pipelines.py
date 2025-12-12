@@ -1075,7 +1075,7 @@ class TransformerPipeline:
         if backend is not None:
             assert_allowed(backend, {"pandas", "polars", "spark"}, "backend")
 
-        skip = validate_skip_perform(skip, perform)
+        skip = should_skip_operation(skip, perform)
         ensure_no_branch_or_apply_to_rows_otherwise(branch, apply_to_rows, otherwise)
 
         self.branch: Optional[Dict[str, str]] = None

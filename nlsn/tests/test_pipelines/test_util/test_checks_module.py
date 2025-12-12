@@ -150,7 +150,7 @@ class TestEnsureNoBranchOrApplyToRowsOtherwise:
     )
     def test_invalid_cases(self, branch, apply_to_rows, otherwise):
         """Test invalid cases."""
-        with pytest.raises(AssertionError):
+        with pytest.raises(ValueError):
             ensure_no_branch_or_apply_to_rows_otherwise(
                 branch, apply_to_rows, otherwise
             )
@@ -158,10 +158,10 @@ class TestEnsureNoBranchOrApplyToRowsOtherwise:
 
 def test_ensure_no_branch_or_apply_to_rows_in_split_pipeline():
     """Test ensure_no_branch_or_apply_to_rows_in_split_pipeline function."""
-    with pytest.raises(AssertionError):
+    with pytest.raises(ValueError):
         ensure_no_branch_or_apply_to_rows_in_split_pipeline({"end": "some-end"}, None)
 
-    with pytest.raises(AssertionError):
+    with pytest.raises(ValueError):
         ensure_no_branch_or_apply_to_rows_in_split_pipeline(
             None, {"input_col": "x", "operator": "eq"}
         )
@@ -170,15 +170,15 @@ def test_ensure_no_branch_or_apply_to_rows_in_split_pipeline():
     ensure_no_branch_or_apply_to_rows_in_split_pipeline(None, None)
 
 
-class TestSkipPerformValidation:
-    """Test 'validate_skip_perform'."""
+class TestShouldSkipOperation:
+    """Test 'should_skip_operation'."""
 
     @staticmethod
     @pytest.mark.parametrize("skip, perform", [[True, True], [False, False]])
     def test_invalid(skip, perform):
         """Should raise AssertionError."""
-        with pytest.raises(AssertionError):
-            validate_skip_perform(skip, perform)
+        with pytest.raises(ValueError):
+            should_skip_operation(skip, perform)
 
     @staticmethod
     @pytest.mark.parametrize(
@@ -195,4 +195,4 @@ class TestSkipPerformValidation:
     )
     def test_valid(skip: Optional[bool], perform: Optional[bool], expected: bool):
         """Assert expected combinations."""
-        assert validate_skip_perform(skip, perform) is expected
+        assert should_skip_operation(skip, perform) is expected

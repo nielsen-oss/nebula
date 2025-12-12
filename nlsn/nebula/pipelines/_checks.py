@@ -1,122 +1,91 @@
 """Functions to check the user input."""
 
-from typing import Any, Optional, Union
+from typing import Any
+
+from nlsn.nebula.auxiliaries import validate_keys
 
 __all__ = [
     "assert_branch_inputs",
     "assert_apply_to_rows_inputs",
     "ensure_no_branch_or_apply_to_rows_in_split_pipeline",
     "ensure_no_branch_or_apply_to_rows_otherwise",
-    "validate_skip_perform",
+    "should_skip_operation",
 ]
-
-_APPLY_TO_ROWS_KEYS: dict[str, set[str]] = {
-    "mandatory": {"input_col", "operator"},
-    "optional": {"value", "comparison_column", "dead-end", "skip_if_empty"},
-}
-
-_BRANCH_KEYS: dict[str, set[str]] = {
-    "mandatory": {"end"},
-    "optional": {"storage", "on", "how", "broadcast", "skip", "perform"},
-}
-
-_BRANCH_END_VALUES = {
-    "join": {"mandatory": {"on", "how"}, "optional": {"broadcast", "skip", "perform"}},
-    "dead-end": {"mandatory": set(), "optional": {"skip", "perform"}},
-    "append": {"mandatory": set(), "optional": {"skip", "perform"}},
-}
 
 
 def _assert_is_dict(name: str, o):
     if not isinstance(o, dict):
-        raise TypeError(f"'{name}' must be <dict>, found {type(o)}")
+        raise TypeError(f"'{name}' must be a dict, got {type(o).__name__}")
 
 
-def _check_keys(name: str, o: Union[set, dict], cmp: dict[str, set[str]]):
-    """Check for necessary and optional keys."""
-    mandatory: set[str] = cmp["mandatory"]
-    optional: set[str] = cmp["optional"]
-
-    all_keys = mandatory.union(optional)
-    keys = set(o)
-    if not keys.issubset(all_keys):
-        excess = keys - all_keys
-        msg = f"'{name}' keys must be a subset of {all_keys}. "
-        msg += f"Unknown key(s): {excess}"
-        raise KeyError(msg)
-
-    if not mandatory.issubset(keys):
-        miss = mandatory - keys
-        msg = f"'{name}' must contain the key(s) {mandatory}. Missing: {miss}"
-        raise KeyError(msg)
-
-
-def assert_apply_to_rows_inputs(o: dict[str, Union[str, bool, None]]) -> None:
-    """Check the validity of an 'apply_to_rows' configuration dictionary.
-
-    Args:
-        o: Apply to rows configuration.
-
-    Raises:
-        TypeError: If the pipeline configuration is not a dictionary.
-        KeyError: If the provided required keys are not a subset of:
-            {"input_col", "operator", "value", "comparison_column"}.
-        ValueError: If both 'value' and 'comparison_column' are provided,
-                    or if 'input_col' == 'comparison_column',
-                    or if 'skip_if_empty' is not a boolean.
-    """
+def assert_apply_to_rows_inputs(o: dict[str, str | bool | None]) -> None:
+    """Check the validity of an 'apply_to_rows' configuration dictionary."""
     _assert_is_dict("apply_to_rows", o)
-    _check_keys("apply_to_rows", o, _APPLY_TO_ROWS_KEYS)
 
+    validate_keys(
+        "apply_to_rows",
+        o,
+        mandatory={"input_col", "operator"},
+        optional={"value", "comparison_column", "dead-end", "skip_if_empty"}
+    )
+
+    # Rest of validation...
     value = o.get("value")
     comparison_column = o.get("comparison_column")
     if (value is not None) and (comparison_column is not None):
-        msg = "Only one among 'value' and 'comparison_column' "
-        msg += "can be set for 'apply_to_rows'."
-        raise ValueError(msg)
+        raise ValueError(
+            "Only one of 'value' or 'comparison_column' can be set for 'apply_to_rows'"
+        )
 
     input_col = o["input_col"]
     if input_col == comparison_column:
-        msg = "'input_col' and 'comparison_column' cannot have the same value."
-        raise ValueError(msg)
+        raise ValueError("'input_col' and 'comparison_column' cannot have the same value")
 
     skip_if_empty = o.get("skip_if_empty", False)
     if skip_if_empty not in [True, False]:
-        raise ValueError("'skip_if_empty' must be either True or False.")
+        raise ValueError("'skip_if_empty' must be either True or False")
 
 
 def assert_branch_inputs(o: dict) -> None:
-    """Check the validity of a 'branch' configuration dictionary.
-
-    Args:
-        o (dict):
-            Branch configuration.
-
-    Raises:
-        TypeError: If the pipeline configuration is not a dictionary.
-        KeyError: If the provided required keys are not a subset of:
-            {"storage", "end", "on", "how", "skip", "perform"}.
-        ValueError: If the value for 'end' is not in the allowed.
-    """
-    # FIXME: use 'validate_keys' from auxiliaries
+    """Check the validity of a 'branch' configuration dictionary."""
     _assert_is_dict("branch", o)
-    _check_keys("branch", o, _BRANCH_KEYS)
+
+    validate_keys(
+        "branch",
+        o,
+        mandatory={"end"},
+        optional={"storage", "on", "how", "broadcast", "skip", "perform"}
+    )
 
     end_value = o["end"]
-    allowed_ends = set(_BRANCH_END_VALUES)
+    allowed_ends = {"join", "dead-end", "append"}
     if end_value not in allowed_ends:
-        raise ValueError(f"The 'end' value must be in {allowed_ends}")
+        raise ValueError(f"'end' must be one of {allowed_ends}, got: {end_value}")
 
-    keys: set[str] = set(o).copy() - {"end", "storage"}
-    sub_name = f"'branch[{end_value}]'"
-    _check_keys(sub_name, keys, _BRANCH_END_VALUES[end_value])
-    validate_skip_perform(o.get("skip"), o.get("perform"))
+    # Validate end-specific keys
+    keys = set(o) - {"end", "storage"}
+    if end_value == "join":
+        validate_keys(
+            f"branch[end='{end_value}']",
+            keys,
+            mandatory={"on", "how"},
+            optional={"broadcast", "skip", "perform"}
+        )
+    elif end_value in {"dead-end", "append"}:
+        validate_keys(
+            f"branch[end='{end_value}']",
+            keys,
+            mandatory=set(),
+            optional={"skip", "perform"}
+        )
+
+    should_skip_operation(o.get("skip"), o.get("perform"))
 
 
 def ensure_no_branch_or_apply_to_rows_otherwise(
-        branch: Optional[dict[str, Union[str, bool]]],
-        apply_to_rows: Optional[dict[str, Union[str, bool]]],
-        otherwise: Optional[dict[str, Any]],
+        branch: dict[str, str | bool] | None,
+        apply_to_rows: dict[str, str | bool] | None,
+        otherwise: dict[str, Any] | None,
 ) -> None:
     """Ensure that 'branch', 'apply_to_rows' and 'otherwise' are valid.
 
@@ -126,18 +95,18 @@ def ensure_no_branch_or_apply_to_rows_otherwise(
         otherwise: Otherwise configuration.
 
     Raises:
-        AssertionError: If the combination of inputs is invalid.
+        ValueError: If the combination of inputs is invalid.
     """
     if branch and apply_to_rows:
         msg = "The user cannot provide at the same time "
         msg += "'branch' and 'apply_to_rows'"
-        raise AssertionError(msg)
+        raise ValueError(msg)
 
     if otherwise:
         if not (branch or apply_to_rows):
             msg = "'Otherwise' can be provided only for "
             msg += "'branch' and 'apply_to_rows'"
-            raise AssertionError(msg)
+            raise ValueError(msg)
 
         msg_dead_end = "'Otherwise' cannot be provided in '{}' where "
         msg_dead_end += "'end' == 'dead-end', append another pipeline instead"
@@ -147,16 +116,16 @@ def ensure_no_branch_or_apply_to_rows_otherwise(
                 msg = "'Otherwise' cannot be provided in 'branch' where "
                 msg += "the 'storage' is set, do the transformation "
                 msg += "before branching instead"
-                raise AssertionError(msg)
+                raise ValueError(msg)
             if branch["end"] == "dead-end":
-                raise AssertionError(msg_dead_end.format("branch"))
+                raise ValueError(msg_dead_end.format("branch"))
         if apply_to_rows:
             if apply_to_rows.get("dead-end"):
-                raise AssertionError(msg_dead_end.format("apply_to_rows"))
+                raise ValueError(msg_dead_end.format("apply_to_rows"))
 
 
 def ensure_no_branch_or_apply_to_rows_in_split_pipeline(
-        branch: Optional[dict[str, Any]], apply_to_rows: Optional[dict[str, Any]]
+        branch: dict[str, Any] | None, apply_to_rows: dict[str, Any] | None
 ) -> None:
     """Ensure that 'branch' and 'apply_to_rows' are not passed in split-pipelines.
 
@@ -165,28 +134,25 @@ def ensure_no_branch_or_apply_to_rows_in_split_pipeline(
         apply_to_rows: Apply to rows configuration.
 
     Raises:
-        AssertionError: If either 'branch' or 'apply_to_rows' is provided.
+        ValueError: If either 'branch' or 'apply_to_rows' is provided.
     """
     if branch:
         msg = "'branch' cannot be provided for 'split pipelines'."
-        raise AssertionError(msg)
+        raise ValueError(msg)
 
     if apply_to_rows:
         msg = "'apply_to_rows' cannot be provided for 'split pipelines'."
-        raise AssertionError(msg)
+        raise ValueError(msg)
 
 
-def validate_skip_perform(skip: Optional[bool], perform: Optional[bool]) -> bool:
-    """Validate that the skip and perform flags are not set contradictorily.
-
-    Return True if the user requests NOT to perform the operation, False otherwise.
-    """
-    # if both are explicitly provided, check the consistency
+def should_skip_operation(skip: bool | None, perform: bool | None) -> bool:
+    """Return True if operation should be skipped."""
     if isinstance(skip, bool) and isinstance(perform, bool):
-        if (bool(skip) + bool(perform)) != 1:
-            raise AssertionError("skip and perform cannot be contradictory")
+        if skip == perform:  # Both True or both False = contradiction
+            raise ValueError(
+                "'skip' and 'perform' cannot both be True or both be False"
+            )
 
-    # If perform is explicitly False, the user wants to skip.
     if perform is False:
         return True
 
