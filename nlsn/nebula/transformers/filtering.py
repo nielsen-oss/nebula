@@ -93,10 +93,11 @@ class DropNulls(Transformer):
         # Add NaN check only for numeric columns
         if self._drop_na:
             # Get numeric columns from selection
+            float_types = [pl.Float32, pl.Float64, pl.Decimal]
             if subset:
-                numeric_cols = [c for c in subset if df[c].dtype in pl.NUMERIC_DTYPES]
+                numeric_cols = [c for c in subset if df[c].dtype in float_types]
             else:
-                numeric_cols = [c for c in df.columns if df[c].dtype in pl.NUMERIC_DTYPES]
+                numeric_cols = [c for c in df.columns if df[c].dtype in float_types]
 
             if numeric_cols:
                 cond |= meth(pl.col(*numeric_cols).is_nan())
