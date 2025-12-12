@@ -202,7 +202,7 @@ def _remove_last_transformers(li: List[Transformer], n: int) -> None:
             # Stop when the desired number of integers is removed
             if count == n:
                 break
-        elif is_storage_request(obj).value > 0:
+        elif parse_storage_request(obj).value > 0:
             # It is related to nebula storage, do nothing.
             continue
         else:
@@ -388,7 +388,7 @@ def _create_stages(
         return stages, count_transformers
 
     elif (
-        is_storage_request(obj).value > 0
+            parse_storage_request(obj).value > 0
     ):  # Check whether the input is a storage request
         # It is related to the nebula storage, do nothing, just append.
         stages.append(obj)
@@ -430,7 +430,7 @@ def _run_pipeline(
         forced_trf (Transformer | None):
             Forced interleaved transformer.
     """
-    _storage_request: Enum = is_storage_request(obj)
+    _storage_request: Enum = parse_storage_request(obj)
 
     if isinstance(obj, (list, tuple)):
         # Get formatted names for logging
@@ -707,7 +707,7 @@ def _show_pipeline(
     Raises:
         TypeError: If the type of the input object is not understood.
     """
-    _storage_request: Enum = is_storage_request(obj)
+    _storage_request: Enum = parse_storage_request(obj)
 
     # obj is a transformer
     if is_transformer(obj):
@@ -1319,7 +1319,7 @@ class TransformerPipeline:
             self._pipe_type = NodeType.LINEAR_PIPELINE
 
         elif isinstance(data, dict):
-            if is_storage_request(data).value > 0:
+            if parse_storage_request(data).value > 0:
                 self._pipe_type = NodeType.LINEAR_PIPELINE
                 return data
 

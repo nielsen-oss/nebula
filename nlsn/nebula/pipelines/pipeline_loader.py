@@ -6,7 +6,7 @@ from typing import Callable
 from nlsn.nebula.auxiliaries import extract_kwarg_names
 from nlsn.nebula.base import LazyWrapper, Transformer
 from nlsn.nebula.pipelines.loop_exploder import explode_loops_in_pipeline
-from nlsn.nebula.pipelines.pipelines import TransformerPipeline, is_storage_request
+from nlsn.nebula.pipelines.pipelines import TransformerPipeline, parse_storage_request
 from nlsn.nebula.pipelines.util import create_dict_extra_functions
 from nlsn.nebula.storage import nebula_storage as ns
 
@@ -129,7 +129,7 @@ def _load_generic(o, **kwargs) -> TransformerPipeline | Transformer | dict:
         return _load_pipeline(o, **kwargs)
     # elif ("pipeline" in o) and ("branch" not in o):
     #     return _load_pipeline(o, **kwargs)
-    elif is_storage_request(o):
+    elif parse_storage_request(o):
         return o
     else:  # pragma: no cover
         msg = "Not understood. At this stage the loader is looking "
@@ -218,7 +218,7 @@ def _load_pipeline(o, *, extra_funcs) -> TransformerPipeline:
     if isinstance(o_pipe, dict):
         if "transformer" in o_pipe:  # split w/ a single transformer
             input_pipe_data = _load_objects([o_pipe])
-        elif is_storage_request(o_pipe).value > 0:
+        elif parse_storage_request(o_pipe).value > 0:
             input_pipe_data = o_pipe
         else:  # split pipeline
             input_pipe_data = {}

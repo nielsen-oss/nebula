@@ -78,7 +78,7 @@ class _DAG:
     def _create_dag(self, obj):
         """Create the pipeline tree and nodes."""
         # Check whether 'obj' is a storage request
-        _storage_request: Enum = is_storage_request(obj)
+        _storage_request: Enum = parse_storage_request(obj)
         if is_transformer(obj):
             self.__update_dag(obj, NodeType.TRANSFORMER)
 

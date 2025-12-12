@@ -1,6 +1,6 @@
 """Pipeline utils."""
 
-from typing import Callable, Dict, List, Union
+from typing import Callable
 
 from nlsn.nebula.auxiliaries import truncate_long_string
 from nlsn.nebula.base import (
@@ -22,8 +22,8 @@ __all__ = [
 
 
 def create_dict_extra_functions(
-    o: Union[Callable, List[Callable], Dict[str, Callable]]
-) -> Dict[str, Callable]:
+        o: Callable | list[Callable] | dict[str, Callable]
+) -> dict[str, Callable]:
     """Create a dictionary of extra functions from a list or dictionary.
 
     Args:
@@ -104,8 +104,8 @@ def is_lazy_transformer(t) -> bool:
     return isinstance(t, LazyWrapper)
 
 
-def is_plain_transformer_list(lst: Union[list, tuple]) -> bool:
-    """True if the iterable contains only Transformer Types."""
+def is_plain_transformer_list(lst: list | tuple) -> bool:
+    """True if the iterable contains only Transformers (or is empty)."""
     return all(is_transformer(i) for i in lst)
 
 
@@ -131,8 +131,8 @@ def get_pipeline_name(o) -> str:
 
 
 def _get_transformer_params_formatted(
-    tf_name: str, *, li_attrs: List[str], as_list: bool, max_len: int, wrap_text: bool
-) -> Union[str, List[str]]:
+        tf_name: str, *, li_attrs: list[str], as_list: bool, max_len: int, wrap_text: bool
+) -> str | list[str]:
     if not li_attrs:  # pragma: no cover
         return [tf_name] if as_list else tf_name
 
@@ -146,7 +146,7 @@ def _get_transformer_params_formatted(
     elif as_list:
         if max_len > 0:
             li_attrs = [truncate_long_string(i, max_len) for i in li_attrs]
-        ret: List[str] = [tf_name, *li_attrs]
+        ret: list[str] = [tf_name, *li_attrs]
     else:
         str_params: str = truncate_long_string(", ".join(li_attrs), max_len)
         ret: str = tf_name + " -> PARAMS: " + str_params
@@ -155,13 +155,13 @@ def _get_transformer_params_formatted(
 
 
 def get_transformer_name(
-    obj: Union[Transformer, LazyWrapper],
-    *,
-    add_params: bool = False,
-    max_len: int = 80,
-    wrap_text: bool = False,
-    as_list: bool = False,
-) -> Union[str, List[str]]:
+        obj: Transformer | LazyWrapper,
+        *,
+        add_params: bool = False,
+        max_len: int = 80,
+        wrap_text: bool = False,
+        as_list: bool = False,
+) -> str | list[str]:
     """Get the name of a transformer object.
 
     Args:
@@ -221,7 +221,7 @@ def get_transformer_name(
     if not add_params:
         return [tf_name] if as_list else tf_name
 
-    li_attrs: List[str] = []
+    li_attrs: list[str] = []
     v_show: str
 
     if is_lazy:
@@ -266,7 +266,7 @@ def get_transformer_name(
     )
 
 
-def sanitize_list_transformers(transformers) -> List[Transformer]:
+def sanitize_list_transformers(transformers) -> list[Transformer]:
     """Ensure that the input object is a flat list of transformers.
 
     Args:
@@ -278,12 +278,12 @@ def sanitize_list_transformers(transformers) -> List[Transformer]:
 
     Raises: ValueError if a not allowed type is passed.
     """
-    ret: List[Transformer]
+    ret: list[Transformer]
     if transformers:
         if is_transformer(transformers):
             ret = [transformers]
         else:
-            msg = '"" must be a <Transformer> or a <list<Transformer>>'
+            msg = 'Argument  must be a <Transformer> or a <list<Transformer>>'
             if not isinstance(transformers, (list, tuple)):
                 raise ValueError(msg)
             if not all(is_transformer(i) for i in transformers):

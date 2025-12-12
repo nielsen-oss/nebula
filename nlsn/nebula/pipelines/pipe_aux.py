@@ -13,7 +13,7 @@ __all__ = [
     "get_replace_with_stored_df_msg",
     "get_store_debug_key_msg",
     "get_store_key_msg",
-    "is_storage_request",
+    "parse_storage_request",
 ]
 
 MSG_ACTIVATE_DEBUG_MODE: str = "Activate storage debug mode"
@@ -110,7 +110,7 @@ def get_store_key_msg(d: dict) -> tuple[str, str]:
     return key, msg
 
 
-def is_storage_request(o) -> StoreRequest:
+def parse_storage_request(o) -> StoreRequest:
     """Checks if the given object represents a storage request and parse it.
 
     A storage request is a <dictionary<str>,<str>> with only

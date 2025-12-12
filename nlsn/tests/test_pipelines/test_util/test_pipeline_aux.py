@@ -4,7 +4,7 @@ import pytest
 
 from nlsn.nebula.pipelines.pipelines import (
     _remove_last_transformers,
-    is_storage_request,
+    parse_storage_request,
 )
 from nlsn.nebula.transformers import AssertNotEmpty
 
@@ -27,7 +27,7 @@ class TestStorageRequest:
     )
     def test_wrong_request(o):
         """Test 'is_storage_request' function and expect 0."""
-        assert is_storage_request(o).value == 0
+        assert parse_storage_request(o).value == 0
 
     @staticmethod
     @pytest.mark.parametrize(
@@ -42,7 +42,7 @@ class TestStorageRequest:
     def test_wrong_value_type(o):
         """Wrong value type."""
         with pytest.raises(TypeError):
-            is_storage_request(o)
+            parse_storage_request(o)
 
     @staticmethod
     @pytest.mark.parametrize(
@@ -57,7 +57,7 @@ class TestStorageRequest:
     )
     def test_valid_key(key):
         """Valid requests."""
-        assert is_storage_request(key).value > 0
+        assert parse_storage_request(key).value > 0
 
 
 @pytest.mark.parametrize(

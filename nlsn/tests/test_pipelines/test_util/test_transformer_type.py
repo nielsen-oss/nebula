@@ -3,7 +3,7 @@
 import pytest
 
 from nlsn.nebula.pipelines.transformer_type_util import (
-    is_generic_transformer,
+    is_duck_typed_transformer,
     is_transformer,
 )
 from nlsn.nebula.transformers import AssertNotEmpty
@@ -137,9 +137,9 @@ class TransformerKoKeyWordOnlyDFStatic:
 def test_valid_transformer_type(cls):
     """Test valid transformers w/o known parent class."""
     # classes
-    assert is_generic_transformer(cls)
+    assert is_duck_typed_transformer(cls)
     # objects
-    assert is_generic_transformer(cls())
+    assert is_duck_typed_transformer(cls())
 
 
 @pytest.mark.parametrize(
@@ -159,9 +159,9 @@ def test_valid_transformer_type(cls):
 def test_not_valid_transformer_type(cls):
     """Test not valid transformers w/o known parent class."""
     # classes
-    assert not is_generic_transformer(cls)
+    assert not is_duck_typed_transformer(cls)
     # objects
-    assert not is_generic_transformer(cls())
+    assert not is_duck_typed_transformer(cls())
 
 
 @pytest.mark.parametrize(

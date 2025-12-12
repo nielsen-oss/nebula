@@ -1,5 +1,7 @@
 """Pipeline exceptions module."""
 
+from typing import NoReturn
+
 from nlsn.nebula.backend_util import HAS_SPARK
 
 if HAS_SPARK:
@@ -17,7 +19,7 @@ class PipelineError(Exception):
     pass
 
 
-def raise_pipeline_error(e: Exception, msg: str) -> None:
+def raise_pipeline_error(e: Exception, msg: str) -> NoReturn:
     """Handle pipeline errors with enhanced context.
 
     Gracefully handles Spark-specific exceptions when available,

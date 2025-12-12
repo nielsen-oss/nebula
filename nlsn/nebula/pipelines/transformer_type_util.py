@@ -6,12 +6,12 @@ from typing import Mapping
 
 from nlsn.nebula.base import Transformer
 
-__all__ = ["is_transformer", "is_generic_transformer"]
+__all__ = ["is_transformer", "is_duck_typed_transformer"]
 
 
 def is_transformer(o) -> bool:
     """Check if an object is a transformer."""
-    return isinstance(o, Transformer) or is_generic_transformer(o)
+    return isinstance(o, Transformer) or is_duck_typed_transformer(o)
 
 
 def _check_multiple_args(
@@ -35,8 +35,34 @@ def _check_multiple_args(
     return all(params[name].default != Parameter.empty for name in param_names[1:])
 
 
-def is_generic_transformer(o) -> bool:
-    """Check if the input is a generic transformer object w/o any known parent class."""
+def is_duck_typed_transformer(o) -> bool:
+    """Check if object is a valid transformer via duck-typing.
+
+    Allows custom transformers that don't inherit from Transformer.
+    Must have a transform method with signature: transform(df, *args)
+    where additional parameters have default values.
+
+    Design notes:
+    - First parameter name is flexible (df, data, etc.)
+    - First parameter must be positional (not keyword-only)
+    - Static methods are supported
+    - Works with both class definitions and instances
+
+    Args:
+        o: Object to check (can be class or instance)
+
+    Returns:
+        True if object has valid transform method signature
+
+    Examples:
+        >>> class MyTransformer:
+        ...     def transform(self, df, option=True):
+        ...         return df
+        >>> is_duck_typed_transformer(MyTransformer)
+        True
+        >>> is_duck_typed_transformer(MyTransformer())
+        True
+    """
     if not hasattr(o, "transform"):
         return False
 
