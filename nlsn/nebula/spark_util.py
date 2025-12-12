@@ -18,7 +18,6 @@ from nlsn.nebula.logger import logger
 
 __all__ = [
     "ALLOWED_SPARK_HASH",
-    "cache_if_needed",
     "cast_to_schema",
     "compare_dfs",
     "drop_duplicates_no_randomness",
@@ -458,12 +457,3 @@ def is_broadcast(df) -> bool:
     # Check if "Broadcast" is in the captured output
     explain_output = my_stdout.getvalue()
     return "broadcast" in explain_output.lower()
-
-
-def cache_if_needed(df, do_cache: bool):  # FIXME: useful ?
-    """Cache the dataframe if is not already cached."""
-    if not do_cache:
-        return df
-    if not isinstance(df, _psql.DataFrame):
-        return df
-    return df.cache()

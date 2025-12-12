@@ -26,7 +26,6 @@ from nlsn.nebula.auxiliaries import (
 from nlsn.nebula.base import Transformer
 from nlsn.nebula.logger import logger
 from nlsn.nebula.spark_util import (
-    cache_if_needed,
     drop_duplicates_no_randomness,
     get_data_skew,
     get_default_spark_partitions,
@@ -297,7 +296,8 @@ class LogDataSkew(Transformer):
         self._persist: bool = persist
 
     def _transform_spark(self, df):
-        df = cache_if_needed(df, self._persist)
+        if self._persist and (not df.is_cached):
+            df = df.cache()
 
         dict_skew = get_data_skew(df, as_dict=True)
         n_part: int = dict_skew["partitions"]
