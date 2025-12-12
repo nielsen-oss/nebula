@@ -18,6 +18,7 @@ from nlsn.nebula.auxiliaries import (
 from nlsn.nebula.base import LazyWrapper, Transformer
 from nlsn.nebula.df_types import GenericDataFrame, get_dataframe_type
 from nlsn.nebula.logger import logger
+from nlsn.nebula.nw_util import df_is_empty
 from nlsn.nebula.pipelines._checks import *
 from nlsn.nebula.pipelines._dag import create_dag, print_dag
 from nlsn.nebula.pipelines.pipe_aux import *

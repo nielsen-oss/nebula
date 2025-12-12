@@ -2,6 +2,7 @@
 
 from nlsn.nebula.auxiliaries import ensure_flat_list
 from nlsn.nebula.base import Transformer
+from nlsn.nebula.nw_util import df_is_empty
 
 __all__ = [
     "AssertContainsColumns",
@@ -125,22 +126,7 @@ class AssertNotEmpty(Transformer):
         super().__init__()
         self._df_name: str = df_name
 
-    def _transform_polars(self, df):
-        import polars as pl
-        if isinstance(df, pl.LazyFrame):
-            if df.limit(1).collect().is_empty():
-                raise AssertionError(f"{self._df_name} is empty")
-        else:
-            if df.is_empty():
-                raise AssertionError(f"{self._df_name} is empty")
-        return df
-
-    def _transform_pandas(self, df):
-        if df.empty:
-            raise AssertionError(f"{self._df_name} is empty")
-        return df
-
-    def _transform_spark(self, df):
-        if df.isEmpty():
+    def transform(self, df):
+        if df_is_empty(df):  # Directly handle the dataframe type
             raise AssertionError(f"{self._df_name} is empty")
         return df

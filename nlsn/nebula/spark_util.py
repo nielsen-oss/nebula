@@ -139,6 +139,7 @@ def compare_dfs(
             If the hashed and sorted data content of the dataframes is not equal
             and `return_mismatched_rows` is False.
     """
+    # FIXME: in helpers?
     if columns is None:
         if set(df1.columns) != set(df2.columns):
             raise AssertionError("Different columns in the dataframes!")

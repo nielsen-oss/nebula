@@ -1,4 +1,4 @@
-"""Unit-test for spark 'columns' transformers."""
+"""Unit-test for 'selection' transformers."""
 
 from itertools import product
 
@@ -25,16 +25,16 @@ class TestDropColumns:
         [
             ("pandas", True, {"columns": ["c1", "c3"]}),
             ("polars", True, {"glob": "c*"}),
-            ("spark", False, {"regex": "c[1-5]"}),
+            ("polars", False, {"regex": "c[1-5]"}),
         ],
     )
-    def test_drop_columns(self, spark, backend: str, is_nw: bool, kws):
+    def test_drop_columns(self, backend: str, is_nw: bool, kws):
         """Test several combinations."""
         data = _get_random_int_data(5, len(_columns_product))
         df_input = pd.DataFrame(data, columns=_columns_product)
         input_columns: list[str] = df_input.columns.tolist()
 
-        df_input = from_pandas(df_input, backend, is_nw, spark=spark)
+        df_input = from_pandas(df_input, backend, is_nw)
 
         cols2drop = get_expected_columns(input_columns, **kws)
         exp_cols = [i for i in input_columns if i not in cols2drop]
@@ -81,7 +81,7 @@ class TestRenameColumns:
                     ["col_c0", "c1", "c2", "c3", "c4", "col_d0", "d1", "d2", "d3", "d4"],
             ),
             (
-                    "spark",
+                    "polars",
                     True,
                     {"regex_pattern": "^c", "regex_replacement": "column_"},
                     [
@@ -99,12 +99,12 @@ class TestRenameColumns:
             ),
         ],
     )
-    def test_rename_columns(self, spark, backend, is_nw, kws, expected):
+    def test_rename_columns(self, backend, is_nw, kws, expected):
         """Test several combinations."""
         data = _get_random_int_data(5, len(_columns_product))
         df_input = pd.DataFrame(data, columns=_columns_product)
 
-        df_input = from_pandas(df_input, backend, is_nw, spark=spark)
+        df_input = from_pandas(df_input, backend, is_nw)
 
         t = RenameColumns(**kws)
         df_out = t.transform(df_input)
@@ -121,15 +121,14 @@ class TestSelectColumns:
         [
             ("pandas", True, {"columns": "c3"}),
             ("polars", False, {"glob": "*"}),
-            ("spark", True, {"regex": "c[23]"}),
         ],
     )
-    def test_select_columns(self, spark, backend: str, is_nw: bool, kws):
+    def test_select_columns(self, backend: str, is_nw: bool, kws):
         data = _get_random_int_data(5, len(_columns_product))
         df_input = pd.DataFrame(data, columns=_columns_product)
         input_columns: list[str] = df_input.columns.tolist()
 
-        df_input = from_pandas(df_input, backend, is_nw, spark=spark)
+        df_input = from_pandas(df_input, backend, is_nw)
 
         exp_cols = get_expected_columns(input_columns, **kws)
 

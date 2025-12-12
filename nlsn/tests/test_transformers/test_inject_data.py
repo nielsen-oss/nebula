@@ -1,4 +1,5 @@
 """Unit-test for Pandas / Polars CreateDataFrame."""
+import os
 
 import pandas as pd
 import pytest
@@ -43,6 +44,7 @@ class TestInjectData:  # FIXME: move to keyword
         finally:
             ns.clear()
 
+    @pytest.mark.skipif(os.environ.get("TESTS_NO_SPARK") == "true", reason="no spark")
     @pytest.mark.parametrize("broadcast", [True, False])
     def test_spark(self, spark, broadcast):
         data = {"c1": [1, 2], "c2": [3, 4]}

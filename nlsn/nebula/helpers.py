@@ -1,5 +1,7 @@
 """Module containing helper functions."""
 
+# FIXME: generalize for pandas / spark / polars?
+
 import json
 from typing import Hashable
 

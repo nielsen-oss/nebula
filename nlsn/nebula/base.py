@@ -84,8 +84,8 @@ class Transformer(metaclass=InitParamsStorage):
 
     def transform(self, df):
         """Public transform method."""
-        if isinstance(df, nw.DataFrame):
-            # narwhals df in -> narwhals df out
+        if isinstance(df, (nw.DataFrame, nw.LazyFrame)):
+            # narwhals in -> narwhals out
             if hasattr(self, '_transform_nw'):  # it's nw compatible
                 return self._transform_nw(df)
             else:  # it requires separated logic

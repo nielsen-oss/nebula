@@ -3,8 +3,10 @@ from typing import Iterable
 import narwhals as nw
 
 from nlsn.nebula.auxiliaries import assert_allowed
+from nlsn.nebula.df_types import get_dataframe_type
 
 __all__ = [
+    "df_is_empty",
     "get_condition",
     "null_cond_to_false",
     "validate_operation",
@@ -20,6 +22,26 @@ _allowed_operators = (
         | STRING_OPERATORS
         | MEMBERSHIP_OPERATORS
 )
+
+
+def df_is_empty(df_input) -> bool:
+    """Check whether a dataframe is empty."""
+    if isinstance(df_input, (nw.DataFrame, nw.LazyFrame)):
+        df = nw.to_native(df_input)
+    else:
+        df = df_input
+    df_type_name: str = get_dataframe_type(df)
+    if df_type_name == "pandas":
+        return df.empty
+    elif df_type_name == "polars":
+        import polars as pl
+        if isinstance(df, pl.LazyFrame):
+            return df.limit(1).collect().is_empty()
+        return df.is_empty()
+    elif df_type_name == "spark":
+        return df.isEmpty()
+    else:  # pragma: no cover
+        raise ValueError(f"Unsupported dataframe type: {df_type_name}")
 
 
 def null_cond_to_false(cond: nw.Expr) -> nw.Expr:

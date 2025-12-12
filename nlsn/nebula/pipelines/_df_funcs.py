@@ -7,7 +7,6 @@ from nlsn.nebula.df_types import GenericDataFrame, get_dataframe_type
 
 __all__ = [
     "append_df",
-    "df_is_empty",
     "join_dfs",
     "split_df",
     "to_schema",
@@ -52,19 +51,6 @@ def append_df(
             cols = li_df[0].columns
             li_df_consistent = [_df[cols] for _df in li_df]
             return pl.concat(li_df_consistent, rechunk=True)
-    else:  # pragma: no cover
-        raise ValueError(f"Unsupported dataframe type: {df_type_name}")
-
-
-def df_is_empty(df) -> bool:
-    """Check whether a dataframe is empty."""
-    df_type_name: str = get_dataframe_type(df)
-    if df_type_name == "spark":
-        return df.rdd.isEmpty()
-    elif df_type_name == "pandas":
-        return df.shape[0] == 0
-    elif df_type_name == "polars":
-        return df.shape[0] == 0
     else:  # pragma: no cover
         raise ValueError(f"Unsupported dataframe type: {df_type_name}")
 

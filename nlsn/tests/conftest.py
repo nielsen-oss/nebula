@@ -20,6 +20,7 @@ def start_spark():
     do not execute any test related to spark.
     """
     if os.environ.get("TESTS_NO_SPARK"):
+        yield None
         return
 
     venv_python = sys.executable

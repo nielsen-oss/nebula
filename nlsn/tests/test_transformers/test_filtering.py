@@ -1,3 +1,5 @@
+import os
+
 import narwhals as nw
 import pandas as pd
 import polars as pl
@@ -32,6 +34,7 @@ class TestDropNulls:
         ]
         return spark.createDataFrame(data, schema=StructType(fields)).persist()
 
+    @pytest.mark.skipif(os.environ.get("TESTS_NO_SPARK") == "true", reason="no spark")
     def test_spark_no_subset(self, df_input_spark):
         """Test DiscardNulls transformer w/o any subsets."""
         how = "any"
@@ -40,15 +43,14 @@ class TestDropNulls:
         df_exp = df_input_spark.dropna(how=how)
         assert_df_equality(df_chk, df_exp, ignore_row_order=True)
 
+    @pytest.mark.skipif(os.environ["TESTS_NO_SPARK"] == "true", reason="spark not available")
     @pytest.mark.parametrize("how", ["any", "all"])
     def test_spark_columns_subset(self, df_input_spark, how):
         """Test DiscardNulls transformer selecting specific columns."""
         subset = ["a_1", "b_1"]
         t = DropNulls(columns=subset, how=how)
         df_chk = t.transform(df_input_spark)
-
         df_exp = df_input_spark.dropna(subset=subset, how=how)
-
         assert_df_equality(df_chk, df_exp, ignore_row_order=True)
 
     def test_polars_any_all_columns(self):
@@ -135,7 +137,6 @@ class TestDropNulls:
         # Verify NaN is still present
         assert result["value"][1] != result["value"][1]  # NaN != NaN
 
-
     @pytest.mark.parametrize("how", ["any", "all"])
     def test_pandas_how(self, how: str):
         """Test 'how' parameter in pandas."""
@@ -161,18 +162,6 @@ class TestDropNulls:
         df_chk = t.transform(df)
         df_exp = df.dropna(thresh=thresh)
         pd.testing.assert_frame_equal(df_chk, df_exp)
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 class TestFilterValidation:

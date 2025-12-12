@@ -1,4 +1,5 @@
 """Unit-test for AssertNotEmpty."""
+import os
 
 import pandas as pd
 import polars as pl
@@ -130,6 +131,7 @@ class TestAssertNotEmpty:
         with pytest.raises(AssertionError):
             t.transform(df)
 
+    @pytest.mark.skipif(os.environ.get("TESTS_NO_SPARK") == "true", reason="no spark")
     def test_spark_empty(self, spark):
         df = spark.createDataFrame([], schema="a: int, b: int")
         t = AssertNotEmpty()

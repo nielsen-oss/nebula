@@ -13,6 +13,7 @@ class TestGetDataframeType:
 
     @pytest.mark.parametrize("backend", TEST_BACKENDS)
     def test_valid(self, spark, backend):
+        """Test dataframe type detection for all backends."""
         df_pd = pd.DataFrame({"a": [1], "b": [2.0]})
         df = from_pandas(df_pd, backend, to_nw=False, spark=spark)
         chk = get_dataframe_type(df)
@@ -20,5 +21,6 @@ class TestGetDataframeType:
 
     @staticmethod
     def test_invalid():
+        """Test that invalid input raises TypeError."""
         with pytest.raises(TypeError):
             get_dataframe_type([])

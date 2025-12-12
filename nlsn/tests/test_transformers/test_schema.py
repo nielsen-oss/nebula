@@ -1,5 +1,5 @@
 """Unit-test for schema transformers."""
-
+import os
 from decimal import Decimal
 
 import narwhals as nw
@@ -252,6 +252,7 @@ class TestAddLiterals:
             assert all(df_out_native[f"col_{i}"] == i)
 
     @staticmethod
+    @pytest.mark.skipif(os.environ.get("TESTS_NO_SPARK") == "true", reason="no spark")
     def test_with_spark(spark):
         """Test with Spark backend."""
         data_spark = [(1, 2), (3, 4)]
@@ -495,6 +496,7 @@ class TestCast:
         assert result["time_col"][0] == time(12, 30, 45)
         assert result["duration_col"][0] == timedelta(microseconds=1000000)
 
+    @pytest.mark.skipif(os.environ.get("TESTS_NO_SPARK") == "true", reason="no spark")
     def test_spark(self, spark):
         """Test casting all valid types in Spark."""
         from pyspark.sql import Row
@@ -585,6 +587,7 @@ class TestCast:
         assert first_row["struct_col"]["age"] == 30
         assert first_row["map_col"]["key1"] == 1
 
+    @pytest.mark.skipif(os.environ.get("TESTS_NO_SPARK") == "true", reason="no spark")
     def test_spark_timestamp_decimal(self, spark):
         """Test casting timestamp and decimal types in Spark."""
         df = spark.createDataFrame([

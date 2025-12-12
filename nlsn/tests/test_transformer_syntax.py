@@ -11,11 +11,10 @@ Then check if all the transformers are publicly declared in `__all__` for each p
 
 import inspect
 from functools import lru_cache
-from typing import Mapping
 
 import pytest
 
-from nlsn.nebula import spark_transformers
+from nlsn.nebula import transformers
 from nlsn.nebula.base import Transformer
 
 
@@ -32,21 +31,6 @@ class InvalidPublicMethodTransform:
 class InvalidInitSignature:
     def __init__(self, a):  # noqa: D107
         ...  # Positional argument in __init__
-
-
-class InvalidTransformMethodSignature1:
-    def _transform(self):
-        ...  # It does not take df as an argument
-
-
-class InvalidTransformMethodSignature2:
-    def _transform(self, a, b):
-        ...  # Too many arguments
-
-
-class InvalidTransformMethodSignature3:
-    def _transform(self, *, a):
-        ...  # "df" is not positional
 
 
 # ------------------------------ Check Functions
@@ -85,44 +69,6 @@ def _test_transformer_init_signature(transformer):
         assert param.kind.name == "KEYWORD_ONLY", msg
 
 
-def _test_transformer_method_signature(transformer):
-    """Verify the `_transform` method.
-
-    - The method '_transform' must accept only one positional argument and
-        nothing else.
-    - If _transform is not static, the "self" parameter (the reference to the
-        current instance) must be called "self".
-    """
-    meth_type = inspect.getattr_static(transformer, "_transform")
-    is_static: bool = isinstance(meth_type, staticmethod)
-
-    meth = getattr(transformer, "_transform")
-    signature: Mapping[str, inspect.Parameter] = inspect.signature(meth).parameters
-    li_params_name: list[str] = list(signature)
-
-    # Since they are NOT initialized, I need to remove the 'self' parameter
-    if is_static:
-        assert len(signature) == 1
-        param_df_name: str = li_params_name[0]
-    else:
-        # 'self' and 'df'
-        assert len(signature) == 2
-
-        param_df_name: str = li_params_name[1]
-
-    param_df: inspect.Parameter = signature[param_df_name]
-    kind: str = param_df.kind.name
-
-    if kind == "POSITIONAL_ONLY":
-        pass
-    elif kind == "POSITIONAL_OR_KEYWORD":
-        assert param_df.default == inspect.Parameter.empty
-    else:
-        msg = "Parameter in '_transform*' method must be positional "
-        msg += "only or keyword without any default."
-        raise AssertionError(msg)
-
-
 # ------------------------------ Public Tests
 
 class TestInvalidTransformers:
@@ -144,23 +90,8 @@ class TestInvalidTransformers:
 
     def test_invalid_transformer_init_signature(self):
         """Test the init signature."""
-        li_invalid_init_signature = [
-            InvalidInitSignature,
-        ]
-        for trf in li_invalid_init_signature:
-            with pytest.raises(AssertionError):
-                _test_transformer_init_signature(trf)
-
-    def test_invalid_transformer_method_signature(self):
-        """Test the method signature."""
-        li_invalid_transform_signature = [
-            InvalidTransformMethodSignature1,
-            InvalidTransformMethodSignature2,
-            InvalidTransformMethodSignature3,
-        ]
-        for trf in li_invalid_transform_signature:
-            with pytest.raises(AssertionError):
-                _test_transformer_method_signature(trf)
+        with pytest.raises(AssertionError):
+            _test_transformer_init_signature(InvalidInitSignature)
 
 
 def _is_transformer_subclass(o) -> bool:
@@ -188,7 +119,7 @@ def _filter_transformer_class(all_attrs):
 @lru_cache(maxsize=4)
 def _get_all_transformers() -> list:
     """Retrieve all the public transformers."""
-    all_attrs = [getattr(spark_transformers, i) for i in dir(spark_transformers)]
+    all_attrs = [getattr(transformers, i) for i in dir(transformers)]
     return _filter_transformer_class(all_attrs)
 
 
@@ -202,7 +133,6 @@ def test_transformer_correctness():
         _test_transformer_subclass,
         _test_transformer_docstring,
         _test_transformer_init_signature,
-        _test_transformer_method_signature,
     ]
 
     for transformer in li_transformers:
@@ -224,10 +154,10 @@ def _get_transformers_modules() -> list[tuple]:
     avoid = {"__init__", "_constants"}
 
     ret = []
-    for name in dir(spark_transformers):
+    for name in dir(transformers):
         if name in avoid:
             continue
-        obj = getattr(spark_transformers, name)
+        obj = getattr(transformers, name)
         if inspect.ismodule(obj):
             ret.append((name, obj))
     return ret

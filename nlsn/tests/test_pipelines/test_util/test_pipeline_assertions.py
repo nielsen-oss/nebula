@@ -14,7 +14,7 @@ def test_pipeline_wrong_data_type():
 
 def test_pipeline_branch_and_apply_to_rows():
     """Test TransformerPipeline providing both 'branch' and 'apply_to_rows'."""
-    with pytest.raises(AssertionError):
+    with pytest.raises(ValueError):
         TransformerPipeline(
             SelectColumns(columns="c1"),
             branch={"end": "append"},
@@ -35,7 +35,7 @@ def test_branch_and_apply_to_rows_in_split_pipeline(branch, apply_to_rows):
         "errors": SelectColumns(columns="c1"),
         "valid_problems": [SelectColumns(columns="c2")],
     }
-    with pytest.raises(AssertionError):
+    with pytest.raises(ValueError):
         TransformerPipeline(
             d, split_function=lambda x: x, branch=branch, apply_to_rows=apply_to_rows
         )
