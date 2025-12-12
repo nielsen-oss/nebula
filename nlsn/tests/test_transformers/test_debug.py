@@ -1,4 +1,4 @@
-"""Unit-Test for debug transformers."""
+"""Unit-Tests for 'debug' transformers."""
 
 import pandas as pd
 import pytest

@@ -1,4 +1,4 @@
-"""Unit-test for 'selection' transformers."""
+"""Unit-tests for 'selection' transformers."""
 
 from itertools import product
 

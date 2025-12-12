@@ -1,3 +1,5 @@
+"""Unit-tests for 'collections' transformers."""
+
 import operator as py_operator
 
 import narwhals as nw

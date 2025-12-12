@@ -1,3 +1,5 @@
+"""Unit-tests for 'reshaping' transformers."""
+
 from random import randint
 
 import narwhals as nw

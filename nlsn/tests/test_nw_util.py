@@ -1,5 +1,7 @@
 """Unit-tests for Narwhals utils."""
 
+import os
+
 import narwhals as nw
 import pandas as pd
 import polars as pl
@@ -7,6 +9,35 @@ import pytest
 
 from nlsn.nebula.nw_util import *
 from nlsn.nebula.nw_util import COMPARISON_OPERATORS, NULL_OPERATORS
+from nlsn.tests.auxiliaries import from_pandas
+from nlsn.tests.constants import TEST_BACKENDS
+
+
+class TestDfIsEmpty:
+
+    @pytest.mark.parametrize("data", ([1, 2], []))
+    @pytest.mark.parametrize("backend", TEST_BACKENDS)
+    @pytest.mark.parametrize("to_nw", [True, False])
+    def test_generic(self, spark, data, backend: str, to_nw):
+        if (backend == "spark") and (not data):
+            return  # Can not infer schema from empty dataset.
+        df = pd.DataFrame({"a": data})
+
+        df = from_pandas(df, backend, to_nw=to_nw, spark=spark)
+        assert df_is_empty(df) is (False if data else True)
+
+    @pytest.mark.parametrize("data", ([1, 2], []))
+    @pytest.mark.parametrize("lazy", [True, False])
+    def test_polars_lazy(self, data, lazy: bool):
+        df = pl.DataFrame({"a": data})
+        df = df.lazy() if lazy else df
+        assert df_is_empty(df) is (False if data else True)
+
+    @pytest.mark.skipif(os.environ.get("TESTS_NO_SPARK") == "true", reason="no spark")
+    def test_spark_empty(self, spark):
+        df = spark.createDataFrame([], schema="a: int, b: int")
+        with pytest.raises(AssertionError):
+            df_is_empty(df)
 
 
 class TestNullCondToFalse:

@@ -1,5 +1,4 @@
-"""Unit-test for AssertNotEmpty."""
-import os
+"""Unit-tests for 'assertions' transformers."""
 
 import pandas as pd
 import polars as pl
@@ -108,41 +107,11 @@ class TestAssertCount:
 
 
 class TestAssertNotEmpty:
-    @pytest.mark.parametrize("backend", TEST_BACKENDS)
+
+    @pytest.mark.parametrize("backend", ["pandas", "polars"])
     def test_not_empty(self, spark, backend: str):
+        # Complete tests in 'TestDfIsEmpty'
         df = pd.DataFrame({"a": [1, 2], "b": [3, 4]})
         df = from_pandas(df, backend, to_nw=False, spark=spark)
         t = AssertNotEmpty()
         t.transform(df)
-
-    @pytest.mark.parametrize("lazy", [True, False])
-    def test_not_empty_polars_lazy(self, lazy: bool):
-        df = pl.DataFrame({"a": [1, 2], "b": [3, 4]})
-        if lazy:
-            df = df.lazy()
-        t = AssertNotEmpty()
-        t.transform(df)
-
-    @pytest.mark.parametrize("backend", ["pandas", "polars"])
-    def test_empty(self, backend: str):
-        df = pd.DataFrame({"a": [], "b": []}).astype("int32")
-        df = from_pandas(df, backend, to_nw=False)
-        t = AssertNotEmpty()
-        with pytest.raises(AssertionError):
-            t.transform(df)
-
-    @pytest.mark.skipif(os.environ.get("TESTS_NO_SPARK") == "true", reason="no spark")
-    def test_spark_empty(self, spark):
-        df = spark.createDataFrame([], schema="a: int, b: int")
-        t = AssertNotEmpty()
-        with pytest.raises(AssertionError):
-            t.transform(df)
-
-    @pytest.mark.parametrize("lazy", [True, False])
-    def test_empty_polars_lazy(self, lazy: bool):
-        df = pl.DataFrame({})
-        if lazy:
-            df = df.lazy()
-        t = AssertNotEmpty()
-        with pytest.raises(AssertionError):
-            t.transform(df)
