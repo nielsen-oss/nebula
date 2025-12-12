@@ -9,8 +9,144 @@ import pytest
 
 from nlsn.nebula.nw_util import *
 from nlsn.nebula.nw_util import COMPARISON_OPERATORS, NULL_OPERATORS
-from nlsn.tests.auxiliaries import from_pandas
+from nlsn.tests.auxiliaries import from_pandas, to_pandas
 from nlsn.tests.constants import TEST_BACKENDS
+
+
+class TestAppendDataframes:
+    """Test suite for the 'append_dataframes' utility function."""
+
+    def test_empty_list_raises_error(self):
+        """Test that empty dataframe list raises ValueError."""
+        with pytest.raises(ValueError):
+            append_dataframes([], allow_missing_cols=True)
+
+    @pytest.mark.parametrize("to_nw", [True, False])
+    def test_single_dataframe(self, to_nw: bool):
+        """Test that a single dataframe is returned unchanged."""
+        df = pd.DataFrame({"a": [1, 2], "b": [3, 4]})
+        result = append_dataframes([df], allow_missing_cols=False)
+        assert result is df
+
+    @pytest.mark.parametrize("backend", TEST_BACKENDS)
+    @pytest.mark.parametrize("to_nw", [True, False])
+    def test_exact_columns(self, spark, backend: str, to_nw: bool):
+        """Test concatenation when all dataframes have identical columns."""
+        df1_pd = pd.DataFrame({"a": [1, 2], "b": [3, 4]})
+        df2_pd = pd.DataFrame({"a": [5, 6], "b": [7, 8]})
+        df3_pd = pd.DataFrame({"a": [9, 10], "b": [11, 12]})
+
+        df1 = from_pandas(df1_pd, backend, to_nw=to_nw, spark=spark)
+        df2 = from_pandas(df2_pd, backend, to_nw=to_nw, spark=spark)
+        df3 = from_pandas(df3_pd, backend, to_nw=to_nw, spark=spark)
+
+        result = append_dataframes([df1, df2, df3], allow_missing_cols=False)
+        result_pd = to_pandas(result).reset_index(drop=True)
+
+        expected = pd.concat([df1_pd, df2_pd, df3_pd], axis=0).reset_index(drop=True)
+        pd.testing.assert_frame_equal(result_pd, expected)
+
+    def test_missing_columns_disallowed(self):
+        """Test that column mismatch raises error when not allowed."""
+        df1 = pd.DataFrame({"a": [1, 2], "b": [3, 4]})
+        df2 = pd.DataFrame({"a": [5, 6], "c": [7, 8]})  # 'c' instead of 'b'
+        with pytest.raises(ValueError):
+            append_dataframes([df1, df2], allow_missing_cols=False)
+
+    @pytest.mark.parametrize("backend", ["pandas", "polars"])
+    @pytest.mark.parametrize("to_nw", [True, False])
+    def test_missing_columns_allowed(self, backend: str, to_nw: bool):
+        """Test concatenation with missing columns fills with nulls."""
+        df1_pd = pd.DataFrame({"a": [1, 2], "b": [3, 4]})
+        df2_pd = pd.DataFrame({"a": [5, 6], "c": [7.0, 8.0]})  # 'c' instead of 'b'
+
+        df1 = from_pandas(df1_pd, backend, to_nw=to_nw)
+        df2 = from_pandas(df2_pd, backend, to_nw=to_nw)
+
+        result = append_dataframes([df1, df2], allow_missing_cols=True)
+
+        is_nw = isinstance(result, (nw.DataFrame, nw.LazyFrame))
+        assert to_nw == is_nw
+
+        result_pd = to_pandas(result).reset_index(drop=True)
+
+        # Expected: all columns present, missing values filled with NaN/None
+        expected = pd.concat([df1_pd, df2_pd], axis=0).reset_index(drop=True)
+        pd.testing.assert_frame_equal(result_pd, expected)
+
+    @pytest.mark.parametrize("backend", TEST_BACKENDS)
+    def test_mix_narwhals_and_native(self, spark, backend: str):
+        """Test mixing Narwhals wrappers with native dataframes (same backend)."""
+
+        df1_pd = pd.DataFrame({"a": [1, 2], "b": [3, 4]})
+        df2_pd = pd.DataFrame({"a": [5, 6], "b": [7, 8]})
+
+        # First as Narwhals, second as native
+        df1_nw = from_pandas(df1_pd, backend, to_nw=True, spark=spark)
+        df2_native = from_pandas(df2_pd, backend, to_nw=False, spark=spark)
+
+        result = append_dataframes([df1_nw, df2_native], allow_missing_cols=True)
+
+        assert isinstance(result, (nw.DataFrame, nw.LazyFrame))
+
+        result_pd = to_pandas(result).reset_index(drop=True)
+        expected = pd.concat([df1_pd, df2_pd], axis=0).reset_index(drop=True)
+        pd.testing.assert_frame_equal(result_pd, expected)
+
+    def test_multiple_backends_raises_error(self):
+        """Test that mixing different backends raises error."""
+        df_pd = pd.DataFrame({"a": [1, 2]})
+        df_pl = from_pandas(df_pd, "polars", to_nw=False)
+        df_pandas = from_pandas(df_pd, "pandas", to_nw=False)
+
+        with pytest.raises(TypeError):
+            append_dataframes([df_pl, df_pandas], allow_missing_cols=True)
+
+    @pytest.mark.parametrize("ignore_index", [True, False])
+    def test_pandas_ignore_index(self, ignore_index: bool):
+        """Test pandas ignore_index parameter."""
+        df1_pd = pd.DataFrame({"a": [1, 2]}, index=[10, 20])
+        df2_pd = pd.DataFrame({"a": [3, 4]}, index=[30, 40])
+
+        result = append_dataframes([df1_pd, df2_pd], allow_missing_cols=False, ignore_index=ignore_index)
+
+        if ignore_index:
+            # Index should be reset to 0, 1, 2, 3
+            assert list(result.index) == [0, 1, 2, 3]
+        else:
+            # Original indices preserved
+            assert list(result.index) == [10, 20, 30, 40]
+
+    def test_polars_relax_parameter(self):
+        """Test Polars relax parameter for type coercion."""
+
+        # One with int32, one with int64
+        df1 = pl.DataFrame({"a": [1, 2]}, schema={"a": pl.Int32})
+        df2 = pl.DataFrame({"a": [3, 4]}, schema={"a": pl.Int64})
+
+        # Without relax, should error (strict mode)
+        with pytest.raises(Exception):  # Polars will raise SchemaError or similar
+            append_dataframes([df1, df2], allow_missing_cols=False, relax=False)
+
+        # With relax, should succeed and cast to common type
+        result = append_dataframes([df1, df2], allow_missing_cols=False, relax=True)
+        assert len(result) == 4
+
+    @pytest.mark.parametrize("backend", ["pandas", "polars"])
+    def test_different_column_order(self, backend: str):
+        """Test that column order is preserved from first dataframe."""
+        df1_pd = pd.DataFrame({"a": [1], "b": [2], "c": [3]})
+        df2_pd = pd.DataFrame({"c": [6], "a": [4], "b": [5]})  # Different order
+
+        df1 = from_pandas(df1_pd, backend, to_nw=False)
+        df2 = from_pandas(df2_pd, backend, to_nw=False)
+
+        result = append_dataframes([df1, df2], allow_missing_cols=False)
+        result_pd = to_pandas(result).reset_index(drop=True)
+
+        # pandas concat preserves first df's column order
+        expected = pd.concat([df1_pd, df2_pd], axis=0).reset_index(drop=True)
+        pd.testing.assert_frame_equal(result_pd, expected)
 
 
 class TestDfIsEmpty:

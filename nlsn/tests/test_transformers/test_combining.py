@@ -7,7 +7,6 @@ import pytest
 from nlsn.nebula import nebula_storage as ns
 from nlsn.nebula.transformers import *
 from nlsn.tests.auxiliaries import from_pandas, to_pandas
-from nlsn.tests.constants import TEST_BACKENDS
 
 
 class TestJoin:
@@ -183,46 +182,29 @@ class TestJoin:
 
 class TestAppendDataFrame:
     @staticmethod
-    def _set_dfs(spark, backend: str, to_nw: bool):
+    def _set_dfs(backend: str, to_nw: bool):
         ns.allow_overwriting()
         df1 = pd.DataFrame({"c1": ["c", "d"], "c2": [3, 4]})
         df2 = pd.DataFrame({"c1": ["a", "b"], "c3": [4.5, 5.5]})
-        df1 = from_pandas(df1, backend, to_nw, spark=spark)
-        df2 = from_pandas(df2, backend, to_nw, spark=spark)
+        df1 = from_pandas(df1, backend, to_nw)
+        df2 = from_pandas(df2, backend, to_nw)
         ns.set("df1", df1)
         ns.set("df2", df2)
 
-    @pytest.mark.parametrize("backend", TEST_BACKENDS)
+    @pytest.mark.parametrize("backend", ["pandas", "polars"])
     @pytest.mark.parametrize("to_nw", [True, False])
     @pytest.mark.parametrize("allow_missing", [True, False])
-    def test_exact_columns(self, spark, backend: str, to_nw: bool, allow_missing: bool):
-        self._set_dfs(spark, backend, to_nw)
+    @pytest.mark.parametrize("store_key", ["df1", "df2"])
+    def test(self, backend: str, to_nw: bool, allow_missing: bool, store_key: str):
+        self._set_dfs(backend, to_nw)
         df_pd_in = pd.DataFrame({"c1": ["a", "b"], "c2": [1, 2]})
-        df = from_pandas(df_pd_in, backend, to_nw=to_nw, spark=spark)
-        t = AppendDataFrame(store_key="df1", allow_missing_columns=allow_missing)
+        df = from_pandas(df_pd_in, backend, to_nw=to_nw)
+        t = AppendDataFrame(store_key=store_key, allow_missing_cols=allow_missing)
+        if store_key == "df2" and (not allow_missing):
+            with pytest.raises(ValueError):
+                t.transform(df)
+            return
         df_chk = t.transform(df)
         df_chk_pd = to_pandas(df_chk).reset_index(drop=True)
-        df_exp = pd.concat([df_pd_in, to_pandas(ns.get("df1"))], axis=0)
-        pd.testing.assert_frame_equal(df_chk_pd, df_exp.reset_index(drop=True))
-
-    @pytest.mark.parametrize("backend", TEST_BACKENDS)
-    @pytest.mark.parametrize("to_nw", [True, False])
-    def test_invalid_columns(self, spark, backend: str, to_nw: bool):
-        self._set_dfs(spark, backend, to_nw)
-        df_pd_in = pd.DataFrame({"c1": ["a", "b"], "c2": [1, 2]})
-        df = from_pandas(df_pd_in, backend, to_nw=to_nw, spark=spark)
-        t = AppendDataFrame(store_key="df2", allow_missing_columns=False)
-        with pytest.raises(ValueError):
-            t.transform(df)
-
-    @pytest.mark.parametrize("backend", TEST_BACKENDS)
-    @pytest.mark.parametrize("to_nw", [True, False])
-    def test_missing_columns(self, spark, backend: str, to_nw: bool):
-        self._set_dfs(spark, backend, to_nw)
-        df_pd_in = pd.DataFrame({"c1": ["a", "b"], "c2": [1, 2]})
-        df = from_pandas(df_pd_in, backend, to_nw=to_nw, spark=spark)
-        t = AppendDataFrame(store_key="df2", allow_missing_columns=True)
-        df_chk = t.transform(df)
-        df_chk_pd = to_pandas(df_chk).reset_index(drop=True)
-        df_exp = pd.concat([df_pd_in, to_pandas(ns.get("df2"))], axis=0)
+        df_exp = pd.concat([df_pd_in, to_pandas(ns.get(store_key))], axis=0)
         pd.testing.assert_frame_equal(df_chk_pd, df_exp.reset_index(drop=True))

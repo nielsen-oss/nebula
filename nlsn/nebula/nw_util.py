@@ -1,11 +1,13 @@
+from functools import partial, reduce
 from typing import Iterable
 
 import narwhals as nw
 
-from nlsn.nebula.auxiliaries import assert_allowed
+from nlsn.nebula.auxiliaries import assert_allowed, get_symmetric_differences_in_sets
 from nlsn.nebula.df_types import get_dataframe_type
 
 __all__ = [
+    "append_dataframes",
     "df_is_empty",
     "get_condition",
     "null_cond_to_false",
@@ -22,6 +24,188 @@ _allowed_operators = (
         | STRING_OPERATORS
         | MEMBERSHIP_OPERATORS
 )
+
+
+def append_dataframes(
+        dataframes,
+        *,
+        allow_missing_cols: bool,
+        relax: bool = False,
+        rechunk: bool = False,
+        ignore_index: bool = False,
+):
+    """Append (concatenate vertically) a list of dataframes.
+
+    This function handles dataframes from pandas, Polars, and Spark backends,
+    with support for column mismatches and type coercion. All dataframes must
+    be from the same backend (or Narwhals wrappers around the same backend).
+
+    Args:
+        dataframes (list):
+            List of dataframes to concatenate vertically. Can be:
+            - All native dataframes from the same backend
+            - Mix of Narwhals wrappers and native frames (same underlying backend)
+            - All Narwhals DataFrames/LazyFrames (same underlying backend)
+        allow_missing_cols (bool):
+            If True, allows column mismatches between dataframes. Missing columns
+            are filled with null values. If False, raises ValueError when column
+            sets don't match exactly.
+            Behavior by backend:
+            - pandas: Uses pd.concat naturally handles missing columns
+            - Polars: Uses 'diagonal' mode to add null columns
+            - Spark: Uses unionByName(allowMissingColumns=True)
+        relax (bool):
+            Polars-only parameter. If True, allows compatible type coercion during
+            concatenation (e.g., int32 → int64, float32 → float64). Uses Polars'
+            'vertical_relaxed' or 'diagonal_relaxed' modes. Ignored for pandas and
+            Spark. Defaults to False.
+        rechunk (bool):
+            Polars-only parameter. If True, rechunks the concatenated result for
+            better memory layout and performance. Ignored for pandas and Spark.
+            Defaults to False.
+        ignore_index (bool):
+            Pandas-only parameter. If True, do not preserve the original index
+            values when concatenating. Ignored for Polars (no index) and Spark.
+            Defaults to False.
+
+    Returns:
+        DataFrame: Concatenated dataframe in the appropriate format:
+            - Returns Narwhals DataFrame/LazyFrame if any input is Narwhals
+            - Returns native dataframe if all inputs are native
+            - Always uses the same backend as the input dataframes
+
+    Raises:
+        ValueError:
+            If dataframes list is empty.
+        TypeError:
+            If multiple different backends are detected (e.g., pandas + Polars).
+        ValueError:
+            If column mismatch is found and allow_missing_cols=False.
+        TypeError:
+            If an unsupported dataframe backend is detected.
+        Native Exception: If concatenating empty dfs without schema information.
+            Note: Empty dataframes may cause schema inference errors. Filter them
+            upstream or ensure they have explicit schemas before concatenation.
+
+    Notes:
+        - Backend-specific parameters (rechunk, relax, ignore_index) are silently
+          ignored when not applicable to the current backend.
+        - Type mismatches between dataframes are handled according to each backend's
+          default behavior unless relax=True for Polars.
+        - When mixing Narwhals wrappers with native frames, all must have the same
+          underlying backend (e.g., all Polars, or all pandas).
+        - Empty dataframes may cause schema inference errors in some backends,
+          especially when concatenating multiple empty dataframes or when column
+          types cannot be inferred. Users should filter empty dataframes upstream
+          or ensure schemas are explicitly defined.
+
+    Examples:
+        >>> # Simple concatenation with matching columns
+        >>> result = append_dataframes([df1, df2, df3])
+
+        >>> # Allow missing columns (fills with nulls)
+        >>> result = append_dataframes(
+        ...     [df_with_cols_abc, df_with_cols_ab],
+        ...     allow_missing_cols=True
+        ... )
+
+        >>> # Polars with type relaxation (int32 → int64)
+        >>> result = append_dataframes(
+        ...     [pl_df_int32, pl_df_int64],
+        ...     relax=True
+        ... )
+
+        >>> # Pandas without preserving index
+        >>> result = append_dataframes(
+        ...     [pd_df1, pd_df2],
+        ...     ignore_index=True
+        ... )
+
+        >>> # Mix Narwhals wrapper with native (returns Narwhals)
+        >>> nw_df = nw.from_native(pl_df1)
+        >>> result = append_dataframes([nw_df, pl_df2, pl_df3])
+        >>> # result is nw.DataFrame wrapping Polars
+
+        >>> # Polars with rechunking for better memory layout
+        >>> result = append_dataframes(
+        ...     [pl_df1, pl_df2, pl_df3],
+        ...     rechunk=True
+        ... )
+    """
+    if not dataframes:
+        raise ValueError("Cannot append empty list of dataframes")
+
+    if len(dataframes) == 1:
+        return dataframes[0]
+
+    to_native: bool = True
+    native_dataframes = []
+    sets_columns: list[set[str]] = []
+    full_columns: set[str] = set()
+    backends = set()
+    for df in dataframes:
+        if isinstance(df, (nw.DataFrame, nw.LazyFrame)):
+            to_native = False
+            df_native = nw.to_native(df)
+        else:
+            df_native = df
+
+        native_dataframes.append(df_native)
+        backends.add(get_dataframe_type(df_native))
+        sets_columns.append(set(df_native.columns))
+        full_columns.update(set(df_native.columns))
+
+    n_backends = len(backends)
+
+    if n_backends > 1:
+        raise TypeError(f"Mixed backed found: {n_backends}")
+
+    native_backend = backends.pop()
+
+    diff: set[str] = get_symmetric_differences_in_sets(*sets_columns)
+
+    # Handle the error
+    if diff and not allow_missing_cols:
+        msg = []
+        for i, right_df in enumerate(native_dataframes[1:], start=1):
+            left_df = native_dataframes[i - 1]
+            col_left = set(right_df.columns)
+            col_right = set(left_df.columns)
+            missing_left = full_columns - col_left
+            missing_right = full_columns - col_right
+            if missing_left:
+                msg.append(f"missing in df({i}): {sorted(missing_left)}")
+            if missing_right:
+                msg.append(f"missing in df({i}): {sorted(missing_right)}")
+
+        raise ValueError(
+            "Column mismatch between dataframes -> " + ", ".join(msg)
+        )
+
+    if native_backend == "pandas":
+        import pandas as pd
+        ret = pd.concat(native_dataframes, axis=0, ignore_index=ignore_index)
+
+    elif native_backend == "polars":
+        import polars as pl
+        if allow_missing_cols:
+            how = "diagonal"
+        else:
+            cols = native_dataframes[0].columns
+            native_dataframes = [df.select(cols) for df in native_dataframes]
+            how = "vertical"
+        how += "_relaxed" if relax else ""
+        ret = pl.concat(native_dataframes, rechunk=rechunk, how=how)
+
+    elif native_backend == "spark":
+        from pyspark.sql import DataFrame
+        func = partial(DataFrame.unionByName, allowMissingColumns=allow_missing_cols)
+        ret = reduce(func, native_dataframes)
+
+    else:  # pragma: no cover
+        raise TypeError(f"Unsupported dataframe type: {native_backend}")
+
+    return ret if to_native else nw.from_native(ret)
 
 
 def df_is_empty(df_input) -> bool:

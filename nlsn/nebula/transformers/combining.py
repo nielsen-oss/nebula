@@ -5,9 +5,10 @@ import narwhals as nw
 from nlsn.nebula import nebula_storage as ns
 from nlsn.nebula.auxiliaries import assert_allowed, ensure_flat_list
 from nlsn.nebula.base import Transformer
-from nlsn.nebula.df_types import get_dataframe_type
 
 __all__ = ["AppendDataFrame", "Join"]
+
+from nlsn.nebula.nw_util import append_dataframes
 
 
 class AppendDataFrame(Transformer):
@@ -15,83 +16,50 @@ class AppendDataFrame(Transformer):
             self,
             *,
             store_key: str | None = None,
-            allow_missing_columns: bool = False,
+            allow_missing_cols: bool = False,
+            relax: bool = False,
+            rechunk: bool = False,
+            ignore_index: bool = False,
     ):
         """Append a dataframe to the main one in the pipeline.
 
         Args:
             store_key (str | None):
                 Dataframe name in Nebula storage.
-            allow_missing_columns (bool):
-                When this parameter is True, the set of column names in the
-                dataframe to append and in the main one can differ; missing
-                columns will be filled with null.
-                Further, the missing columns of this DataFrame will be
-                added at the end of the union result schema.
-                This parameter was introduced in spark 3.1.0.
-                If it is set to True with a previous version, it throws an error.
+            allow_missing_cols (bool):
+                If True, allows column mismatches between dataframes. Missing columns
+                are filled with null values. If False, raises ValueError when column
+                sets don't match exactly. Defaults to False.
+                Behavior by backend:
+                - pandas: Uses pd.concat naturally handles missing columns
+                - Polars: Uses 'diagonal' mode to add null columns
+                - Spark: Uses unionByName(allowMissingColumns=True)
+            relax (bool):
+                Polars-only parameter. If True, allows compatible type coercion during
+                concatenation (e.g., int32 → int64, float32 → float64). Uses Polars'
+                'vertical_relaxed' or 'diagonal_relaxed' modes. Ignored for pandas and
+                Spark. Defaults to False.
+            rechunk (bool):
+                Polars-only parameter. If True, rechunks the concatenated result for
+                better memory layout and performance. Ignored for pandas and Spark.
+                Defaults to False.
+            ignore_index (bool):
+                Pandas-only parameter. If True, do not preserve the original index
+                values when concatenating. Ignored for Polars (no index) and Spark.
                 Defaults to False.
         """
         super().__init__()
         self._store_key: str | None = store_key
-        self._allow_missing: bool = allow_missing_columns
+        self._kws = {
+            "allow_missing_cols": allow_missing_cols,
+            "relax": relax,
+            "rechunk": rechunk,
+            "ignore_index": ignore_index,
+        }
 
-    def _transform_nw(self, df):
+    def transform(self, df):
         df_union = ns.get(self._store_key)
-
-        if not isinstance(df_union, (nw.DataFrame, nw.LazyFrame)):
-            df_union = nw.from_native(df_union)
-
-        cols_main = set(df.columns)
-        cols_union = set(df_union.columns)
-        diff = cols_main.symmetric_difference(cols_union)
-
-        if not diff:
-            return nw.concat([df, df_union], how="vertical")
-
-        # If differences exist but not allowed, raise error
-        if not self._allow_missing:
-            missing_in_main = cols_union - cols_main
-            missing_in_union = cols_main - cols_union
-            msg = "Column mismatch between dataframes. "
-            if missing_in_main:
-                msg += f"Missing in main df: {sorted(missing_in_main)}. "
-            if missing_in_union:
-                msg += f"Missing in union df: {sorted(missing_in_union)}."
-            raise ValueError(msg)
-
-        df_native = nw.to_native(df)
-        if get_dataframe_type(df_native) == "pandas":
-            import pandas as pd
-            # Let pandas allow the missing columns in the best manner
-            if isinstance(df_union, (nw.LazyFrame, nw.DataFrame)):
-                df_union = nw.to_native(df_union)
-            ret = pd.concat([df_native, df_union], axis=0)
-            return nw.from_native(ret)
-
-        # Add missing columns with nulls
-        missing_in_main = cols_union - cols_main
-        missing_in_union = cols_main - cols_union
-
-        if missing_in_main:
-            union_schema = df_union.schema
-            df = df.with_columns(*[
-                nw.lit(None).cast(union_schema[col]).alias(col)
-                for col in sorted(missing_in_main)
-            ])
-
-        if missing_in_union:
-            df_schema = df.schema
-            df_union = df_union.with_columns(*[
-                nw.lit(None).cast(df_schema[col]).alias(col)
-                for col in sorted(missing_in_union)
-            ])
-
-        # Align column order: main columns first, then union-only columns
-        final_order = list(df.columns)
-        df = df.select(final_order)
-        df_union = df_union.select(final_order)
-        return nw.concat([df, df_union], how="vertical")
+        return append_dataframes([df, df_union], **self._kws)
 
 
 class Join(Transformer):
