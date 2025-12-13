@@ -309,7 +309,6 @@ class TestFlatPipeline:
             prepend_interleaved=prepend_interleaved,
             append_interleaved=append_interleaved,
             name=name,
-            backend=backend,
         )
         self._eval(df_input, df_exp, backend, pipe)
 
@@ -417,7 +416,6 @@ class TestSplitPipeline:
 
         pipe = TransformerPipeline(
             dict_splits,
-            backend=backend,
             split_function=self._get_split_function(backend),
             name=name,
             split_order=split_order,
@@ -431,7 +429,6 @@ class TestSplitPipeline:
         df_exp = self._get_df_exp(df_input.copy(), split_order)
 
         pipe.show_pipeline()
-        pipe._print_dag()
         df_input = df_input.copy()
         df_input = pandas_to_polars(backend, df_input)
         df_chk = pipe.run(df_input)
@@ -449,7 +446,6 @@ class TestSplitPipeline:
 
         pipe = TransformerPipeline(
             dict_splits,
-            backend=backend,
             split_function=self._get_split_function(backend),
             allow_missing_columns=True,
         )
@@ -485,7 +481,6 @@ class TestSplitPipeline:
 
         pipe = TransformerPipeline(
             dict_splits,
-            backend=backend,
             split_function=self._get_split_function(backend, value=100),
             splits_skip_if_empty=splits_skip_if_empty,
         )
@@ -510,7 +505,6 @@ class TestSplitPipeline:
         with pytest.raises(KeyError):
             TransformerPipeline(
                 {"low": [], "hi": []},
-                backend=backend,
                 split_function=self._get_split_function(backend),
                 splits_skip_if_empty=splits_skip_if_empty,
             )
@@ -533,7 +527,6 @@ class TestStorageFunctionalities:
             pipe = load_pipeline({"pipeline": store_data})
 
         pipe.show_pipeline()
-        pipe._print_dag()
 
         try:
             ns.set("df2", df2)
