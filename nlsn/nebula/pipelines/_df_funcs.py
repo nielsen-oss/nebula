@@ -1,5 +1,7 @@
 """functions for TransformerPipeline."""
 
+import narwhals as nw
+
 from nlsn.nebula.df_types import GenericDataFrame, get_dataframe_type
 
 __all__ = [
@@ -7,6 +9,8 @@ __all__ = [
     "split_df",
     "to_schema",
 ]
+
+from nlsn.nebula.nw_util import to_native_dataframes
 
 
 def join_dfs(
@@ -57,26 +61,30 @@ def split_df(df, cfg: dict) -> tuple["GenericDataFrame", "GenericDataFrame"]:
 
 def to_schema(li_df: list, schema) -> list["GenericDataFrame"]:
     """Cast a list of dataframes to a schema."""
-    df_type_name: str = get_dataframe_type(li_df[0])
-    if df_type_name == "spark":
+    native_dataframes, native_backend, nw_found = to_native_dataframes(li_df)
+
+    if native_backend == "spark":
         from nlsn.nebula.spark_util import cast_to_schema
 
-        return [cast_to_schema(i, schema) for i in li_df]
-    elif df_type_name == "pandas":
-        return [_df.astype(schema) for _df in li_df]
-    elif df_type_name == "polars":
+        ret = [cast_to_schema(i, schema) for i in li_df]
+
+    elif native_backend == "pandas":
+        ret = [_df.astype(schema) for _df in li_df]
+
+    elif native_backend == "polars":
         try:  # Old polars version hasn't 'cast' method
-            return [_df.cast(schema) for _df in li_df]
+            ret = [_df.cast(schema) for _df in li_df]
         except AttributeError:
             import polars as pl
 
-            new_list = []
+            ret = []
             for _df in li_df:
                 _df_cast = _df.with_columns(
                     [pl.col(k).cast(v) for k, v in schema.items()]
                 )
-                new_list.append(_df_cast)
-            return new_list
+                ret.append(_df_cast)
 
     else:  # pragma: no cover
-        raise ValueError(f"Unsupported dataframe type: {df_type_name}")
+        raise ValueError(f"Unsupported dataframe type: {native_backend}")
+
+    return [nw.from_native(i) for i in ret] if nw_found else ret

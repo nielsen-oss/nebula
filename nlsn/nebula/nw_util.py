@@ -11,6 +11,7 @@ __all__ = [
     "df_is_empty",
     "get_condition",
     "null_cond_to_false",
+    "to_native_dataframes",
     "validate_operation",
 ]
 
@@ -24,6 +25,50 @@ _allowed_operators = (
         | STRING_OPERATORS
         | MEMBERSHIP_OPERATORS
 )
+
+
+def to_native_dataframes(dataframes) -> tuple[list, str, bool]:
+    """Convert dataframes to native format and validate backends.
+
+    Args:
+        dataframes: List of dataframes (native or Narwhals).
+
+    Returns:
+        tuple: (native_dataframes, backend_name, found_narwhals)
+            - native_dataframes: List of native dataframes
+            - backend_name: The detected backend ('pandas', 'polars', 'spark')
+            - found_narwhals: True if any input was Narwhals wrapped
+
+    Raises:
+        ValueError:
+            If dataframes list is empty.
+            If multiple different backends detected.
+    """
+    if not dataframes:
+        raise ValueError("Cannot append empty list of dataframes")
+
+    ret = []
+    narwhals_found = False
+    backends = set()
+    for df in dataframes:
+        if isinstance(df, (nw.DataFrame, nw.LazyFrame)):
+            narwhals_found = True
+            df_native = nw.to_native(df)
+        else:
+            df_native = df
+
+        ret.append(df_native)
+        backends.add(get_dataframe_type(df_native))
+
+    n_backends = len(backends)
+
+    if n_backends > 1:
+        raise ValueError(
+            f"Cannot mix multiple backends. Found: {sorted(backends)}. "
+            f"All dataframes must use the same backend."
+        )
+
+    return ret, backends.pop(), narwhals_found
 
 
 def append_dataframes(
@@ -132,35 +177,18 @@ def append_dataframes(
         ...     rechunk=True
         ... )
     """
-    if not dataframes:
-        raise ValueError("Cannot append empty list of dataframes")
+    native_dataframes, native_backend, nw_found = to_native_dataframes(dataframes)
+    to_native: bool = not nw_found
 
-    if len(dataframes) == 1:
-        return dataframes[0]
+    if len(native_dataframes) == 1:
+        ret = native_dataframes[0]
+        return ret if to_native else nw.from_native(ret)
 
-    to_native: bool = True
-    native_dataframes = []
     sets_columns: list[set[str]] = []
     full_columns: set[str] = set()
-    backends = set()
     for df in dataframes:
-        if isinstance(df, (nw.DataFrame, nw.LazyFrame)):
-            to_native = False
-            df_native = nw.to_native(df)
-        else:
-            df_native = df
-
-        native_dataframes.append(df_native)
-        backends.add(get_dataframe_type(df_native))
-        sets_columns.append(set(df_native.columns))
-        full_columns.update(set(df_native.columns))
-
-    n_backends = len(backends)
-
-    if n_backends > 1:
-        raise TypeError(f"Mixed backed found: {n_backends}")
-
-    native_backend = backends.pop()
+        sets_columns.append(set(df.columns))
+        full_columns.update(set(df.columns))
 
     diff: set[str] = get_symmetric_differences_in_sets(*sets_columns)
 

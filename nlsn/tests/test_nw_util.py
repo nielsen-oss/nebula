@@ -16,11 +16,6 @@ from nlsn.tests.constants import TEST_BACKENDS
 class TestAppendDataframes:
     """Test suite for the 'append_dataframes' utility function."""
 
-    def test_empty_list_raises_error(self):
-        """Test that empty dataframe list raises ValueError."""
-        with pytest.raises(ValueError):
-            append_dataframes([], allow_missing_cols=True)
-
     @pytest.mark.parametrize("to_nw", [True, False])
     def test_single_dataframe(self, to_nw: bool):
         """Test that a single dataframe is returned unchanged."""
@@ -92,15 +87,6 @@ class TestAppendDataframes:
         result_pd = to_pandas(result).reset_index(drop=True)
         expected = pd.concat([df1_pd, df2_pd], axis=0).reset_index(drop=True)
         pd.testing.assert_frame_equal(result_pd, expected)
-
-    def test_multiple_backends_raises_error(self):
-        """Test that mixing different backends raises error."""
-        df_pd = pd.DataFrame({"a": [1, 2]})
-        df_pl = from_pandas(df_pd, "polars", to_nw=False)
-        df_pandas = from_pandas(df_pd, "pandas", to_nw=False)
-
-        with pytest.raises(TypeError):
-            append_dataframes([df_pl, df_pandas], allow_missing_cols=True)
 
     @pytest.mark.parametrize("ignore_index", [True, False])
     def test_pandas_ignore_index(self, ignore_index: bool):
@@ -174,95 +160,6 @@ class TestDfIsEmpty:
         df = spark.createDataFrame([], schema="a: int, b: int")
         with pytest.raises(AssertionError):
             df_is_empty(df)
-
-
-class TestNullCondToFalse:
-    """Test the 'null_cond_to_false' helper function."""
-
-    def test_null_becomes_false(self):
-        """Test that null values in condition become False."""
-        df = nw.from_native(pl.DataFrame({
-            "a": [1, 2, None, 4],
-            "b": [10, 20, 30, 40]
-        }))
-
-        # Without null_cond_to_false: nulls propagate
-        cond = nw.col("a") > 2
-        result_with_nulls = df.filter(cond)
-        assert len(result_with_nulls) == 1  # Only row with a=4
-
-        # With null_cond_to_false: nulls become False (same result here)
-        cond_safe = null_cond_to_false(nw.col("a") > 2)
-        result_without_nulls = df.filter(cond_safe)
-        assert len(result_without_nulls) == 1  # Only row with a=4
-
-    def test_true_values_unchanged(self):
-        """Test that True values remain True."""
-        df = nw.from_native(pd.DataFrame({"a": [True, False, None]}))
-
-        cond = null_cond_to_false(nw.col("a"))
-        result = df.with_columns(cond.alias("result"))
-
-        expected = pd.DataFrame({
-            "a": [True, False, None],
-            "result": [True, False, False]
-        })
-
-        pd.testing.assert_frame_equal(
-            nw.to_native(result),
-            expected
-        )
-
-
-class TestValidateOperation:
-    """Test Narwhals 'validate_operation' function."""
-
-    @staticmethod
-    @pytest.mark.parametrize("op", NULL_OPERATORS)
-    def test_valid_null_operator(op):
-        """Test with a valid null operator."""
-        validate_operation(op)
-
-    @staticmethod
-    @pytest.mark.parametrize("op", COMPARISON_OPERATORS)
-    def test_valid_standard_operator(op):
-        """Test with a valid standard operator."""
-        validate_operation(op, 1)
-
-    @staticmethod
-    def test_both_value_and_col_compare_provided():
-        """Test with wrong input."""
-        with pytest.raises(ValueError):
-            validate_operation("eq", 10, "col2")
-
-    @staticmethod
-    @pytest.mark.parametrize("op", ["is_between"])
-    def test_invalid_operator_comparison_column(op: str):
-        """Test with not allowed operator for 'compare_col'."""
-        with pytest.raises(ValueError):
-            validate_operation(op, compare_col="compare")
-
-    @staticmethod
-    @pytest.mark.parametrize("value", ["string", 1, None, [None]])
-    @pytest.mark.parametrize("op", ["is_in", "is_not_in"])
-    def test_invalid_is_in_value(value, op):
-        """Test with not allowed value for 'is_in' / 'is_not_in' operator."""
-        with pytest.raises((TypeError, ValueError)):
-            validate_operation(op, value=value)
-
-    @pytest.mark.parametrize("value", [{1: 2, 3: 4}, [1], [1, 2, 3]])
-    def test_invalid_is_between_values(self, value):
-        """Test with not allowed value for ris_between operator."""
-        with pytest.raises((ValueError, TypeError)):
-            validate_operation("is_between", value=value)
-
-    @pytest.mark.parametrize(
-        "op", ["contains", "starts_with", "ends_with"]
-    )
-    def test_invalid_string_operator_values(self, op: str):
-        """Test with not allowed value for string operators."""
-        with pytest.raises(TypeError):
-            validate_operation(op, value=1)
 
 
 class TestGetCondition:
@@ -564,3 +461,156 @@ class TestGetConditionIntegration:
         assert len(result) == 2  # Bob and Eve
         result_native = nw.to_native(result)
         assert set(result_native["name"].values) == {"Bob", "Eve"}
+
+
+class TestNullCondToFalse:
+    """Test the 'null_cond_to_false' helper function."""
+
+    def test_null_becomes_false(self):
+        """Test that null values in condition become False."""
+        df = nw.from_native(pl.DataFrame({
+            "a": [1, 2, None, 4],
+            "b": [10, 20, 30, 40]
+        }))
+
+        # Without null_cond_to_false: nulls propagate
+        cond = nw.col("a") > 2
+        result_with_nulls = df.filter(cond)
+        assert len(result_with_nulls) == 1  # Only row with a=4
+
+        # With null_cond_to_false: nulls become False (same result here)
+        cond_safe = null_cond_to_false(nw.col("a") > 2)
+        result_without_nulls = df.filter(cond_safe)
+        assert len(result_without_nulls) == 1  # Only row with a=4
+
+    def test_true_values_unchanged(self):
+        """Test that True values remain True."""
+        df = nw.from_native(pd.DataFrame({"a": [True, False, None]}))
+
+        cond = null_cond_to_false(nw.col("a"))
+        result = df.with_columns(cond.alias("result"))
+
+        expected = pd.DataFrame({
+            "a": [True, False, None],
+            "result": [True, False, False]
+        })
+
+        pd.testing.assert_frame_equal(
+            nw.to_native(result),
+            expected
+        )
+
+
+class TestToNativeDataframes:
+    """Test suite for the to_native_dataframes utility function."""
+
+    @pytest.mark.parametrize("backend", ["pandas", "polars"])
+    @pytest.mark.parametrize("lazy", [True, False])
+    @pytest.mark.parametrize("to_nw", [True, False])
+    def test_all_native_single_backend(self, to_nw: bool, backend: str, lazy: bool):
+        """Test with all native dataframes from same backend."""
+        if lazy and (backend != "polars"):
+            return
+
+        df1_pd = pd.DataFrame({"a": [1, 2]})
+        df2_pd = pd.DataFrame({"b": [3, 4]})
+
+        df1 = from_pandas(df1_pd, backend, to_nw=to_nw)
+        df2 = from_pandas(df2_pd, backend, to_nw=to_nw)
+
+        if lazy:
+            df2.lazy()
+
+        native_dfs, detected_backend, found_nw = to_native_dataframes([df1, df2])
+
+        assert len(native_dfs) == 2
+        assert detected_backend == backend
+        assert found_nw is to_nw
+
+        if to_nw:
+            assert not isinstance(native_dfs[0], (nw.DataFrame, nw.LazyFrame))
+            assert not isinstance(native_dfs[1], (nw.DataFrame, nw.LazyFrame))
+        else:
+            assert native_dfs[0] is df1
+            assert native_dfs[1] is df2
+
+    def test_mixed_narwhals_and_native_same_backend(self):
+        """Test mixing Narwhals and native from same backend."""
+        df1 = pd.DataFrame({"a": [1, 2]})
+        df2 = pd.DataFrame({"b": [3, 4]})
+
+        native_dfs, detected_backend, found_nw = to_native_dataframes(
+            [df1, nw.from_native(df2)]
+        )
+
+        assert len(native_dfs) == 2
+        assert detected_backend == "pandas"
+        assert found_nw is True  # At least one was Narwhals
+        # All should be native now
+        for df in native_dfs:
+            assert not isinstance(df, (nw.DataFrame, nw.LazyFrame))
+
+    def test_empty_list_raises_error(self):
+        """Test that empty dataframe list raises ValueError."""
+        with pytest.raises(ValueError):
+            to_native_dataframes([])
+
+    @pytest.mark.parametrize("to_nw", [True, False])
+    def test_mixed_backends_pandas_polars(self, to_nw):
+        """Test that mixing pandas and polars raises error."""
+        df_pd = pd.DataFrame({"a": [1, 2]})
+        df_pl = from_pandas(df_pd, "polars", to_nw=to_nw)
+
+        with pytest.raises(ValueError):
+            to_native_dataframes([df_pd, df_pl])
+
+
+class TestValidateOperation:
+    """Test Narwhals 'validate_operation' function."""
+
+    @staticmethod
+    @pytest.mark.parametrize("op", NULL_OPERATORS)
+    def test_valid_null_operator(op):
+        """Test with a valid null operator."""
+        validate_operation(op)
+
+    @staticmethod
+    @pytest.mark.parametrize("op", COMPARISON_OPERATORS)
+    def test_valid_standard_operator(op):
+        """Test with a valid standard operator."""
+        validate_operation(op, 1)
+
+    @staticmethod
+    def test_both_value_and_col_compare_provided():
+        """Test with wrong input."""
+        with pytest.raises(ValueError):
+            validate_operation("eq", 10, "col2")
+
+    @staticmethod
+    @pytest.mark.parametrize("op", ["is_between"])
+    def test_invalid_operator_comparison_column(op: str):
+        """Test with not allowed operator for 'compare_col'."""
+        with pytest.raises(ValueError):
+            validate_operation(op, compare_col="compare")
+
+    @staticmethod
+    @pytest.mark.parametrize("value", ["string", 1, None, [None]])
+    @pytest.mark.parametrize("op", ["is_in", "is_not_in"])
+    def test_invalid_is_in_value(value, op):
+        """Test with not allowed value for 'is_in' / 'is_not_in' operator."""
+        with pytest.raises((TypeError, ValueError)):
+            validate_operation(op, value=value)
+
+    @pytest.mark.parametrize("value", [{1: 2, 3: 4}, [1], [1, 2, 3]])
+    def test_invalid_is_between_values(self, value):
+        """Test with not allowed value for ris_between operator."""
+        with pytest.raises((ValueError, TypeError)):
+            validate_operation("is_between", value=value)
+
+    @pytest.mark.parametrize(
+        "op", ["contains", "starts_with", "ends_with"]
+    )
+    def test_invalid_string_operator_values(self, op: str):
+        """Test with not allowed value for string operators."""
+        with pytest.raises(TypeError):
+            validate_operation(op, value=1)
