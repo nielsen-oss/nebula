@@ -1,13 +1,9 @@
 """functions for TransformerPipeline."""
 
-import narwhals as nw
-
 from nlsn.nebula.df_types import GenericDataFrame, get_dataframe_type
-from nlsn.nebula.nw_util import to_native_dataframes
 
 __all__ = [
     "split_df",
-    "to_schema",
 ]
 
 
@@ -36,24 +32,3 @@ def split_df(df, cfg: dict) -> tuple["GenericDataFrame", "GenericDataFrame"]:
         value=cfg.get("value"),
         compare_col=cfg.get("comparison_column"),
     )
-
-
-def to_schema(li_df: list, schema) -> list["GenericDataFrame"]:
-    """Cast a list of dataframes to a schema."""
-    native_dataframes, native_backend, nw_found = to_native_dataframes(li_df)
-
-    if native_backend == "pandas":
-        ret = [_df.astype(schema) for _df in native_dataframes]
-
-    elif native_backend == "polars":
-        ret = [_df.cast(schema) for _df in native_dataframes]
-
-    elif native_backend == "spark":
-        from nlsn.nebula.spark_util import cast_to_schema
-
-        ret = [cast_to_schema(i, schema) for i in native_dataframes]
-
-    else:  # pragma: no cover
-        raise ValueError(f"Unsupported dataframe type: {native_backend}")
-
-    return [nw.from_native(i) for i in ret] if nw_found else ret

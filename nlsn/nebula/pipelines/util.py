@@ -2,6 +2,8 @@
 
 from typing import Callable
 
+import narwhals as nw
+
 from nlsn.nebula.auxiliaries import truncate_long_string
 from nlsn.nebula.base import (
     LazyWrapper,
@@ -9,6 +11,8 @@ from nlsn.nebula.base import (
     is_lazy_function,
     is_ns_lazy_request,
 )
+from nlsn.nebula.df_types import GenericDataFrame
+from nlsn.nebula.nw_util import to_native_dataframes
 from nlsn.nebula.pipelines.transformer_type_util import is_transformer
 
 __all__ = [
@@ -18,6 +22,7 @@ __all__ = [
     "is_lazy_transformer",
     "is_plain_transformer_list",
     "sanitize_list_transformers",
+    "to_schema",
 ]
 
 
@@ -295,3 +300,24 @@ def sanitize_list_transformers(transformers) -> list[Transformer]:
     else:
         ret = []
     return ret
+
+
+def to_schema(li_df: list, schema) -> list["GenericDataFrame"]:
+    """Cast a list of dataframes to a schema."""
+    native_dataframes, native_backend, nw_found = to_native_dataframes(li_df)
+
+    if native_backend == "pandas":
+        ret = [_df.astype(schema) for _df in native_dataframes]
+
+    elif native_backend == "polars":
+        ret = [_df.cast(schema) for _df in native_dataframes]
+
+    elif native_backend == "spark":
+        from nlsn.nebula.spark_util import cast_to_schema
+
+        ret = [cast_to_schema(i, schema) for i in native_dataframes]
+
+    else:  # pragma: no cover
+        raise ValueError(f"Unsupported dataframe type: {native_backend}")
+
+    return [nw.from_native(i) for i in ret] if nw_found else ret

@@ -1,13 +1,15 @@
 """Unit-tests for pipeline utils."""
 
-from typing import List
-
+import narwhals as nw
+import pandas as pd
+import polars as pl
 import pytest
 
 from nlsn.nebula.base import Transformer
 from nlsn.nebula.pipelines.pipelines import TransformerPipeline
 from nlsn.nebula.pipelines.util import *
 from nlsn.nebula.transformers import *
+from nlsn.tests.auxiliaries import from_pandas, to_pandas
 
 
 @pytest.mark.parametrize(
@@ -80,7 +82,7 @@ def test_sanitize_list_transformers_error(transformers):
 @pytest.mark.parametrize("as_list", [True, False])
 def test_get_transformer_name(add_params, max_len, wrap_text, as_list):
     """Test 'get_transformer_name' function."""
-    cols_select: List[str] = ["this_column_is_23_chars"] * 100
+    cols_select: list[str] = ["this_column_is_23_chars"] * 100
     param_len_full: int = len("".join(cols_select))
     t = SelectColumns(columns=cols_select)
     kwargs = {
@@ -162,3 +164,62 @@ def test_create_dict_extra_functions_error(o):
     """Test 'create_dict_extra_functions' function with wrong arguments."""
     with pytest.raises(AssertionError):
         create_dict_extra_functions(o)
+
+
+class TestToSchema:
+    """Test suite for to_schema function."""
+
+    @pytest.fixture(scope="class", name="list_dfs")
+    def _get_list_dfs(self) -> list[pd.DataFrame]:
+        df1 = pd.DataFrame({
+            "id": [1, 2, 3],
+            "value": [10.5, 20.5, 30.5],
+            "name": ["a", "b", "c"]
+        })
+
+        df2 = pd.DataFrame({
+            "id": [1, 2, 3],
+            "value": [10, 20, 30],
+            "name": ["a", "b", "c"]
+        })
+
+        df3 = pd.DataFrame({
+            "id": [1, 2, 3],
+            "value": [1.2, float("nan"), 3.1],
+            "name": ["a", "b", "c"]
+        })
+
+        return [df1, df2, df3]
+
+    @pytest.mark.parametrize("backend", ["pandas", "polars"])
+    @pytest.mark.parametrize(
+        "n, to_nw",
+        [
+            (1, None),
+            (1, "all"),
+            (None, 1),
+            (None, None),
+            (None, "all"),
+        ]
+    )
+    def test_pandas(self, backend: str, list_dfs, n, to_nw):
+        dtypes = {"id": "int64", "value": "float32"}
+        dataframes = list_dfs[:n]
+        expected = [i.astype(dtypes) for i in dataframes]
+
+        dataframes = [from_pandas(i, backend, to_nw=False, spark=None) for i in dataframes]
+
+        if to_nw == 1:
+            dataframes[1] = nw.from_native(dataframes[1])
+        elif to_nw == "all":
+            dataframes = [nw.from_native(i) for i in dataframes]
+
+        pl_schema = {"id": pl.Int64, "value": pl.Float32}
+        result = to_schema(dataframes, dtypes if backend == "pandas" else pl_schema)
+        if to_nw is not None:
+            result = [nw.to_native(i) for i in result]
+
+        result = [to_pandas(i) for i in result]
+
+        for df_chk, df_exp in zip(result, expected):
+            pd.testing.assert_frame_equal(df_chk, df_exp, check_dtype=True)
