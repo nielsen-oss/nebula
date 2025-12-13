@@ -61,7 +61,6 @@ def test_mock_pipelines_empty_splits(pipeline_key: str):
 
     pipe = load_pipeline(data, extra_functions=dict_split_functions)
     pipe.show_pipeline(add_transformer_params=True)
-    pipe._print_dag()
 
     n_exp = df_input.shape[0]
 

@@ -177,7 +177,6 @@ def test_complex_pipeline(
     df_exp, df_high_exp = _get_df_exp(df_input, trf_hi)
 
     pipe.show_pipeline()
-    pipe._print_dag()
 
     df_chk = pipe.run(df_input)
     assert_df_equality(df_chk, df_exp, ignore_row_order=True)
@@ -208,12 +207,10 @@ def test_pipeline_loader_with_storage(df_input):
 
     pipe = load_pipeline(data, extra_functions=split_function)
     pipe.show_pipeline(add_transformer_params=True)
-    pipe._print_dag()
 
     df_exp, df_high_exp = _get_df_exp(df_input, trf_hi)
 
     pipe.show_pipeline()
-    pipe._print_dag()
 
     df_chk = pipe.run(df_input)
     assert_df_equality(df_chk, df_exp, ignore_row_order=True)

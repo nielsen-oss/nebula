@@ -49,7 +49,6 @@ def test_transformer_no_parent_class_in_pipeline(df_input):
 
     pipe = TransformerPipeline(AddOne(column="idx"))
     pipe.show_pipeline()
-    pipe._print_dag()
 
     df_chk = pipe.run(df_input)
     pd.testing.assert_frame_equal(df_exp, df_chk)
@@ -58,9 +57,8 @@ def test_transformer_no_parent_class_in_pipeline(df_input):
 @pytest.mark.parametrize("backend", ["pandas", None])
 def test_backend_pandas(df_input, backend: Optional[str]):
     """Test explicit and implicit Pandas backend."""
-    pipe = TransformerPipeline(SelectColumns(glob="c*"), backend=backend)
+    pipe = TransformerPipeline(SelectColumns(glob="c*"))
     pipe.show_pipeline()
-    pipe._print_dag()
 
     df_chk = pipe.run(df_input)
     df_exp = df_input[["c1", "c2"]]
@@ -72,9 +70,9 @@ def test_forced_transformer(df_input):
     list_trf_1 = [SelectColumns(glob="*")]
     list_trf_2 = [AssertNotEmpty(), DropNulls()]
 
-    pipe_1 = TransformerPipeline(list_trf_1, backend="pandas")
+    pipe_1 = TransformerPipeline(list_trf_1)
     pipe_2 = TransformerPipeline(list_trf_2)
-    pipe = TransformerPipeline([pipe_1, pipe_2], backend="pandas")
+    pipe = TransformerPipeline([pipe_1, pipe_2])
     pipe.show_pipeline()
 
     ns.clear()

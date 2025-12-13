@@ -71,7 +71,7 @@ class TestExplictBackend:
         backend: str,
     ):
         """Test explicit and implicit pandas backend."""
-        pipe = TransformerPipeline(SelectColumns(glob="c*"), backend=backend)
+        pipe = TransformerPipeline(SelectColumns(glob="c*"))
         pipe.show_pipeline()
 
         df_exp = df_input[["c1", "c2"]]

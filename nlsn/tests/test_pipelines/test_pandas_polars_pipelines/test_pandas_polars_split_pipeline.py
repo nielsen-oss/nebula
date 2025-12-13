@@ -97,14 +97,12 @@ class TestSpitPipelineApplyTransformerBeforeAndAfter:
 
         pipe = TransformerPipeline(
             dict_transformers,
-            backend="pandas",
             split_function=_split_function,
             cast_subset_to_input_schema=True,
             **{where: transformer}
         )
 
         pipe.show_pipeline()
-        pipe._print_dag()
 
         df_chk = pipe.run(df_input)
         df_chk = df_chk.sort_index()
@@ -151,14 +149,12 @@ class TestSpitPipelineDeadEnd:
 
         pipe = TransformerPipeline(
             dict_transformers,
-            backend="pandas",
             split_function=_split_function_with_null,
             splits_no_merge=splits_no_merge,
         )
 
         assert pipe.splits_no_merge == {"hi"}
         pipe.show_pipeline()
-        pipe._print_dag()
 
     @staticmethod
     @pytest.mark.parametrize(
@@ -191,7 +187,6 @@ class TestSpitPipelineDeadEnd:
 
         # To catch any error
         pipe.show_pipeline()
-        pipe._print_dag()
 
         df_out = pipe.run(df_input)
 

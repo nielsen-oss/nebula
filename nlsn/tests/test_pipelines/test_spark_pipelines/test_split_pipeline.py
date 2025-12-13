@@ -155,7 +155,6 @@ class TestSplitPipeline:
         )
 
         pipe.show_pipeline()
-        pipe._print_dag()
 
         df_chk = pipe.run(df_input)
 
@@ -277,7 +276,6 @@ class TestSpitPipelineApplyTransformerBeforeAndAfter:
         )
 
         pipe.show_pipeline()
-        pipe._print_dag()
 
         df_chk = pipe.run(df_input)
         assert_df_equality(
@@ -303,7 +301,6 @@ class TestSpitPipelineDeadEnd:
 
         assert pipe.splits_no_merge == {"hi"}
         pipe.show_pipeline()
-        pipe._print_dag()
 
     @staticmethod
     @pytest.fixture(scope="module", name="full_splits")
@@ -340,7 +337,6 @@ class TestSpitPipelineDeadEnd:
 
         # To catch any error
         pipe.show_pipeline()
-        pipe._print_dag()
 
         df_out = pipe.run(df_input)
 
