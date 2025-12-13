@@ -166,6 +166,33 @@ def test_create_dict_extra_functions_error(o):
         create_dict_extra_functions(o)
 
 
+class TestSplitDf:
+    """Test the split_df function with Polars."""
+
+    @pytest.fixture(scope="class", name="df_input")
+    def _get_df_input(self):
+        return pl.DataFrame({
+            "id": [1, 2, 3, 4, 5],
+            "status": ["active", "inactive", "active", "pending", "active"],
+            "score": [85, 42, 91, None, 73],
+            "name": ["Alice", "Bob", "Charlie", "Diana", "Eve"],
+        })
+
+    def test(self, df_input):
+        cfg = {"input_col": "score", "operator": "gt", "value": 80}
+        df_1_chk_nw, df_2_chk_nw = split_df(df_input, cfg)
+        df_1_chk = nw.to_native(df_1_chk_nw)
+        df_2_chk = nw.to_native(df_2_chk_nw)
+
+        # Scores > 80: 85, 91 (2 rows)
+        df_1_exp = df_input.filter(pl.col("score") > 80)
+        pl.testing.assert_frame_equal(df_1_chk, df_1_exp)
+
+        # Scores <= 80 or null: 42, None, 73 (3 rows)
+        df_2_exp = df_input.filter((pl.col("score") <= 80) | pl.col("score").is_null())
+        pl.testing.assert_frame_equal(df_2_chk, df_2_exp)
+
+
 class TestToSchema:
     """Test suite for to_schema function."""
 

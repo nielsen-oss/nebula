@@ -26,7 +26,6 @@ __all__ = [
     "get_spark_session",
     "hash_dataframe",
     "is_broadcast",
-    "null_cond_to_false",
 ]
 
 ALLOWED_SPARK_HASH = {"md5", "crc32", "sha1", "sha2", "xxhash64"}
@@ -367,12 +366,6 @@ def hash_dataframe(
         return hashed_col
 
     return df.withColumn(new_col, hashed_col)
-
-
-def null_cond_to_false(cond: F.col) -> F.col:
-    """Convert a null value in a boolean field to False."""
-    null_cond = cond.isNull()
-    return F.when(null_cond, F.lit(False)).otherwise(cond)
 
 
 def get_data_skew(df, as_dict: bool = False) -> dict[str, Any] | None:

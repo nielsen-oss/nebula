@@ -8,9 +8,18 @@ import operator
 from functools import reduce
 from typing import Any
 
+import narwhals as nw
+
 from nlsn.nebula.backend_util import HAS_PANDAS, HAS_POLARS, HAS_SPARK
 
-__all__ = ["GenericDataFrame", "get_dataframe_type"]
+__all__ = [
+    "GenericNativeDataFrame",
+    "GenericDataFrame",
+    "NwDataFrame",
+    "get_dataframe_type"
+]
+
+NwDataFrame = nw.DataFrame | nw.LazyFrame
 
 _df_types: list[type] = []
 
@@ -31,11 +40,13 @@ if HAS_SPARK:
 
 # Handle case where no backends are installed
 if _df_types:
-    GenericDataFrame = reduce(operator.or_, _df_types)
+    GenericNativeDataFrame = reduce(operator.or_, _df_types)
 else:
     # Fallback type when no backends installed
     # This allows imports to work, but any usage will fail with helpful message
-    GenericDataFrame = Any
+    GenericNativeDataFrame = Any
+
+GenericDataFrame = NwDataFrame | GenericNativeDataFrame
 
 
 def get_dataframe_type(df) -> str:

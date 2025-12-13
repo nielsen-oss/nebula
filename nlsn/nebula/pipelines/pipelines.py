@@ -16,7 +16,7 @@ from nlsn.nebula.auxiliaries import (
     get_class_name,
 )
 from nlsn.nebula.base import LazyWrapper, Transformer
-from nlsn.nebula.df_types import GenericDataFrame, get_dataframe_type
+from nlsn.nebula.df_types import GenericNativeDataFrame, get_dataframe_type
 from nlsn.nebula.logger import logger
 from nlsn.nebula.nw_util import df_is_empty, append_dataframes, join_dataframes
 from nlsn.nebula.pipelines._checks import *
@@ -26,7 +26,6 @@ from nlsn.nebula.pipelines.pipe_aux import *
 from nlsn.nebula.pipelines.transformer_type_util import is_transformer
 from nlsn.nebula.pipelines.util import *
 from nlsn.nebula.storage import nebula_storage as ns
-from ._df_funcs import *
 
 __all__ = [
     "PipeType",
@@ -65,7 +64,7 @@ PipeType = Union[
 
 TransformerOrTransformerList = Transformer | list[Transformer] | None
 
-_FAIL_CACHE: dict[tuple[str, str], "GenericDataFrame"] = {}
+_FAIL_CACHE: dict[tuple[str, str], "GenericNativeDataFrame"] = {}
 
 
 def _update_fail_name(name: str) -> str:
@@ -133,7 +132,7 @@ def _make_error_msg(o) -> str:
     return msg
 
 
-def _get_n_partitions(df: "GenericDataFrame", obj: PipeType) -> int:
+def _get_n_partitions(df: "GenericNativeDataFrame", obj: PipeType) -> int:
     """Get the number of partitions if the DF is a spark one and if requested."""
     n = 0
     if obj.repartition_output_to_original or obj.coalesce_output_to_original:
@@ -142,7 +141,7 @@ def _get_n_partitions(df: "GenericDataFrame", obj: PipeType) -> int:
     return n
 
 
-def _repartition_coalesce(df, obj: PipeType, n: int) -> "GenericDataFrame":
+def _repartition_coalesce(df, obj: PipeType, n: int) -> "GenericNativeDataFrame":
     """Repartition / coalesce if "df" is a spark DF and if requested."""
     if obj.repartition_output_to_original:
         if get_dataframe_type(df) == "spark":
@@ -214,7 +213,7 @@ def _remove_last_transformers(li: list[Transformer], n: int) -> None:
 
 def _handle_storage(
         _storage_request, d: dict[str, str | bool], df
-) -> "GenericDataFrame":
+) -> "GenericNativeDataFrame":
     if _storage_request == StoreRequest.STORE_DF:
         key, msg = get_store_key_msg(d)
         logger.info(f"   --> {msg}")
@@ -239,8 +238,8 @@ def _handle_storage(
 
 
 def __transform(
-        df: "GenericDataFrame", trf: Transformer, backend: str | None
-) -> "GenericDataFrame":
+        df: "GenericNativeDataFrame", trf: Transformer, backend: str | None
+) -> "GenericNativeDataFrame":
     _FAIL_CACHE.clear()
 
     name_full: str = get_transformer_name(
@@ -280,10 +279,10 @@ def __transform(
 
 def _transform(
         stages: list[Transformer],
-        df: "GenericDataFrame",
+        df: "GenericNativeDataFrame",
         backend: str | None,
         forced_trf: Transformer | None,
-) -> "GenericDataFrame":
+) -> "GenericNativeDataFrame":
     """Apply the actual transformation and log the time."""
     trf: Transformer
     for trf in stages:
@@ -409,10 +408,10 @@ def _create_stages(
 
 def _run_pipeline(
         obj: PipeType | dict[str, str],
-        df: "GenericDataFrame",
+        df: "GenericNativeDataFrame",
         backend: str | None,
         forced_trf: Transformer | None,
-) -> "GenericDataFrame":
+) -> "GenericNativeDataFrame":
     """Run the pipeline(s) on the input DataFrame.
 
     Allowed obj types:
@@ -618,7 +617,7 @@ def _run_pipeline(
         else:  # pragma: no cover
             raise ValueError("Unsupported dataframe type")
 
-        dict_df_split_input: dict[str, "GenericDataFrame"]
+        dict_df_split_input: dict[str, "GenericNativeDataFrame"]
         dict_df_split_input = obj.split_function(df)
 
         keys_split_function = set(dict_df_split_input.keys())
@@ -634,11 +633,11 @@ def _run_pipeline(
 
         n_part_orig: int = _get_n_partitions(df, obj)
 
-        li_df_split: list["GenericDataFrame"] = []  # splits to merge
+        li_df_split: list["GenericNativeDataFrame"] = []  # splits to merge
         split_to_merge_names: list[str] = []
         dead_end_splits: set[str] = obj.splits_no_merge
 
-        _df_split_output: "GenericDataFrame"
+        _df_split_output: "GenericNativeDataFrame"
 
         for split_name, el in obj.splits.items():
             logger.info(f"Running SPLIT <<< {split_name} >>>")

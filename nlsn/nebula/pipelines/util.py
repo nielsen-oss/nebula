@@ -11,8 +11,8 @@ from nlsn.nebula.base import (
     is_lazy_function,
     is_ns_lazy_request,
 )
-from nlsn.nebula.df_types import GenericDataFrame
-from nlsn.nebula.nw_util import to_native_dataframes
+from nlsn.nebula.df_types import GenericDataFrame, NwDataFrame
+from nlsn.nebula.nw_util import get_condition, null_cond_to_false, to_native_dataframes
 from nlsn.nebula.pipelines.transformer_type_util import is_transformer
 
 __all__ = [
@@ -22,6 +22,7 @@ __all__ = [
     "is_lazy_transformer",
     "is_plain_transformer_list",
     "sanitize_list_transformers",
+    "split_df",
     "to_schema",
 ]
 
@@ -302,7 +303,23 @@ def sanitize_list_transformers(transformers) -> list[Transformer]:
     return ret
 
 
-def to_schema(li_df: list, schema) -> list["GenericDataFrame"]:
+def split_df(df, cfg: dict) -> tuple[NwDataFrame, NwDataFrame]:
+    """Split a dataframe according to the given configuration."""
+    if not isinstance(df, (nw.DataFrame, nw.LazyFrame)):
+        df = nw.from_native(df)
+
+    cond = get_condition(
+        col_name=cfg.get("input_col"),
+        operator=cfg.get("operator"),
+        value=cfg.get("value"),
+        compare_col=cfg.get("comparison_column"),
+    )
+    otherwise_cond = ~null_cond_to_false(cond)
+
+    return df.filter(cond), df.filter(otherwise_cond)
+
+
+def to_schema(li_df: list, schema) -> list[GenericDataFrame]:
     """Cast a list of dataframes to a schema."""
     native_dataframes, native_backend, nw_found = to_native_dataframes(li_df)
 
