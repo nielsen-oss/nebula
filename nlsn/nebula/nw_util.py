@@ -342,6 +342,76 @@ def join_dataframes(
         broadcast: bool = False,
         coalesce_keys: bool = True,
 ):
+    """Join two dataframes using Narwhals with cross-backend support.
+
+    This function provides a unified interface for joining dataframes across
+    pandas, Polars, and Spark backends. It handles backend-specific differences
+    and provides consistent behavior across all supported backends.
+
+    Args:
+        df: Left dataframe (native or Narwhals-wrapped).
+        df_to_join: Right dataframe to join with (native or Narwhals-wrapped).
+        how (str): Join type. Must be one of:
+            - 'inner': Keep only rows that match in both dataframes
+            - 'left': Keep all rows from left, matching rows from right
+            - 'right': Keep all rows from right, matching rows from left
+                (implemented by swapping dataframes and using 'left')
+            - 'full': Keep all rows from both dataframes
+            - 'semi': Keep left rows that have matches in right (no right columns)
+            - 'anti': Keep left rows that have NO matches in right
+            - 'cross': Cartesian product of both dataframes (no join keys)
+            - 'right_semi', 'rightsemi': Right semi-join (swapped semi)
+            - 'right_anti', 'rightanti': Right anti-join (swapped anti)
+        on (str | list(str) | None): Column name(s) to join on when column names
+            are the same in both dataframes. Cannot be used with left_on/right_on.
+            Not applicable for cross joins.
+        left_on (str | list(str) | None): Column name(s) from left dataframe to
+            join on. Must be used together with right_on. Cannot be used with on.
+        right_on (str | list(str) | None): Column name(s) from right dataframe to
+            join on. Must be used together with left_on. Cannot be used with on.
+        suffix (str): Suffix to append to overlapping column names from the right
+            dataframe. Defaults to "_right".
+        broadcast (bool): Spark-only optimization. If True and backend is Spark,
+            broadcasts the right dataframe for more efficient joins with large
+            left tables. Ignored for pandas and Polars. Defaults to False.
+        coalesce_keys (bool): For outer joins (full) using the 'on'
+            parameter, whether to coalesce join keys into a single column.
+            Defaults to True (pandas/SQL/Spark behavior).
+            Ignored when how != 'full'.
+
+            - True: Full join on 'id' produces columns ['id', 'left_col', 'right_col']
+              The 'id' column contains non-null values from either side.
+            - False: Full join on 'id' produces ['id', 'left_col', 'id_right', 'right_col']
+              Preserves both join key columns (native Polars/Narwhals behavior).
+
+            Only applies when using 'on' parameter with outer joins. When using
+            left_on/right_on (different column names), both columns are always kept
+            regardless of this setting.
+
+    Returns:
+        Joined dataframe. Returns native format if both inputs were native,
+        otherwise returns Narwhals DataFrame/LazyFrame.
+
+    Raises:
+        ValueError: If invalid join type specified.
+        ValueError: If both 'on' and 'left_on'/'right_on' are specified.
+        ValueError: If only one of 'left_on'/'right_on' is specified.
+        ValueError: If join keys are specified for cross join.
+        ValueError: If dataframes are from different backends.
+
+    Notes:
+        - Right-side join types (right, right_semi, right_anti) are implemented
+          by swapping the dataframes and using the corresponding left-side join.
+        - When mixing Narwhals-wrapped and native dataframes, both must use the
+          same underlying backend (e.g., both Polars or both pandas).
+        - The coalesce_keys parameter addresses a difference between backends:
+          pandas/SQL/Spark coalesce join keys in outer joins by default, while
+          Polars/Narwhals keep both columns. The default (True) provides
+          pandas-like behavior for consistency.
+        - For Spark, the broadcast parameter can significantly improve performance
+          when joining a large table with a small table. The small table should be
+          on the right side.
+    """
     assert_join_params(how, on, left_on, right_on)
 
     (df_native, df_to_join_native), backend, nw_found = to_native_dataframes([df, df_to_join])

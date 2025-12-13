@@ -68,7 +68,8 @@ class Join(Transformer):
             left_on: str | list[str] | None = None,
             right_on: str | list[str] | None = None,
             suffix: str = "_right",
-            broadcast: bool = False
+            broadcast: bool = False,
+            coalesce_keys: bool = True,
     ):
         """Joins with another DataFrame, using the given join expression.
 
@@ -95,6 +96,21 @@ class Join(Transformer):
             broadcast (bool):
                 Spark-only parameter. If True, broadcast the right df.
                 Ignored for Pandas and Polars. Defaults to False.
+            coalesce_keys (bool): For outer joins (full) using the 'on'
+                parameter, whether to coalesce join keys into a single column.
+                Defaults to True (pandas/SQL/Spark behavior).
+                Ignored when how != 'full'.
+
+                - True: Full join on 'id' produces columns ['id', 'left_col',
+                  'right_col']. The 'id' column contains non-null values from
+                  either side.
+                - False: Full join on 'id' produces ['id', 'left_col',
+                  'id_right', 'right_col']. Preserves both join key
+                  columns (native Polars/Narwhals behavior).
+
+                Only applies when using 'on' parameter with outer joins. When
+                using left_on/right_on (different column names), both columns
+                are always kept regardless of this setting.
         """
         assert_join_params(how, on, left_on, right_on)
 

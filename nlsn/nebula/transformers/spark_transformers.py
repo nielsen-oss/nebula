@@ -53,7 +53,7 @@ __all__ = [
 def _assert_valid_partitions(value: int, name: str):
     if (not isinstance(value, int)) or (value < 1):
         msg = f'If "{name}" is provided, must be an integer > 1'
-        raise AssertionError(msg)
+        raise ValueError(msg)
 
 
 class _Partitions(Transformer):
@@ -67,7 +67,7 @@ class _Partitions(Transformer):
         if n_p > 1:
             msg = 'Only one among "num_partitions", "to_partitions" '
             msg += 'and "rows_per_partition" can be provided'
-            raise AssertionError(msg)
+            raise ValueError(msg)
 
         if num_partitions is not None:
             _assert_valid_partitions(num_partitions, "num_partitions")
@@ -797,7 +797,7 @@ class _Window(Transformer):
     ):
         if range_between and not order_cols:
             msg = "If 'range_between' is provided 'order_cols' must be set as well."
-            raise AssertionError(msg)
+            raise ValueError(msg)
 
         super().__init__()
         self._partition_cols: list[str] = ensure_flat_list(partition_cols)

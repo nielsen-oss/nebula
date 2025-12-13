@@ -130,16 +130,3 @@ class TestJoin:
 
         assert result.shape == (3, 4)
         assert set(result.columns) == {"region", "product", "sales", "target"}
-
-    def test_right_join_via_swap(self, df_left, df_right):
-        """Test right join is implemented by swapping dataframes."""
-        ns.set("right_table", df_right)
-
-        transformer = Join(store_key="right_table", on="user_id", how="right")
-        result = transformer.transform(df_left)
-
-        # Right join keeps all right rows (user_id 2,3,4,5)
-        assert result.shape == (4, 5)
-        assert result["user_id"].to_list() == [2, 3, 4, 5]
-        # Last row should have nulls for left columns
-        assert result.filter(pl.col("user_id") == 5)["name"][0] is None

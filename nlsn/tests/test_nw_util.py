@@ -564,6 +564,182 @@ class TestGetConditionIntegration:
         assert set(result_native["name"].values) == {"Bob", "Eve"}
 
 
+class TestJoinDataframes:
+    """Test suite for the join_dataframes utility function."""
+
+    @pytest.mark.parametrize("backend", ["pandas", "polars"])
+    @pytest.mark.parametrize("how", ["inner", "left", "right"])
+    @pytest.mark.parametrize("to_nw", [True, False])
+    def test_basic(self, backend: str, to_nw: bool, how: str):
+        """Test basic join on single column."""
+        df_left_pd = pd.DataFrame({
+            "user_id": [1, 2, 3, 4],
+            "name": ["Alice", "Bob", "Charlie", "David"],
+            "age": [25, 30, 35, 40]
+        })
+        df_right_pd = pd.DataFrame({
+            "user_id": [2, 3, 4, 5],
+            "city": ["NYC", "LA", "Chicago", "Boston"],
+            "country": ["USA", "USA", "USA", "USA"]
+        })
+
+        df_left = from_pandas(df_left_pd, backend, to_nw=to_nw)
+        df_right = from_pandas(df_right_pd, backend, to_nw=to_nw)
+
+        result = join_dataframes(df_left, df_right, how=how, on="user_id")
+        if to_nw:
+            assert isinstance(result, (nw.DataFrame, nw.LazyFrame))
+        else:
+            if backend == "pandas":
+                assert isinstance(result, pd.DataFrame)
+            else:
+                assert isinstance(result, pl.DataFrame)
+        df_chk = to_pandas(result).reset_index(drop=True)
+
+        out_cols = df_chk.columns.tolist()
+        df_exp = df_left_pd.merge(df_right_pd, on="user_id", how=how)
+        assert set(out_cols) == set(df_exp.columns.tolist())
+        df_exp = df_exp[out_cols].sort_values("user_id").reset_index(drop=True)
+        pd.testing.assert_frame_equal(df_chk, df_exp)
+
+    @pytest.mark.parametrize("coalesce_keys", [True, False])
+    def test_full_join_coalesce_keys_true(self, coalesce_keys: bool):
+        """Test that coalesce_keys functionality."""
+        df_left = pl.DataFrame({"id": [1, 2, 3], "val": ["a", "b", "c"]})
+        df_right = pl.DataFrame({"id": [2, 3, 4], "val2": ["x", "y", "z"]})
+
+        result = join_dataframes(
+            df_left,
+            nw.from_native(df_right),
+            how="full",
+            on="id",
+            coalesce_keys=coalesce_keys
+        )
+        df_chk = nw.to_native(result)
+        df_exp = df_left.join(df_right, on="id", how="full")
+
+        if coalesce_keys:
+            df_exp = df_exp.with_columns(pl.coalesce("id", "id_right").alias("id")).drop("id_right")
+        pl.testing.assert_frame_equal(df_chk, df_exp)
+
+    def test_cross_join(self):
+        """Test cross join produces cartesian product."""
+        df_left = pl.DataFrame({"color": ["red", "blue"]})
+        df_right = pl.DataFrame({"size": ["S", "M", "L"]})
+
+        # mix the types
+        result = join_dataframes(df_left, nw.from_native(df_right), how="cross")
+        df_chk = nw.to_native(result)
+
+        df_exp = df_left.join(df_right, how="cross")
+        pl.testing.assert_frame_equal(df_chk, df_exp)
+
+    @pytest.mark.parametrize("backend", TEST_BACKENDS)
+    @pytest.mark.parametrize("to_nw", [True, False])
+    def test_right_join_with_different_keys(self, spark, backend: str, to_nw: bool):
+        """Test right join with left_on/right_on swaps correctly."""
+        df_left_pd = pd.DataFrame({
+            "left_id": [1, 2, 3],
+            "value": ["a", "b", "c"]
+        })
+        df_right_pd = pd.DataFrame({
+            "right_id": [2, 3, 4],
+            "data": ["x", "y", "z"]
+        })
+
+        df_left = from_pandas(df_left_pd, backend, to_nw=to_nw, spark=spark)
+        df_right = from_pandas(df_right_pd, backend, to_nw=to_nw, spark=spark)
+
+        result = join_dataframes(
+            df_left,
+            df_right,
+            how="right",
+            left_on="left_id",
+            right_on="right_id"
+        )
+        result_pd = to_pandas(result).reset_index(drop=True)
+
+        # Should keep all right rows (right_id: 2, 3, 4)
+        assert len(result_pd) == 3
+        assert sorted(result_pd["right_id"].tolist()) == [2, 3, 4]
+
+    @pytest.mark.parametrize("suffix", [None, "_b"])
+    def test_suffix_default(self, suffix):
+        """Test default suffix is applied to overlapping columns."""
+        df_left = pd.DataFrame({
+            "id": [1, 2],
+            "value": [10, 20],
+            "status": ["active", "inactive"]
+        })
+        df_right = pd.DataFrame({
+            "id": [1, 2],
+            "value": [100, 200],  # Overlapping column
+            "category": ["A", "B"]
+        })
+
+        kws = {"how": "inner", "on": "id"} | ({"suffix": suffix} if suffix else {})
+        result = join_dataframes(df_left, nw.from_native(df_right), **kws)
+        assert isinstance(result, (nw.DataFrame, nw.LazyFrame))
+        result_pd = to_pandas(result).reset_index(drop=True)
+
+        suffix = suffix if suffix else "_right"  # the default is '_right'
+
+        assert "value" in result_pd.columns
+        assert f"value{suffix}" in result_pd.columns  # Default suffix
+        assert result_pd["value"].tolist() == [10, 20]
+        assert result_pd[f"value{suffix}"].tolist() == [100, 200]
+
+    @pytest.mark.parametrize("backend", TEST_BACKENDS)
+    @pytest.mark.parametrize("to_nw", [True, False])
+    def test_suffix_custom(self, spark, backend: str, to_nw: bool):
+        """Test custom suffix is applied correctly."""
+        df_left_pd = pd.DataFrame({
+            "id": [1, 2],
+            "value": [10, 20]
+        })
+        df_right_pd = pd.DataFrame({
+            "id": [1, 2],
+            "value": [100, 200]
+        })
+
+        df_left = from_pandas(df_left_pd, backend, to_nw=to_nw, spark=spark)
+        df_right = from_pandas(df_right_pd, backend, to_nw=to_nw, spark=spark)
+
+        result = join_dataframes(
+            df_left,
+            df_right,
+            how="inner",
+            on="id",
+            suffix="_b"
+        )
+        result_pd = to_pandas(result).reset_index(drop=True)
+
+        assert "value" in result_pd.columns
+        assert "value_b" in result_pd.columns
+        assert result_pd["value_b"].tolist() == [100, 200]
+
+    @pytest.mark.skipif(os.environ.get("TESTS_NO_SPARK") == "true", reason="no spark")
+    def test_spark_broadcast(self, spark):
+        """Test Spark broadcast hint is applied."""
+        df_left_pd = pd.DataFrame({"id": [1, 2, 3], "val": [10, 20, 30]})
+        df_right_pd = pd.DataFrame({"id": [2, 3, 4], "val2": [40, 50, 60]})
+
+        df_left = from_pandas(df_left_pd, "spark", to_nw=False, spark=spark)
+        df_right = from_pandas(df_right_pd, "spark", to_nw=True, spark=spark)
+
+        # Should not error with broadcast=True
+        result = join_dataframes(
+            df_left,
+            df_right,
+            how="inner",
+            on="id",
+            broadcast=True
+        )
+        df_chk = to_pandas(result).sort_values("id").reset_index(drop=True)
+        df_exp = df_left_pd.merge(df_right_pd, on="id", how="inner")
+        pd.testing.assert_frame_equal(df_chk, df_exp)
+
+
 class TestNullCondToFalse:
     """Test the 'null_cond_to_false' helper function."""
 
@@ -715,179 +891,3 @@ class TestValidateOperation:
         """Test with not allowed value for string operators."""
         with pytest.raises(TypeError):
             validate_operation(op, value=1)
-
-
-class TestJoinDataframes:
-    """Test suite for the join_dataframes utility function."""
-
-    @pytest.mark.parametrize("backend", ["pandas", "polars"])
-    @pytest.mark.parametrize("how", ["inner", "left", "right"])
-    @pytest.mark.parametrize("to_nw", [True, False])
-    def test_basic(self, backend: str, to_nw: bool, how: str):
-        """Test basic join on single column."""
-        df_left_pd = pd.DataFrame({
-            "user_id": [1, 2, 3, 4],
-            "name": ["Alice", "Bob", "Charlie", "David"],
-            "age": [25, 30, 35, 40]
-        })
-        df_right_pd = pd.DataFrame({
-            "user_id": [2, 3, 4, 5],
-            "city": ["NYC", "LA", "Chicago", "Boston"],
-            "country": ["USA", "USA", "USA", "USA"]
-        })
-
-        df_left = from_pandas(df_left_pd, backend, to_nw=to_nw)
-        df_right = from_pandas(df_right_pd, backend, to_nw=to_nw)
-
-        result = join_dataframes(df_left, df_right, how=how, on="user_id")
-        if to_nw:
-            assert isinstance(result, (nw.DataFrame, nw.LazyFrame))
-        else:
-            if backend == "pandas":
-                assert isinstance(result, pd.DataFrame)
-            else:
-                assert isinstance(result, pl.DataFrame)
-        df_chk = to_pandas(result).reset_index(drop=True)
-
-        out_cols = df_chk.columns.tolist()
-        df_exp = df_left_pd.merge(df_right_pd, on="user_id", how=how)
-        assert set(out_cols) == set(df_exp.columns.tolist())
-        df_exp = df_exp[out_cols].sort_values("user_id").reset_index(drop=True)
-        pd.testing.assert_frame_equal(df_chk, df_exp)
-
-    @pytest.mark.parametrize("coalesce_keys", [True, False])
-    def test_full_join_coalesce_keys_true(self, coalesce_keys: bool):
-        """Test that coalesce_keys functionality."""
-        df_left = pl.DataFrame({"id": [1, 2, 3], "val": ["a", "b", "c"]})
-        df_right = pl.DataFrame({"id": [2, 3, 4], "val2": ["x", "y", "z"]})
-
-        result = join_dataframes(
-            df_left,
-            nw.from_native(df_right),
-            how="full",
-            on="id",
-            coalesce_keys=coalesce_keys
-        )
-        df_chk = nw.to_native(result)
-        df_exp = df_left.join(df_right, on="id", how="full")
-
-        if coalesce_keys:
-            df_exp = df_exp.with_columns(pl.coalesce("id", "id_right").alias("id")).drop("id_right")
-        pl.testing.assert_frame_equal(df_chk, df_exp)
-
-    def test_cross_join(self):
-        """Test cross join produces cartesian product."""
-        df_left = pl.DataFrame({"color": ["red", "blue"]})
-        df_right = pl.DataFrame({"size": ["S", "M", "L"]})
-
-        # mix the types
-        result = join_dataframes(df_left, nw.from_native(df_right), how="cross")
-        df_chk = nw.to_native(result)
-
-        df_exp = df_left.join(df_right, how="cross")
-        pl.testing.assert_frame_equal(df_chk, df_exp)
-
-    @pytest.mark.parametrize("backend", ["pandas", "polars"])
-    @pytest.mark.parametrize("to_nw", [True, False])
-    def test_right_join_with_different_keys(self, spark, backend: str, to_nw: bool):
-        """Test right join with left_on/right_on swaps correctly."""
-        df_left_pd = pd.DataFrame({
-            "left_id": [1, 2, 3],
-            "value": ["a", "b", "c"]
-        })
-        df_right_pd = pd.DataFrame({
-            "right_id": [2, 3, 4],
-            "data": ["x", "y", "z"]
-        })
-
-        df_left = from_pandas(df_left_pd, backend, to_nw=to_nw, spark=spark)
-        df_right = from_pandas(df_right_pd, backend, to_nw=to_nw, spark=spark)
-
-        result = join_dataframes(
-            df_left,
-            df_right,
-            how="right",
-            left_on="left_id",
-            right_on="right_id"
-        )
-        result_pd = to_pandas(result).reset_index(drop=True)
-
-        # Should keep all right rows (right_id: 2, 3, 4)
-        assert len(result_pd) == 3
-        assert sorted(result_pd["right_id"].tolist()) == [2, 3, 4]
-
-    @pytest.mark.parametrize("suffix", [None, "_b"])
-    def test_suffix_default(self, suffix):
-        """Test default suffix is applied to overlapping columns."""
-        df_left = pd.DataFrame({
-            "id": [1, 2],
-            "value": [10, 20],
-            "status": ["active", "inactive"]
-        })
-        df_right = pd.DataFrame({
-            "id": [1, 2],
-            "value": [100, 200],  # Overlapping column
-            "category": ["A", "B"]
-        })
-
-        kws = {"how": "inner", "on": "id"} | ({"suffix": suffix} if suffix else {})
-        result = join_dataframes(df_left, nw.from_native(df_right), **kws)
-        assert isinstance(result, (nw.DataFrame, nw.LazyFrame))
-        result_pd = to_pandas(result).reset_index(drop=True)
-
-        suffix = suffix if suffix else "_right"  # the default is '_right'
-
-        assert "value" in result_pd.columns
-        assert f"value{suffix}" in result_pd.columns  # Default suffix
-        assert result_pd["value"].tolist() == [10, 20]
-        assert result_pd[f"value{suffix}"].tolist() == [100, 200]
-
-    @pytest.mark.parametrize("backend", TEST_BACKENDS)
-    @pytest.mark.parametrize("to_nw", [True, False])
-    def test_suffix_custom(self, spark, backend: str, to_nw: bool):
-        """Test custom suffix is applied correctly."""
-        df_left_pd = pd.DataFrame({
-            "id": [1, 2],
-            "value": [10, 20]
-        })
-        df_right_pd = pd.DataFrame({
-            "id": [1, 2],
-            "value": [100, 200]
-        })
-
-        df_left = from_pandas(df_left_pd, backend, to_nw=to_nw, spark=spark)
-        df_right = from_pandas(df_right_pd, backend, to_nw=to_nw, spark=spark)
-
-        result = join_dataframes(
-            df_left,
-            df_right,
-            how="inner",
-            on="id",
-            suffix="_b"
-        )
-        result_pd = to_pandas(result).reset_index(drop=True)
-
-        assert "value" in result_pd.columns
-        assert "value_b" in result_pd.columns
-        assert result_pd["value_b"].tolist() == [100, 200]
-
-    @pytest.mark.skipif(os.environ.get("TESTS_NO_SPARK") == "true", reason="no spark")
-    def test_spark_broadcast(self, spark):
-        """Test Spark broadcast hint is applied."""
-        df_left_pd = pd.DataFrame({"id": [1, 2, 3], "val": [10, 20, 30]})
-        df_right_pd = pd.DataFrame({"id": [2, 3, 4], "val2": [40, 50, 60]})
-
-        df_left = from_pandas(df_left_pd, "spark", to_nw=False, spark=spark)
-        df_right = from_pandas(df_right_pd, "spark", to_nw=True, spark=spark)
-
-        # Should not error with broadcast=True
-        result = join_dataframes(
-            df_left,
-            df_right,
-            how="inner",
-            on="id",
-            broadcast=True
-        )
-        df_chk = to_pandas(result).sort_values("id").reset_index(drop=True)
-        df_exp = df_left_pd.merge(df_right_pd, on="id", how="inner")
-        pd.testing.assert_frame_equal(df_chk, df_exp)

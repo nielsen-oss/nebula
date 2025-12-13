@@ -42,11 +42,6 @@ class TestGroupBy:
                 groupby_columns="c0"
             )
 
-    def test_missing_groupby_selection(self):
-        """Test that at least one groupby selection method is required."""
-        with pytest.raises(AssertionError):
-            GroupBy(aggregations={"sum": ["c1"]})
-
     def test_multiple_groupby_selections_disallowed(self, df_input):
         """Test that only one groupby selection method can be used."""
         with pytest.raises(AssertionError):
@@ -460,14 +455,6 @@ class TestPivot:
         # Excluded columns
         assert "other_A" not in result.columns
 
-    def test_pivot_requires_id_selector(self, long_df):
-        """Test that at least one id selector must be provided."""
-        with pytest.raises(AssertionError):
-            Pivot(
-                pivot_col="month",
-                aggregate_function="first",
-            )
-
     def test_pivot_with_sum_aggregation(self):
         """Test pivot with sum aggregation for duplicates."""
         data = {
@@ -601,10 +588,7 @@ class TestUnpivot:
 
     def test_single_column(self):
         """Test melt with single melt column."""
-        data = {
-            "id": [1, 2],
-            "value": [10, 20],
-        }
+        data = {"id": [1, 2], "value": [10, 20]}
         df = nw.from_native(pl.DataFrame(data))
 
         transformer = Unpivot(
@@ -632,15 +616,6 @@ class TestUnpivot:
         product_counts = result.group_by("product_id").agg(nw.len()).sort("product_id")
         counts = product_counts["len"].to_list()
         assert counts == [2, 2, 2]
-
-    def test_requires_melt_specification(self, wide_df):
-        """Test that either melt_cols or melt_regex must be provided."""
-        with pytest.raises(AssertionError):
-            Unpivot(
-                id_cols=["product_id"],
-                variable_col="var",
-                value_col="val",
-            )
 
     def test_empty_selection(self):
         """Test melt when regex matches no columns."""

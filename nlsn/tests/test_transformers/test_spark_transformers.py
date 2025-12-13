@@ -8,11 +8,7 @@ import pytest
 from chispa import assert_df_equality
 from pyspark.sql import Window
 from pyspark.sql import functions as F
-from pyspark.sql.types import (
-    ArrayType,
-    MapType,
-    Row,
-)
+from pyspark.sql.types import ArrayType, MapType, Row
 from pyspark.sql.types import IntegerType, StringType, StructField, StructType
 from pyspark.sql.utils import AnalysisException
 
@@ -30,7 +26,6 @@ def test_cpu_info(spark):
     """Test CpuInfo."""
     schema = StructType([StructField("c1", IntegerType(), True)])
     df = spark.createDataFrame([[1]], schema=schema)
-
     t = CpuInfo(n_partitions=10)
     t.transform(df)
 
@@ -40,7 +35,6 @@ def test_log_data_skew(spark):
     schema = StructType([StructField("c1", IntegerType(), True)])
     data = [[i] for i in range(100)]
     df = spark.createDataFrame(data, schema=schema)
-
     t = LogDataSkew()
     t.transform(df)
 
@@ -474,7 +468,7 @@ class TestPartitions:
     )
     def test_invalid(self, kwargs):
         """Test _Partitions with wrong parameters."""
-        with pytest.raises(AssertionError):
+        with pytest.raises(ValueError):
             _Partitions(**kwargs)
 
     @pytest.fixture(scope="class", name="df_input")
@@ -503,7 +497,6 @@ class TestValidateWindowFrameBoundaries:
     """Unit-test for 'validate_window_frame_boundaries' auxiliary function."""
 
     def test_valid_window(self):
-        """Valid windows."""
         # Test valid integer boundaries
         assert validate_window_frame_boundaries(1, 10) == (1, 10)
         assert validate_window_frame_boundaries(-5, 5) == (-5, 5)
@@ -512,7 +505,6 @@ class TestValidateWindowFrameBoundaries:
         assert end > 5
 
     def test_invalid_window(self):
-        """Invalid windows."""
         # Test None values
         with pytest.raises(ValueError):
             validate_window_frame_boundaries(None, 5)
@@ -527,6 +519,8 @@ class TestValidateWindowFrameBoundaries:
 
 
 class TestSparkColumnMethod:
+    """Test SparkColumnMethod transformer."""
+
     @staticmethod
     @pytest.fixture(scope="class", name="df_input")
     def _get_df_input(spark):
@@ -541,19 +535,16 @@ class TestSparkColumnMethod:
         return spark.createDataFrame(data, StructType(fields)).persist()
 
     def test_invalid_method(self, df_input):
-        """Test SparkColumnMethod with a wrong method name."""
         with pytest.raises(ValueError):
             t = SparkColumnMethod(input_column="name", method="invalid")
             t.transform(df_input)
 
     def test_invalid_column(self, df_input):
-        """Test SparkColumnMethod with a wrong column name."""
         t = SparkColumnMethod(input_column="invalid", method="isNull")
         with pytest.raises(AnalysisException):
             t.transform(df_input)
 
     def test_valid(self, df_input):
-        """Test SparkColumnMethod."""
         t = SparkColumnMethod(
             input_column="name", method="contains", output_column="result", args=["se"]
         )
@@ -563,7 +554,7 @@ class TestSparkColumnMethod:
         assert_df_equality(df_chk, df_exp, ignore_row_order=True)
 
     def test_no_args(self, df_input):
-        """Test ColumnMethod w/o any arguments and overriding the input column."""
+        """Test overriding the input column."""
         t = SparkColumnMethod(input_column="name", method="isNull")
         df_chk = t.transform(df_input)
 
@@ -788,7 +779,7 @@ class TestSparkSqlFunction:
         return spark.createDataFrame(data, StructType(fields)).persist()
 
     @pytest.mark.parametrize("asc", [True, False])
-    def test_va(self, df_input, asc: bool):
+    def test_with_args(self, df_input, asc: bool):
         """Test SqlFunction."""
         t = SparkSqlFunction(
             column="result", function="sort_array", args=["data"], kwargs={"asc": asc}
@@ -798,7 +789,7 @@ class TestSparkSqlFunction:
         df_exp = df_input.withColumn("result", F.sort_array("data", asc=asc))
         assert_df_equality(df_chk, df_exp, ignore_row_order=True)
 
-    def test_sql_function_no_args(self, df_input):
+    def test_without_args(self, df_input):
         """Test SqlFunction w/o any arguments."""
         t = SparkSqlFunction(column="result", function="rand")
         df_chk = t.transform(df_input)
@@ -812,7 +803,7 @@ class TestWindow:
 
     def test_order_cols_range_between(self):
         """'order_cols' is null when 'range_between' is provided."""
-        with pytest.raises(AssertionError):
+        with pytest.raises(ValueError):
             _Window(
                 partition_cols=["a"],
                 order_cols=None,
@@ -823,7 +814,7 @@ class TestWindow:
 
     def test_aggregate_over_window_wrong_ascending(self):
         """Wrong ascending length."""
-        with pytest.raises(AssertionError):
+        with pytest.raises(ValueError):
             _Window(
                 partition_cols=["a"],
                 order_cols=["category", "group"],

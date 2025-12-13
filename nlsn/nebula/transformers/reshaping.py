@@ -304,7 +304,6 @@ class Pivot(Transformer):
             ...     aggregate_function="sum"
             ... )
         """
-        super().__init__()
         assert_at_least_one_non_null(
             id_cols=id_cols,
             id_regex=id_regex,
@@ -312,6 +311,7 @@ class Pivot(Transformer):
             id_startswith=id_startswith,
             id_endswith=id_endswith
         )
+        super().__init__()
         self._pivot_col = pivot_col
         self._aggregate_function = aggregate_function
         self._separator = separator

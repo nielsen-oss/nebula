@@ -16,8 +16,8 @@ __all__ = [
     "assert_pandas_polars_frame_equal",
     "from_pandas",
     "get_expected_columns",
-    "to_pandas",
     "sort_reset_assert",
+    "to_pandas",
 ]
 
 
@@ -103,6 +103,26 @@ def get_expected_columns(
     return ret
 
 
+def to_pandas(df_input) -> pd.DataFrame:
+    # from narwhals to native ...
+    if isinstance(df_input, (nw.DataFrame, nw.LazyFrame)):
+        df = nw.to_native(df_input)
+    else:
+        df = df_input
+
+    # ... to pandas
+    if isinstance(df, pl.DataFrame):  # polars
+        return df.to_pandas()
+    if isinstance(df, pl.LazyFrame):  # polars lazy
+        return df.collect().to_pandas()
+    if isinstance(df, pyspark.sql.DataFrame):  # spark
+        return df.toPandas()
+    elif isinstance(df, pd.DataFrame):
+        return df
+
+    raise TypeError(f"Unknown df type: {type(df)}")
+
+
 def sort_reset_assert(
         chk: pd.DataFrame,
         exp: pd.DataFrame,
@@ -116,31 +136,3 @@ def sort_reset_assert(
     chk = chk.sort_values(cols, na_position=na_position).reset_index(drop=True)
     exp = exp.sort_values(cols, na_position=na_position).reset_index(drop=True)
     pd.testing.assert_frame_equal(chk, exp, **kws)
-
-
-def to_pandas(df_input) -> pd.DataFrame:
-    # from narwhals to native ...
-    if isinstance(df_input, (nw.DataFrame, nw.LazyFrame)):
-        df = nw.to_native(df_input)
-    else:
-        df = df_input
-
-    # ... to pandas
-    if isinstance(df, pl.DataFrame):  # polars
-        return df.to_pandas()
-    if isinstance(df, pl.LazyFrame):  # polars lazy
-        return df.collect().to_pandas()
-    elif isinstance(df, pyspark.sql.DataFrame):  # spark
-        return df.toPandas()
-    elif isinstance(df, pd.DataFrame):
-        return df
-
-    raise TypeError(f"Unknown df type: {type(df)}")
-
-# def assert_frame_equal(
-#         df_chk_input,
-#         df_exp_input,
-#         ignore_order: bool = False,
-# ):
-#     df_chk: pd.DataFrame = _to_pd = (df_chk_input)
-#     df_exp: pd.DataFrame = _to_pd(df_exp_input)
