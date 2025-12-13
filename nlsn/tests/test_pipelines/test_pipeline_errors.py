@@ -22,7 +22,6 @@ from nlsn.nebula.spark_util import null_cond_to_false
 _MSG = "this custom message"
 
 
-
 class TestExceptions:
     @staticmethod
     @pytest.mark.skipif(os.environ.get("TESTS_NO_SPARK") == "true", reason="no spark")
