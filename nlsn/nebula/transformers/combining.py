@@ -1,14 +1,10 @@
 """Combining multiple DataFrames."""
 
-import narwhals as nw
-
 from nlsn.nebula import nebula_storage as ns
-from nlsn.nebula.auxiliaries import assert_allowed, ensure_flat_list
 from nlsn.nebula.base import Transformer
+from nlsn.nebula.nw_util import append_dataframes, assert_join_params, join_dataframes
 
 __all__ = ["AppendDataFrame", "Join"]
-
-from nlsn.nebula.nw_util import append_dataframes
 
 
 class AppendDataFrame(Transformer):
@@ -71,7 +67,8 @@ class Join(Transformer):
             on: list[str] | str | None = None,
             left_on: str | list[str] | None = None,
             right_on: str | list[str] | None = None,
-            suffix: str = "_right"
+            suffix: str = "_right",
+            broadcast: bool = False
     ):
         """Joins with another DataFrame, using the given join expression.
 
@@ -95,68 +92,23 @@ class Join(Transformer):
             suffix (str):
                 Suffix to append to columns with a duplicate name.
                 Defaults to "right".
+            broadcast (bool):
+                Spark-only parameter. If True, broadcast the right df.
+                Ignored for Pandas and Polars. Defaults to False.
         """
-        allowed_how = {
-            "inner",
-            "cross",
-            "full",
-            "left",
-            "semi",
-            "anti",
-            # not narwhals
-            "right",
-            "rightsemi",
-            "right_semi",
-            "rightanti",
-            "right_anti",
-        }
-        assert_allowed(how, allowed_how, "how")
+        assert_join_params(how, on, left_on, right_on)
 
         super().__init__()
-        self._table: str = store_key
-        self._how: str = how
-        self._on = ensure_flat_list(on) if on else None
-        self._left_on = ensure_flat_list(left_on) if left_on else None
-        self._right_on = ensure_flat_list(right_on) if right_on else None
-        self._suffix: str = suffix
-
-    def _transform_nw(self, df):
-        df_to_join = ns.get(self._table)
-
-        if not isinstance(df_to_join, nw.DataFrame):
-            df_to_join = nw.from_native(df_to_join)
-
-        # Map right-side joins to left-side by swapping dataframes
-        swap_map = {
-            "right": "left",
-            "rightsemi": "semi",
-            "right_semi": "semi",
-            "rightanti": "anti",
-            "right_anti": "anti",
+        self._store_key: str = store_key
+        self._join_kwargs = {
+            "how": how,
+            "on": on,
+            "left_on": left_on,
+            "right_on": right_on,
+            "suffix": suffix,
+            "broadcast": broadcast,
         }
 
-        if self._how in swap_map:
-            left, right = df_to_join, df
-            how = swap_map[self._how]
-
-            if self._left_on and self._right_on:
-                left_on, right_on = self._right_on, self._left_on
-            else:
-                left_on, right_on = self._left_on, self._right_on
-
-            on = self._on
-        else:
-            left, right = df, df_to_join
-            how = self._how
-            left_on, right_on = self._left_on, self._right_on
-            on = self._on
-
-        join_kwargs = {"how": how, "suffix": self._suffix}
-
-        if on:
-            join_kwargs["on"] = on
-        elif left_on and right_on:
-            join_kwargs["left_on"] = left_on
-            join_kwargs["right_on"] = right_on
-
-        return left.join(right, **join_kwargs)
+    def _transform_nw(self, df):
+        df_to_join = ns.get(self._store_key)
+        return join_dataframes(df, df_to_join, **self._join_kwargs)

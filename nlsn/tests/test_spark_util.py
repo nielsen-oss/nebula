@@ -1,5 +1,6 @@
 """Unit-tests for 'spark_util' module."""
 
+import narwhals as nw
 import pandas as pd
 import pytest
 from chispa.dataframe_comparer import assert_df_equality
@@ -15,21 +16,10 @@ from pyspark.sql.types import (
     StructType,
 )
 
+from nlsn.nebula.nw_util import broadcast_spark
 from nlsn.nebula.spark_util import *
 
 _nan = float("nan")
-
-
-def test_is_broadcast(spark):
-    """Test 'is_broadcast' function."""
-    fields = [
-        StructField("c1", StringType(), True),
-        StructField("c2", StringType(), True),
-    ]
-    data = [["a", "aa"], ["b", "bb"]]
-    df = spark.createDataFrame(data, schema=StructType(fields))
-    assert not is_broadcast(df)
-    assert is_broadcast(F.broadcast(df))
 
 
 class TestCastToSchema:
@@ -362,3 +352,30 @@ class TestFunctionHashDataFrame:
             ignore_nullable=True,
             allow_nan_equality=True,
         )
+
+
+class TestBroadcastUtil:
+    """Test broadcasting utils."""
+
+    @staticmethod
+    @pytest.fixture(scope="class", name="df")
+    def _get_df_input(spark):
+        fields = [
+            StructField("c1", StringType(), True),
+            StructField("c2", StringType(), True),
+        ]
+        data = [["a", "aa"], ["b", "bb"]]
+        return spark.createDataFrame(data, schema=StructType(fields))
+
+    def test_is_broadcast(self, df):
+        assert not is_broadcast(df)
+        assert is_broadcast(F.broadcast(df))
+
+    @pytest.mark.parametrize("to_nw", [True, False])
+    def test_broadcast_spark(self, df, to_nw):
+        # this is narwhals util, but related to spark
+        if to_nw:
+            df = nw.from_native(df)
+        df_chk = broadcast_spark(df)
+        df_chk = nw.to_native(df_chk)
+        assert is_broadcast(df_chk)

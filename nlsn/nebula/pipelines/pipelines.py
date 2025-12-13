@@ -18,7 +18,7 @@ from nlsn.nebula.auxiliaries import (
 from nlsn.nebula.base import LazyWrapper, Transformer
 from nlsn.nebula.df_types import GenericDataFrame, get_dataframe_type
 from nlsn.nebula.logger import logger
-from nlsn.nebula.nw_util import df_is_empty, append_dataframes
+from nlsn.nebula.nw_util import df_is_empty, append_dataframes, join_dataframes
 from nlsn.nebula.pipelines._checks import *
 from nlsn.nebula.pipelines._dag import create_dag, print_dag
 from nlsn.nebula.pipelines.exceptions import *
@@ -519,11 +519,14 @@ def _run_pipeline(
                     )
                 elif type_value == "join":
                     logger.info("Joining the dataframes ...")
-                    df = join_dfs(
+                    df = join_dataframes(
                         df,
                         df_out,
-                        on=obj.branch["on"],
                         how=obj.branch["how"],
+                        on=obj.branch.get("on"),
+                        left_on=obj.branch.get("left_on"),
+                        right_on=obj.branch.get("right_on"),
+                        suffix=obj.branch.get("suffix"),
                         broadcast=obj.branch.get("broadcast"),
                     )
                 else:

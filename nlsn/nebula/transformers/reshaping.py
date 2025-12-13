@@ -25,7 +25,7 @@ class GroupBy(Transformer):
         "{'sum': ['col_1', 'col_2']}"
     )
 
-    _ALLOWED_GROUPBY_AGG = {
+    _ALLOWED_GROUPBY_AGG: set[str] = {
         m for m in dir(nw.col())
         if m.islower() and not m.startswith('_')
     }
@@ -202,7 +202,6 @@ class GroupBy(Transformer):
         """Transform using Narwhals for multi-backend support."""
         groupby_cols: list[str] = self._get_selected_columns(df)
 
-        # Build aggregation expressions
         agg_exprs = []
         for agg_dict in self._aggregations:
             col_name = agg_dict["col"]
@@ -213,13 +212,11 @@ class GroupBy(Transformer):
             col_expr = nw.col(col_name)
             agg_expr = getattr(col_expr, agg_func)()
 
-            # Apply alias if provided
             if alias:
                 agg_expr = agg_expr.alias(alias)
 
             agg_exprs.append(agg_expr)
 
-        # Perform groupby and aggregation
         return df.group_by(groupby_cols).agg(agg_exprs)
 
 
@@ -421,7 +418,6 @@ class Unpivot(Transformer):
         )
         melt_cols: list[str] = self._get_selected_columns(df)
 
-        # Narwhals unpivot (confusing parameter names!)
         # on = columns to melt
         # index = columns to keep as identifiers
         return df.unpivot(

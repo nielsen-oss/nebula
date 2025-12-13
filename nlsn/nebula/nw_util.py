@@ -1,15 +1,21 @@
+import operator as py_operator
 from functools import partial, reduce
 from typing import Iterable
 
 import narwhals as nw
 
-from nlsn.nebula.auxiliaries import assert_allowed, get_symmetric_differences_in_sets
+from nlsn.nebula.auxiliaries import (
+    assert_allowed,
+    ensure_flat_list,
+    get_symmetric_differences_in_sets,
+)
 from nlsn.nebula.df_types import get_dataframe_type
 
 __all__ = [
     "append_dataframes",
     "df_is_empty",
     "get_condition",
+    "join_dataframes",
     "null_cond_to_false",
     "to_native_dataframes",
     "validate_operation",
@@ -25,6 +31,59 @@ _allowed_operators = (
         | STRING_OPERATORS
         | MEMBERSHIP_OPERATORS
 )
+
+
+def assert_join_params(
+        how: str,
+        on: str | None,
+        left_on: str | None,
+        right_on: str | None
+) -> None:
+    allowed_how = {
+        "inner",
+        "cross",
+        "full",
+        "left",
+        "semi",
+        "anti",
+        # not narwhals
+        "right",
+        "rightsemi",
+        "right_semi",
+        "rightanti",
+        "right_anti",
+    }
+    assert_allowed(how, allowed_how, "how")
+
+    if how == "cross":
+        if on or left_on or right_on:
+            raise ValueError(
+                "Can not pass 'left_on', 'right_on' or 'on' keys for cross join"
+            )
+        return
+
+    if on and (left_on or right_on):
+        raise ValueError(
+            "Cannot specify both 'on' and 'left_on'/'right_on'. "
+            "Use 'on' when column names match, or 'left_on'/'right_on' when they differ."
+        )
+
+    if (left_on and not right_on) or (right_on and not left_on):
+        raise ValueError(
+            "Must specify both 'left_on' and 'right_on' together, not just one."
+        )
+
+
+def _is_nw_df(df) -> bool:
+    return isinstance(df, (nw.DataFrame, nw.LazyFrame))
+
+
+def broadcast_spark(df):
+    """Broadcast a spark dataframe."""
+    from pyspark.sql.functions import broadcast
+    df = nw.to_native(df) if _is_nw_df(df) else df
+    ret = broadcast(df)
+    return nw.from_native(ret)
 
 
 def to_native_dataframes(dataframes) -> tuple[list, str, bool]:
@@ -51,7 +110,7 @@ def to_native_dataframes(dataframes) -> tuple[list, str, bool]:
     narwhals_found = False
     backends = set()
     for df in dataframes:
-        if isinstance(df, (nw.DataFrame, nw.LazyFrame)):
+        if _is_nw_df(df):
             narwhals_found = True
             df_native = nw.to_native(df)
         else:
@@ -106,7 +165,7 @@ def append_dataframes(
             Spark. Defaults to False.
         rechunk (bool):
             Polars-only parameter. If True, rechunks the concatenated result for
-            better memory layout and performance. Ignored for pandas and Spark.
+            better memory layout and performance. Ignored for Pandas and Spark.
             Defaults to False.
         ignore_index (bool):
             Pandas-only parameter. If True, do not preserve the original index
@@ -238,7 +297,7 @@ def append_dataframes(
 
 def df_is_empty(df_input) -> bool:
     """Check whether a dataframe is empty."""
-    if isinstance(df_input, (nw.DataFrame, nw.LazyFrame)):
+    if _is_nw_df(df_input):
         df = nw.to_native(df_input)
     else:
         df = df_input
@@ -269,6 +328,77 @@ def null_cond_to_false(cond: nw.Expr) -> nw.Expr:
         Expression where nulls are replaced with False.
     """
     return nw.when(cond.is_null()).then(nw.lit(False)).otherwise(cond)
+
+
+def join_dataframes(
+        df,
+        df_to_join,
+        *,
+        how: str,
+        on: list[str] | str | None = None,
+        left_on: str | list[str] | None = None,
+        right_on: str | list[str] | None = None,
+        suffix: str = "_right",
+        broadcast: bool = False,
+        coalesce_keys: bool = True,
+):
+    assert_join_params(how, on, left_on, right_on)
+
+    (df_native, df_to_join_native), backend, nw_found = to_native_dataframes([df, df_to_join])
+
+    if broadcast and (backend == "spark"):
+        df_to_join = broadcast_spark(df_to_join_native)
+
+    df = nw.from_native(df_native)
+    df_to_join = nw.from_native(df_to_join)
+
+    on = ensure_flat_list(on) if on else None
+    left_on = ensure_flat_list(left_on) if left_on else None
+    right_on = ensure_flat_list(right_on) if right_on else None
+
+    # Map right-side joins to left-side by swapping dataframes
+    swap_map = {
+        "right": "left",
+        "rightsemi": "semi",
+        "right_semi": "semi",
+        "rightanti": "anti",
+        "right_anti": "anti",
+    }
+
+    if how in swap_map:
+        left, right = df_to_join, df
+        how = swap_map[how]
+
+        if left_on and right_on:
+            left_on, right_on = right_on, left_on
+    else:
+        left, right = df, df_to_join
+
+    if how == "cross":
+        return left.join(right, how="cross", suffix=suffix)
+
+    join_kwargs = {"how": how, "suffix": suffix}
+
+    if on:
+        join_kwargs["on"] = on
+    elif left_on and right_on:
+        join_kwargs["left_on"] = left_on
+        join_kwargs["right_on"] = right_on
+
+    ret = left.join(right, **join_kwargs)
+
+    if coalesce_keys and (how == "full"):
+        exprs = []
+        keys_to_drop = []
+        for key in ensure_flat_list(on):
+            key_right = f"{key}{suffix}"
+            exprs.append(nw.coalesce(key, key_right).alias(key))
+            keys_to_drop.append(key_right)
+
+        if exprs:
+            ret = ret.with_columns(*exprs).drop(*keys_to_drop)
+
+    return ret if nw_found else nw.to_native(ret)
 
 
 def validate_operation(
@@ -454,15 +584,4 @@ def get_condition(
     # Get what we're comparing against (value or column)
     comparator = nw.col(compare_col) if compare_col else value
 
-    if operator == "eq":
-        return col == comparator
-    elif operator == "ne":
-        return col != comparator
-    elif operator == "lt":
-        return col < comparator
-    elif operator == "le":
-        return col <= comparator
-    elif operator == "gt":
-        return col > comparator
-    else:  # ge
-        return col >= comparator
+    return getattr(py_operator, operator)(col, comparator)

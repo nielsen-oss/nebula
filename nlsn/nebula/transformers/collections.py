@@ -489,13 +489,11 @@ class When(Transformer):
         """
         super().__init__()
 
-        # Validate all conditions upfront
         for i, cond in enumerate(conditions):
             operator = cond.get("operator")
             value = cond.get("value")
             compare_col = cond.get("compare_col") or cond.get("comparison_column")
 
-            # Validate the condition parameters
             validate_operation(operator, value=value, compare_col=compare_col)
 
             # Ensure output is specified
@@ -533,7 +531,6 @@ class When(Transformer):
         else:
             result_expr = nw.lit(self._otherwise_constant)
 
-        # Cast if specified
         if self._cast_output:
             result_expr = result_expr.cast(self._cast_output)
 
@@ -546,7 +543,6 @@ class When(Transformer):
             value = cond.get("value")
             compare_col = cond.get("compare_col") or cond.get("comparison_column")
 
-            # Build the condition
             condition = get_condition(
                 input_col,
                 operator,
@@ -561,7 +557,6 @@ class When(Transformer):
             else:
                 output_expr = nw.lit(cond["output_constant"])
 
-            # Cast if specified
             if self._cast_output:
                 output_expr = output_expr.cast(self._cast_output)
 

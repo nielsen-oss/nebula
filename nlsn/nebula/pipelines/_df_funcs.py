@@ -3,33 +3,12 @@
 import narwhals as nw
 
 from nlsn.nebula.df_types import GenericDataFrame, get_dataframe_type
+from nlsn.nebula.nw_util import to_native_dataframes
 
 __all__ = [
-    "join_dfs",
     "split_df",
     "to_schema",
 ]
-
-from nlsn.nebula.nw_util import to_native_dataframes
-
-
-def join_dfs(
-        df_left, df_right, on, how: str, *, broadcast: bool | None = None
-) -> "GenericDataFrame":
-    """Join two dataframes."""
-    df_type_name: str = get_dataframe_type(df_left)
-    if df_type_name == "spark":
-        if broadcast:
-            from pyspark.sql.functions import broadcast
-
-            df_right = broadcast(df_right)
-        return df_left.join(df_right, on=on, how=how)
-    elif df_type_name == "pandas":
-        return df_left.merge(df_right, on=on, how=how)
-    elif df_type_name == "polars":
-        return df_left.join(df_right, on=on, how=how)
-    else:  # pragma: no cover
-        raise ValueError(f"Unsupported dataframe type: {df_type_name}")
 
 
 def split_df(df, cfg: dict) -> tuple["GenericDataFrame", "GenericDataFrame"]:
@@ -63,26 +42,16 @@ def to_schema(li_df: list, schema) -> list["GenericDataFrame"]:
     """Cast a list of dataframes to a schema."""
     native_dataframes, native_backend, nw_found = to_native_dataframes(li_df)
 
-    if native_backend == "spark":
-        from nlsn.nebula.spark_util import cast_to_schema
-
-        ret = [cast_to_schema(i, schema) for i in li_df]
-
-    elif native_backend == "pandas":
-        ret = [_df.astype(schema) for _df in li_df]
+    if native_backend == "pandas":
+        ret = [_df.astype(schema) for _df in native_dataframes]
 
     elif native_backend == "polars":
-        try:  # Old polars version hasn't 'cast' method
-            ret = [_df.cast(schema) for _df in li_df]
-        except AttributeError:
-            import polars as pl
+        ret = [_df.cast(schema) for _df in native_dataframes]
 
-            ret = []
-            for _df in li_df:
-                _df_cast = _df.with_columns(
-                    [pl.col(k).cast(v) for k, v in schema.items()]
-                )
-                ret.append(_df_cast)
+    elif native_backend == "spark":
+        from nlsn.nebula.spark_util import cast_to_schema
+
+        ret = [cast_to_schema(i, schema) for i in native_dataframes]
 
     else:  # pragma: no cover
         raise ValueError(f"Unsupported dataframe type: {native_backend}")

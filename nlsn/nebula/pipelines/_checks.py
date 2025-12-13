@@ -29,7 +29,6 @@ def assert_apply_to_rows_inputs(o: dict[str, str | bool | None]) -> None:
         optional={"value", "comparison_column", "dead-end", "skip_if_empty"}
     )
 
-    # Rest of validation...
     value = o.get("value")
     comparison_column = o.get("comparison_column")
     if (value is not None) and (comparison_column is not None):
