@@ -1,38 +1,29 @@
 """Test a simple flat pipeline."""
 
+import polars as pl
 import pytest
-from chispa import assert_df_equality
-from pyspark.sql.types import IntegerType, StringType, StructField, StructType
 
 from nlsn.nebula.pipelines.pipelines import TransformerPipeline
-from nlsn.nebula.spark_transformers import Cache, Distinct, LogDataSkew, NanToNull
+from nlsn.nebula.transformers import *
+from nlsn.tests.test_pipelines.auxiliaries import pl_assert_equal
 
 _TRANSFORMERS = [
-    NanToNull(glob="*"),
-    Distinct(),
+    SelectColumns(glob="*"),
+    DropNulls(glob="*", drop_na=True),
 ]
 
 _INTERLEAVED = [
-    Cache(),
-    LogDataSkew(),
+    AssertContainsColumns(columns="idx"),
+    AssertNotEmpty(),
 ]
 
 _nan = float("nan")
 
 
 @pytest.fixture(scope="module", name="df_input")
-def _get_df_input(spark):
-    """Get input dataframe."""
-    fields = [
-        StructField("idx", IntegerType(), True),
-        StructField("c1", StringType(), True),
-        StructField("c2", StringType(), True),
-    ]
-
+def _get_df_input():
     data = [
         [0, "a", "b"],
-        [0, "a", "b"],  # dropped with Distinct()
-        [0, "a", "b"],  # dropped with Distinct()
         [1, "a", "  b"],
         [2, "  a  ", "  b  "],
         [3, "", ""],
@@ -49,8 +40,7 @@ def _get_df_input(spark):
         [14, _nan, None],
         [15, _nan, _nan],
     ]
-
-    return spark.createDataFrame(data, schema=StructType(fields)).persist()
+    return pl.DataFrame(data, schema=["idx", "c1", "c2"])
 
 
 @pytest.fixture(scope="module", name="df_exp")
@@ -74,40 +64,35 @@ def _get_df_exp(df_input):
     ],
 )
 def test_pipeline_flat_list_transformers(
-    df_input,
-    df_exp,
+    df_input: pl.DataFrame,
     interleaved: list,
     prepend_interleaved: bool,
     append_interleaved: bool,
     name: str,
 ):
     """Test TransformerPipeline pipeline w/ list of transformers."""
+    df_exp = df_input.drop_nulls().drop_nulls()
     pipe = TransformerPipeline(
         _TRANSFORMERS,
         interleaved=interleaved,
         prepend_interleaved=prepend_interleaved,
         append_interleaved=append_interleaved,
         name=name,
-        backend="spark",
     )
     pipe.show_pipeline()
-    pipe._print_dag()
-
     df_chk = pipe.run(df_input)
-    assert_df_equality(df_chk, df_exp, ignore_row_order=True)
+    pl_assert_equal(df_chk, df_exp)
 
 
 @pytest.mark.parametrize("split_func", [None, lambda x: x])
-def test_pipeline_single_split(df_input, df_exp, split_func):
+def test_pipeline_single_split(df_input: pl.DataFrame, split_func):
     """Test TransformerPipeline pipeline w/ list of transformers."""
+    df_exp = df_input.drop_nulls().drop_nulls()
     pipe = TransformerPipeline(
         {"no split": _TRANSFORMERS},
         split_function=split_func,
         name="single split",
     )
-
     pipe.show_pipeline()
-    pipe._print_dag()
-
     df_chk = pipe.run(df_input)
-    assert_df_equality(df_chk, df_exp, ignore_row_order=True)
+    pl_assert_equal(df_chk, df_exp)

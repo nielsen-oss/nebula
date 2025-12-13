@@ -6,21 +6,20 @@ This file was written in a few days and needs refactoring.
 from collections import OrderedDict
 from copy import deepcopy
 from enum import Enum
-from time import time
+from time import perf_counter_ns
 from typing import Any, Callable, Iterable, Union
 
 from nlsn.nebula.auxiliaries import (
-    assert_allowed,
     assert_at_most_one_args,
     ensure_flat_list,
     get_class_name,
 )
 from nlsn.nebula.base import LazyWrapper, Transformer
-from nlsn.nebula.df_types import GenericNativeDataFrame, get_dataframe_type
+from nlsn.nebula.df_types import GenericDataFrame, get_dataframe_type
 from nlsn.nebula.logger import logger
 from nlsn.nebula.nw_util import df_is_empty, append_dataframes, join_dataframes
 from nlsn.nebula.pipelines._checks import *
-from nlsn.nebula.pipelines._dag import create_dag, print_dag
+from nlsn.nebula.pipelines._dag import create_dag
 from nlsn.nebula.pipelines.exceptions import *
 from nlsn.nebula.pipelines.pipe_aux import *
 from nlsn.nebula.pipelines.transformer_type_util import is_transformer
@@ -64,7 +63,7 @@ PipeType = Union[
 
 TransformerOrTransformerList = Transformer | list[Transformer] | None
 
-_FAIL_CACHE: dict[tuple[str, str], "GenericNativeDataFrame"] = {}
+_FAIL_CACHE: dict[tuple[str, str], "GenericDataFrame"] = {}
 
 
 def _update_fail_name(name: str) -> str:
@@ -132,7 +131,7 @@ def _make_error_msg(o) -> str:
     return msg
 
 
-def _get_n_partitions(df: "GenericNativeDataFrame", obj: PipeType) -> int:
+def _get_n_partitions(df: "GenericDataFrame", obj: PipeType) -> int:
     """Get the number of partitions if the DF is a spark one and if requested."""
     n = 0
     if obj.repartition_output_to_original or obj.coalesce_output_to_original:
@@ -141,7 +140,7 @@ def _get_n_partitions(df: "GenericNativeDataFrame", obj: PipeType) -> int:
     return n
 
 
-def _repartition_coalesce(df, obj: PipeType, n: int) -> "GenericNativeDataFrame":
+def _repartition_coalesce(df, obj: PipeType, n: int) -> "GenericDataFrame":
     """Repartition / coalesce if "df" is a spark DF and if requested."""
     if obj.repartition_output_to_original:
         if get_dataframe_type(df) == "spark":
@@ -212,8 +211,8 @@ def _remove_last_transformers(li: list[Transformer], n: int) -> None:
 
 
 def _handle_storage(
-        _storage_request, d: dict[str, str | bool], df
-) -> "GenericNativeDataFrame":
+    _storage_request, d: dict[str, str | bool], df
+) -> "GenericDataFrame":
     if _storage_request == StoreRequest.STORE_DF:
         key, msg = get_store_key_msg(d)
         logger.info(f"   --> {msg}")
@@ -237,9 +236,7 @@ def _handle_storage(
     return df
 
 
-def __transform(
-        df: "GenericNativeDataFrame", trf: Transformer, backend: str | None
-) -> "GenericNativeDataFrame":
+def __transform(df: "GenericDataFrame", trf: Transformer) -> "GenericDataFrame":
     _FAIL_CACHE.clear()
 
     name_full: str = get_transformer_name(
@@ -251,18 +248,10 @@ def __transform(
     # Store into the cache before transforming
     _FAIL_CACHE[("transformer", name)] = df
 
-    t_start: float = time()
-    available_backends: set[str] = getattr(trf, "backends", set())
+    t_start: float = perf_counter_ns()
 
     try:
-        if backend == "spark" and backend in available_backends:
-            df = trf.transform_spark(df)
-        elif backend == "pandas" and backend in available_backends:
-            df = trf.transform_pandas(df)
-        elif backend == "polars" and backend in available_backends:
-            df = trf.transform_polars(df)
-        else:
-            df = trf.transform(df)
+        df = trf.transform(df)
 
     except Exception as e:
         if not pipeline_config["activate_failure_cache"]:
@@ -270,7 +259,7 @@ def __transform(
         _, msg, _ = _cache_to_nebula_storage()
         # raise PipelineError(msg) from e
         raise_pipeline_error(e, msg)
-    t_run: float = time() - t_start
+    t_run: float = (perf_counter_ns() - t_start) / 1e9
 
     logger.info(f"Execution time for {name}: {t_run:.1f}s")
     _FAIL_CACHE.clear()
@@ -278,18 +267,17 @@ def __transform(
 
 
 def _transform(
-        stages: list[Transformer],
-        df: "GenericNativeDataFrame",
-        backend: str | None,
-        forced_trf: Transformer | None,
-) -> "GenericNativeDataFrame":
+    stages: list[Transformer],
+    df: "GenericDataFrame",
+    forced_trf: Transformer | None,
+) -> "GenericDataFrame":
     """Apply the actual transformation and log the time."""
     trf: Transformer
     for trf in stages:
-        df = __transform(df, trf, backend)
+        df = __transform(df, trf)
 
         if forced_trf is not None:
-            df = __transform(df, forced_trf, backend)
+            df = __transform(df, forced_trf)
 
     return df
 
@@ -336,11 +324,11 @@ def _get_fork_header(name: str, d) -> tuple[str, str]:
 
 
 def _create_stages(
-        obj: PipeType,
-        interleaved: list[Transformer] | None,
-        prepend_interleaved: bool,
-        stages=None,
-        count_transformers: int = 0,
+    obj: PipeType,
+    interleaved: list[Transformer] | None,
+    prepend_interleaved: bool,
+    stages=None,
+    count_transformers: int = 0,
 ) -> tuple[list[PipeType], int]:
     """Create pipeline stages.
 
@@ -387,7 +375,7 @@ def _create_stages(
         return stages, count_transformers
 
     elif (
-            parse_storage_request(obj).value > 0
+        parse_storage_request(obj).value > 0
     ):  # Check whether the input is a storage request
         # It is related to the nebula storage, do nothing, just append.
         stages.append(obj)
@@ -407,11 +395,10 @@ def _create_stages(
 
 
 def _run_pipeline(
-        obj: PipeType | dict[str, str],
-        df: "GenericNativeDataFrame",
-        backend: str | None,
-        forced_trf: Transformer | None,
-) -> "GenericNativeDataFrame":
+    obj: PipeType | dict[str, str],
+    df: "GenericDataFrame",
+    forced_trf: Transformer | None,
+) -> "GenericDataFrame":
     """Run the pipeline(s) on the input DataFrame.
 
     Allowed obj types:
@@ -424,8 +411,6 @@ def _run_pipeline(
             transformers, a TransformerPipeline.
         df (DataFrame):
             The input DataFrame to be processed by the pipeline.
-        backend (str | None):
-            The input DataFrame to be processed by the pipeline.
         forced_trf (Transformer | None):
             Forced interleaved transformer.
     """
@@ -436,7 +421,7 @@ def _run_pipeline(
         # names: str = __names_in_iterable(obj)
         if is_plain_transformer_list(obj):  # plain list of transformers
             # logger.debug(f"Input is a plain list/tuple of Transformers: {names}")
-            df = _transform(obj, df, backend, forced_trf)
+            df = _transform(obj, df, forced_trf)
 
         else:
             # Handle mixed list/tuple of Transformers/Pipelines
@@ -472,7 +457,7 @@ def _run_pipeline(
 
             # Recursively run the pipeline on each sub-list
             for el in outer_list:
-                df = _run_pipeline(el, df, backend, forced_trf)
+                df = _run_pipeline(el, df, forced_trf)
 
     elif _storage_request.value > 0:
         df = _handle_storage(_storage_request, obj, df)
@@ -495,14 +480,14 @@ def _run_pipeline(
             else:
                 df_input = ns.get(stored_df_key)
 
-            df_out = _run_pipeline(obj.stages, df_input, backend, forced_trf)
+            df_out = _run_pipeline(obj.stages, df_input, forced_trf)
 
             if obj.otherwise:
                 logger.info(
                     f"Running otherwise-pipeline {get_pipeline_name(obj.otherwise)}"
                 )
                 # df_input is the branch input that could be from the storage
-                df = _run_pipeline(obj.otherwise.stages, df, backend, forced_trf)
+                df = _run_pipeline(obj.otherwise.stages, df, forced_trf)
 
             _FAIL_CACHE.clear()
             _FAIL_CACHE[("branch", "input")] = df_input
@@ -513,8 +498,7 @@ def _run_pipeline(
                 if type_value == "append":
                     logger.info("Appending the dataframes ...")
                     df = append_dataframes(
-                        [df, df_out],
-                        allow_missing_cols=obj.allow_missing_cols
+                        [df, df_out], allow_missing_cols=obj.allow_missing_cols
                     )
                 elif type_value == "join":
                     logger.info("Joining the dataframes ...")
@@ -533,7 +517,7 @@ def _run_pipeline(
                 df = _repartition_coalesce(df, obj, n_part_orig)
 
                 if forced_trf is not None:
-                    df = __transform(df, forced_trf, backend)
+                    df = __transform(df, forced_trf)
 
             except Exception as e:  # pragma: no cover
                 if not pipeline_config["activate_failure_cache"]:
@@ -564,14 +548,14 @@ def _run_pipeline(
                 else:
                     logger.info("The branched dataframe is not empty")
             if not is_empty:
-                df_out = _run_pipeline(obj.stages, df_apply, backend, forced_trf)
+                df_out = _run_pipeline(obj.stages, df_apply, forced_trf)
 
             if obj.otherwise:
                 logger.info(
                     f"Running otherwise-pipeline {get_pipeline_name(obj.otherwise)}"
                 )
                 df_otherwise = _run_pipeline(
-                    obj.otherwise.stages, df_otherwise, backend, forced_trf
+                    obj.otherwise.stages, df_otherwise, forced_trf
                 )
 
             if obj.apply_to_rows.get("dead-end") or is_empty:
@@ -584,11 +568,11 @@ def _run_pipeline(
                 try:
                     df = append_dataframes(
                         [df_otherwise, df_out],
-                        allow_missing_cols=obj.allow_missing_cols
+                        allow_missing_cols=obj.allow_missing_cols,
                     )
 
                     if forced_trf is not None:
-                        df = __transform(df, forced_trf, backend)
+                        df = __transform(df, forced_trf)
 
                 except Exception as e:  # pragma: no cover
                     if not pipeline_config["activate_failure_cache"]:
@@ -601,7 +585,7 @@ def _run_pipeline(
         else:
             logger.info(f"Running {get_pipeline_name(obj)}")
             # logger.debug(f"Running the stages: {__names_in_iterable(obj.stages)}")
-            df = _run_pipeline(obj.stages, df, backend, forced_trf)
+            df = _run_pipeline(obj.stages, df, forced_trf)
 
     # obj is a split pipeline
     elif obj.get_pipe_type() == NodeType.SPLIT_PIPELINE:
@@ -617,7 +601,7 @@ def _run_pipeline(
         else:  # pragma: no cover
             raise ValueError("Unsupported dataframe type")
 
-        dict_df_split_input: dict[str, "GenericNativeDataFrame"]
+        dict_df_split_input: dict[str, "GenericDataFrame"]
         dict_df_split_input = obj.split_function(df)
 
         keys_split_function = set(dict_df_split_input.keys())
@@ -633,11 +617,11 @@ def _run_pipeline(
 
         n_part_orig: int = _get_n_partitions(df, obj)
 
-        li_df_split: list["GenericNativeDataFrame"] = []  # splits to merge
+        li_df_split: list["GenericDataFrame"] = []  # splits to merge
         split_to_merge_names: list[str] = []
         dead_end_splits: set[str] = obj.splits_no_merge
 
-        _df_split_output: "GenericNativeDataFrame"
+        _df_split_output: "GenericDataFrame"
 
         for split_name, el in obj.splits.items():
             logger.info(f"Running SPLIT <<< {split_name} >>>")
@@ -653,7 +637,7 @@ def _run_pipeline(
                     logger.info(f"Split '{split_name}' is empty, skip its pipeline")
                     continue
 
-            _df_split_output = _run_pipeline(el, _df_split_input, backend, forced_trf)
+            _df_split_output = _run_pipeline(el, _df_split_input, forced_trf)
             if split_name not in dead_end_splits:
                 li_df_split.append(_df_split_output)
 
@@ -694,10 +678,10 @@ def _run_pipeline(
 
 
 def _show_pipeline(
-        obj: PipeType | dict[str, str],
-        level: int,
-        ret: list[tuple[int, str]],
-        add_trf_params: bool,
+    obj: PipeType | dict[str, str],
+    level: int,
+    ret: list[tuple[int, str]],
+    add_trf_params: bool,
 ) -> None:
     """Recursively traverse and display information about the pipeline.
 
@@ -830,32 +814,31 @@ def _show_pipeline(
 
 class TransformerPipeline:
     def __init__(
-            self,
-            data: PipeType | dict[str, PipeType],
-            *,
-            name: str | None = None,
-            description: str | None = None,
-            split_function: Callable | None = None,
-            split_order: list[str] | None = None,
-            interleaved: TransformerOrTransformerList = None,
-            prepend_interleaved: bool = False,
-            append_interleaved: bool = False,
-            split_apply_after_splitting: TransformerOrTransformerList = None,
-            split_apply_before_appending: TransformerOrTransformerList = None,
-            splits_no_merge: str | Iterable[str] | None = None,
-            splits_skip_if_empty: str | Iterable[str] | None = None,
-            cast_subset_to_input_schema: bool = False,
-            repartition_output_to_original: bool = False,
-            coalesce_output_to_original: bool = False,
-            allow_missing_columns: bool = False,
-            branch: dict[str, str] | None = None,
-            apply_to_rows: dict[str, Any] | None = None,
-            otherwise: PipeType | dict[str, PipeType] | None = None,
-            df_input_name: str | None = None,
-            df_output_name: str | None = None,
-            backend: str | None = None,
-            skip: bool | None = None,
-            perform: bool | None = None,
+        self,
+        data: PipeType | dict[str, PipeType],
+        *,
+        name: str | None = None,
+        description: str | None = None,
+        split_function: Callable | None = None,
+        split_order: list[str] | None = None,
+        interleaved: TransformerOrTransformerList = None,
+        prepend_interleaved: bool = False,
+        append_interleaved: bool = False,
+        split_apply_after_splitting: TransformerOrTransformerList = None,
+        split_apply_before_appending: TransformerOrTransformerList = None,
+        splits_no_merge: str | Iterable[str] | None = None,
+        splits_skip_if_empty: str | Iterable[str] | None = None,
+        cast_subset_to_input_schema: bool = False,
+        repartition_output_to_original: bool = False,
+        coalesce_output_to_original: bool = False,
+        allow_missing_columns: bool = False,
+        branch: dict[str, str] | None = None,
+        apply_to_rows: dict[str, Any] | None = None,
+        otherwise: PipeType | dict[str, PipeType] | None = None,
+        df_input_name: str | None = None,
+        df_output_name: str | None = None,
+        skip: bool | None = None,
+        perform: bool | None = None,
     ):
         """Create a transformer pipeline.
 
@@ -1068,11 +1051,6 @@ class TransformerPipeline:
                 Name of the dataframe displayed in the visualization.
             df_output_name (str):
                 Name of the dataframe displayed in the visualization.
-            backend (str | None):
-                If provided, force the pipeline to use either "pandas" or "spark"
-                backend, otherwise, the dataframe type is inspected
-                automatically. Currently allowed backends are:
-                "spark" | "pandas" | None.
             skip (bool | None):
                 If True, skip the pipeline and return an empty one.
                 If provided, it must not contradict 'perform'.
@@ -1082,15 +1060,11 @@ class TransformerPipeline:
                 If provided, it must not contradict 'skip'.
                 Defaults to None.
         """
-        if backend is not None:
-            assert_allowed(backend, {"pandas", "polars", "spark"}, "backend")
-
         skip = should_skip_operation(skip, perform)
         ensure_no_branch_or_apply_to_rows_otherwise(branch, apply_to_rows, otherwise)
 
         self.branch: dict[str, str] | None = None
         self.apply_to_rows: dict[str, Any] | None = None
-        self.backend: str | None = backend
 
         self.description = description if description else ""
         self._pipe_type: NodeType
@@ -1236,7 +1210,7 @@ class TransformerPipeline:
             self._sub_pipe_type = "split"
 
     def _make_stages_in_linear_pipe(
-            self, data, prepend_interleaved: bool, append_interleaved: bool
+        self, data, prepend_interleaved: bool, append_interleaved: bool
     ):
         stages, n_trf = _create_stages(data, self._interleaved, prepend_interleaved)
         self.stages = stages
@@ -1264,13 +1238,13 @@ class TransformerPipeline:
             raise KeyError(f'"{name}" has unmatched splits: {diff_str}')
 
     def _make_stages_in_split_pipe(
-            self,
-            data,
-            split_order,
-            split_apply_after_splitting,
-            split_apply_before_appending,
-            prepend_interleaved,
-            append_interleaved,
+        self,
+        data,
+        split_order,
+        split_apply_after_splitting,
+        split_apply_before_appending,
+        prepend_interleaved,
+        append_interleaved,
     ):
         if split_order:
             if not all(isinstance(i, str) for i in split_order):
@@ -1382,7 +1356,7 @@ class TransformerPipeline:
         return self._n_transformers
 
     def show_pipeline(
-            self, split_indentation: int = 4, add_transformer_params: bool = False
+        self, split_indentation: int = 4, add_transformer_params: bool = False
     ) -> None:
         """Iterate through the pipeline recursively and print the transformers.
 
@@ -1400,9 +1374,7 @@ class TransformerPipeline:
         for lev, name in ret:
             print(prepend * lev + name)
 
-    def run(
-            self, df_input, force_interleaved_transformer: Transformer | None = None
-    ):
+    def run(self, df_input, force_interleaved_transformer: Transformer | None = None):
         """Run the transformer pipeline.
 
         Args:
@@ -1414,17 +1386,15 @@ class TransformerPipeline:
         Returns (pandas.DataFrame | pyspark.sql.DataFrame):
             Transformed dataframe.
         """
-        start_time = time()
-        df_ret = _run_pipeline(
-            self, df_input, self.backend, force_interleaved_transformer
-        )
-        end_time = time()
-        run_time = f" in {int(end_time - start_time)} seconds"
+        start_time = perf_counter_ns()
+        df_ret = _run_pipeline(self, df_input, force_interleaved_transformer)
+        end_time = (perf_counter_ns() - start_time) / 1e9
+        run_time = f" in {int(end_time)} seconds"
         logger.info(f"Pipeline run completed{run_time}.")
         return df_ret
 
     def plot_dag(
-            self, add_transformer_params=False, add_transformer_description=False
+        self, add_transformer_params=False, add_transformer_description=False
     ):  # pragma: no cover
         """Plot the dag using GraphViz & pyyaml."""
         from ._graphviz import create_graph
@@ -1433,19 +1403,16 @@ class TransformerPipeline:
             self._dag.dag, add_transformer_params, add_transformer_description
         )
 
-    def _print_dag(self):
-        return print_dag(self._dag.dag)
-
 
 if __name__ == "__main__":  # pragma: no cover
     from nlsn.nebula.transformers import (
-        AssertNotEmpty, SelectColumns, DropColumns,
+        AssertNotEmpty,
+        SelectColumns,
+        DropColumns,
     )
-
 
     def _f_split(x):
         return x
-
 
     p1a = TransformerPipeline({"s1": [], "s2": []}, split_function=_f_split, name="p1a")
 
