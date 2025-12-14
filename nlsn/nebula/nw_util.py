@@ -338,7 +338,7 @@ def join_dataframes(
         on: list[str] | str | None = None,
         left_on: str | list[str] | None = None,
         right_on: str | list[str] | None = None,
-        suffix: str = "_right",
+        suffix: str | None = None,
         broadcast: bool = False,
         coalesce_keys: bool = True,
 ):
@@ -443,6 +443,8 @@ def join_dataframes(
             left_on, right_on = right_on, left_on
     else:
         left, right = df, df_to_join
+
+    suffix = suffix if suffix else "_right"
 
     if how == "cross":
         return left.join(right, how="cross", suffix=suffix)

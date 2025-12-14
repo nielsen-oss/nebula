@@ -53,7 +53,7 @@ class MyTransformer(Transformer): ...
 
 
 @dataclass
-class ExtraTransformers
+class ExtraTransformers:
     MyTransformer = MyTransformer
     AnotherTransformer = AnotherTransformer
 

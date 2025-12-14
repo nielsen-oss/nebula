@@ -49,10 +49,10 @@ pipeline:
           params:
             columns: "join_col"
 
-        - transformer: "WithColumn"
+        - transformer: "AddLiterals"
           params:
-            column_name: "<<names>>"
-            value: "<<value>>"
+            data:
+              - { "value": "<<value>>", "alias": "<<names>>" }
 
         - loop:
             generation_type: "product"
@@ -63,9 +63,8 @@ pipeline:
                 - 20
                 - 30
 
-            transformer: "WithColumn"
+            transformer: "AddLiterals"
             lazy: True
             params:
-              cast: "int"
-              column_name: "<<names>>_<<algos>>_<<numbers>>"
-              value: "<<numbers>>"
+              data:
+                - { "value": "<<numbers>>", "alias": "<<names>>_<<algos>>_<<numbers>>", cast: "int32" }
