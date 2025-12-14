@@ -41,3 +41,28 @@ def test_loop_pipeline(df_input):
     )
     df_chk = pipe.run(df_input)
     pl_assert_equal(df_chk.sort("join_col"), df_exp.sort("join_col"))
+
+
+@pytest.mark.parametrize("evaluate_loops", [True, False])
+def test_invalid_split_named_loop(evaluate_loops):
+    """Test a split-pipeline with for loops and a split named 'loop'."""
+
+    def _split_func(_df):
+        return {"loop": ..., "hi_values": ...}
+
+    pipe_cfg = {
+        "split_function": "split_func",
+        "pipeline": {
+            "loop": {"transformer": "AssertNotEmpty"},
+            "hi_values": [{"transformer": "AssertNotEmpty"}],
+        },
+    }
+
+    dict_split_functions = {"split_func": _split_func}
+
+    with pytest.raises(AssertionError, match="loop"):
+        load_pipeline(
+            pipe_cfg,
+            extra_functions=dict_split_functions,
+            evaluate_loops=evaluate_loops,
+        )

@@ -205,6 +205,16 @@ class TestSplitPipeline:
         df_chk = pipe.run(df_input)
         pl_assert_equal(df_chk.sort(df_chk.columns), df_input.sort(df_input.columns))
 
+    @pytest.mark.parametrize("splits_skip_if_empty", ["wrong", {"wrong"}, ["wrong"]])
+    def test_splits_skip_if_empty_wrong_split(self, splits_skip_if_empty):
+        """Test with splits_skip_if_empty and a wrong split name."""
+        with pytest.raises(KeyError):
+            TransformerPipeline(
+                {"low": [], "hi": []},
+                split_function=lambda x: x,
+                splits_skip_if_empty=splits_skip_if_empty,
+            )
+
     @pytest.mark.parametrize("interleaved", [None, [CallMe()], CallMe()])
     @pytest.mark.parametrize("prepend", [True, False])
     @pytest.mark.parametrize("append", [True, False])
