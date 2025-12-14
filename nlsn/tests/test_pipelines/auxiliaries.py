@@ -11,6 +11,7 @@ __all__ = [
     "AddOne",
     "CallMe",
     "Distinct",
+    "NoParentClass",
     "RoundValues",
     "ThisTransformerIsBroken",
 ]
@@ -66,6 +67,12 @@ class Distinct(Transformer):
     @staticmethod
     def _transform_nw(df):
         return df.unique()
+
+
+class NoParentClass:
+    @staticmethod
+    def transform(df):
+        return df
 
 
 class RoundValues(Transformer):
