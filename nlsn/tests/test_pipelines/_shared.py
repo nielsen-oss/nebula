@@ -1,10 +1,9 @@
 """Shared code for pipelines."""
 
-from functools import partial
+from nlsn.nebula.shared_transformers import Count, Distinct, DropColumns, WithColumn
 
 from nlsn.nebula.base import Transformer
 from nlsn.nebula.pipelines.pipelines import TransformerPipeline
-from nlsn.nebula.shared_transformers import Count, Distinct, DropColumns, WithColumn
 
 
 class RuntimeErrorTransformer(Transformer):
@@ -276,38 +275,7 @@ def _get_branch_skip_otherwise():
     return __assemble_branch_pipe(fork_pipe)
 
 
-def _skip_flat_pipeline():
-    pipe = TransformerPipeline(
-        [
-            WithColumn(column_name="c1", value="x"),
-        ],
-        skip=True,
-    )
-    return pipe
 
-
-def _skip_split_pipeline(skip=True):
-    pipe = TransformerPipeline(
-        {
-            "c_x": WithColumn(column_name="c_x", value="x"),
-            "c_y": WithColumn(column_name="c_y", value="y"),
-        },
-        split_function=lambda x: x,
-        skip=skip,
-    )
-    return pipe
-
-
-def _skip_nested_pipeline():
-    split_pipe = partial(_skip_split_pipeline, skip=True)
-    pipe = TransformerPipeline(
-        [
-            WithColumn(column_name="c1", value="x"),
-            split_pipe,
-        ],
-        skip=True,
-    )
-    return pipe
 
 
 DICT_APPLY_TO_ROWS_PIPELINES = {
@@ -337,19 +305,4 @@ DICT_BRANCH_PIPELINE = {
     # Same of 2 previous pipelines but the skip is obtained by setting perform=True
     "branch_not_perform": _get_branch_skip,
     "branch_not_perform_otherwise": _get_branch_skip_otherwise,
-}
-
-DICT_SKIP_PIPELINE = {
-    "skip_flat_pipeline": _skip_flat_pipeline,
-    "skip_split_pipeline": _skip_split_pipeline,
-    "skip_nested_pipeline": _skip_nested_pipeline,
-    # Same pipelines but the skip is obtained by setting perform=True
-    "dont_perform_flat_pipeline": _skip_flat_pipeline,
-    "dont_perform_split_pipeline": _skip_split_pipeline,
-    "dont_perform_nested_pipeline": _skip_nested_pipeline,
-}
-
-DICT_SKIP_TRANSFORMER = {
-    "skip_transformer": TransformerPipeline([]),
-    "dont_perform_transformer": TransformerPipeline([]),
 }
