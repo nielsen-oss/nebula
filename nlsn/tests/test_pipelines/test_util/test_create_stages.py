@@ -1,19 +1,17 @@
 """Test 'create_stages' function."""
 
-from typing import List
-
 import pytest
 
 from nlsn.nebula.base import Transformer
 from nlsn.nebula.pipelines.pipelines import TransformerPipeline, _create_stages
 from nlsn.nebula.transformers import Cache, AssertNotEmpty, LogDataSkew, SelectColumns
 
-_TRANSFORMERS: List[Transformer] = [
+_TRANSFORMERS: list[Transformer] = [
     SelectColumns(glob="*"),
     AssertNotEmpty(),
 ]
 
-_INTERLEAVED: List[Transformer] = [
+_INTERLEAVED: list[Transformer] = [
     AssertNotEmpty(),
     LogDataSkew(),
 ]

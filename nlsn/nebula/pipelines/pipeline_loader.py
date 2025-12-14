@@ -6,7 +6,8 @@ from typing import Callable
 from nlsn.nebula.auxiliaries import extract_kwarg_names
 from nlsn.nebula.base import LazyWrapper, Transformer
 from nlsn.nebula.pipelines.loop_exploder import explode_loops_in_pipeline
-from nlsn.nebula.pipelines.pipelines import TransformerPipeline, parse_storage_request
+from nlsn.nebula.pipelines.pipe_aux import parse_storage_request
+from nlsn.nebula.pipelines.pipelines import TransformerPipeline
 from nlsn.nebula.pipelines.util import create_dict_extra_functions
 from nlsn.nebula.storage import nebula_storage as ns
 
@@ -104,7 +105,8 @@ def _load_transformer(d: dict, **kwargs) -> Transformer | None:
             t = getattr(pkg, name)
             break
     else:
-        raise NameError(f'Unknown transformer "{name}"')
+        searched = [pkg.__name__ for pkg in _cache["transformer_packages"]]
+        raise NameError(f'Unknown transformer "{name}". Searched: {searched}')
 
     try:
         if is_lazy:
@@ -183,7 +185,6 @@ def _load_pipeline(o, *, extra_funcs) -> TransformerPipeline:
             name=pipeline_name,
             df_input_name=o.get("df_input_name"),
             df_output_name=o.get("df_output_name"),
-            backend=o.get("backend"),
             skip=True,
         )
         return ret
@@ -270,7 +271,6 @@ def _load_pipeline(o, *, extra_funcs) -> TransformerPipeline:
         allow_missing_columns=o.get("allow_missing_columns"),
         df_input_name=o.get("df_input_name"),
         df_output_name=o.get("df_output_name"),
-        backend=o.get("backend"),
         otherwise=otherwise,
     )
     return ret
@@ -281,7 +281,6 @@ def load_pipeline(
         *,
         extra_functions: Callable | list[Callable] | dict[str, Callable] | None = None,
         extra_transformers: ModuleType | None = None,
-        backend: str | None = None,
         evaluate_loops: bool = True,
 ) -> TransformerPipeline:
     """Load a Nebula pipeline object starting from a dictionary.
@@ -300,9 +299,6 @@ def load_pipeline(
         extra_transformers (list(python module) | None):
             User modules containing transformers, ordered from highest to
             lowest priority.
-        backend (str | None):
-            "pandas". "polars" or "spark".
-            If not passed, the backend will be set to "spark".
         evaluate_loops (bool):
             If `True`, the parser will search for and evaluate for-loops within
             the pipelines. This is the safest option, and if no loops are present,
@@ -336,12 +332,7 @@ def load_pipeline(
         raise TypeError(msg)
 
     # Transform the input type from <list> / <tuple> to <dict>.
-    if isinstance(o, dict):
-        if ("backend" in o) and (backend is None):
-            backend = o["backend"]
-        elif ("pipeline" in o) and (backend is None):
-            backend = o.get("backend")
-    elif isinstance(o, (list, tuple)):
+    if isinstance(o, (list, tuple, dict)):
         o = {"pipeline": o}
     else:  # pragma: no cover
         raise TypeError("Not understood. The pipeline must be a list or a dict.")
@@ -398,7 +389,6 @@ if __name__ == "__main__":  # pragma: no cover
     )
 
     pipe.show_pipeline(add_transformer_params=True)
-    pipe._print_dag()
 
     # pipe_example_dict = {
     #     "name": "outer pipe",

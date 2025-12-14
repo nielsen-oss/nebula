@@ -248,7 +248,7 @@ class TestSplitPipeline:
 
 
 @pytest.mark.skipif(os.getenv("full_nebula_test") != "true", reason="tested in pandas")
-class TestSpitPipelineApplyTransformerBeforeAndAfter:
+class TestSplitPipelineApplyTransformerBeforeAndAfter:
     """Test adding transformers after splitting or before appending."""
 
     @staticmethod
@@ -284,7 +284,7 @@ class TestSpitPipelineApplyTransformerBeforeAndAfter:
 
 
 @pytest.mark.skipif(os.getenv("full_nebula_test") != "true", reason="tested in pandas")
-class TestSpitPipelineDeadEnd:
+class TestSplitPipelineDeadEnd:
     """Test a split pipeline with dead-end splits."""
 
     @staticmethod
