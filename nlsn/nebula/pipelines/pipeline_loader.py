@@ -5,7 +5,7 @@ from typing import Callable
 
 from nlsn.nebula.auxiliaries import extract_kwarg_names
 from nlsn.nebula.base import LazyWrapper, Transformer
-from nlsn.nebula.pipelines.loop_exploder import explode_loops_in_pipeline
+from nlsn.nebula.pipelines.loop_expansion import expand_loops
 from nlsn.nebula.pipelines.pipelines import TransformerPipeline, parse_storage_request
 from nlsn.nebula.pipelines.util import create_dict_extra_functions
 from nlsn.nebula.storage import nebula_storage as ns
@@ -437,7 +437,7 @@ def load_pipeline(
         raise AssertionError("Unable to find the key 'pipeline'.")
 
     if evaluate_loops:
-        o = explode_loops_in_pipeline(o)
+        o = expand_loops(o)
 
     return _load_pipeline(o, extra_funcs=extra_funcs)
 

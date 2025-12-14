@@ -2,7 +2,7 @@ pipeline:
   - transformer: "Distinct"
 
   - loop:
-      # Just to check whether it works w/o defining 'generation_type' and w/ unused params
+      # Just to check whether it works w/o defining 'mode' and w/ unused params
       values:
         _unused: [ "a", "b" ]
       pipeline:
@@ -24,7 +24,7 @@ pipeline:
 
   - skip: False
     loop:
-      generation_type: "linear"
+      mode: "linear"
       values:
         algos:
           - "algo_X"
@@ -55,7 +55,7 @@ pipeline:
               - { "value": "<<value>>", "alias": "<<names>>" }
 
         - loop:
-            generation_type: "product"
+            mode: "product"
             values:
               names:
                 - "ALGO"

@@ -1,14 +1,14 @@
-"""Unittests for 'loop_exploder' module."""
+"""Unittests for 'loop_expansion' module."""
 
 from copy import deepcopy
 from itertools import product
 
 import pytest
 
-from nlsn.nebula.pipelines.loop_exploder import (
-    _explode_loops,
+from nlsn.nebula.pipelines.loop_expansion import (
+    _expand_loops,
     convert_product_to_linear,
-    explode_loops_in_pipeline,
+    expand_loops,
     prepare_loop_params,
     process_loop,
     substitute_params,
@@ -26,18 +26,18 @@ class TestLoopValidation:
             "values": {"names": ["a", "b", "c"], "numbers": [1, 2, 3]},
         }
         if gen_type:
-            d["generation_type"] = gen_type
+            d["mode"] = gen_type
         validate_loop_params(d)
 
     @staticmethod
     @pytest.mark.parametrize(
         "gen_type, err", [(123, TypeError), ("invalid", ValueError)]
     )
-    def test_validate_loop_params_invalid_generation_type(gen_type, err):
-        """Test validation fails with invalid generation_type."""
+    def test_validate_loop_params_invalid_mode(gen_type, err):
+        """Test validation fails with invalid mode."""
         d = {
             "values": {"names": ["a", "b"], "numbers": [1, 2]},
-            "generation_type": gen_type,
+            "mode": gen_type,
         }
         with pytest.raises(err):
             validate_loop_params(d)
@@ -45,7 +45,7 @@ class TestLoopValidation:
     @staticmethod
     def test_validate_loop_params_missing_values():
         """Test validation fails when 'values' key is missing."""
-        d = {"generation_type": "linear"}
+        d = {"mode": "linear"}
         with pytest.raises(KeyError):
             validate_loop_params(d)
 
@@ -67,15 +67,15 @@ class TestLoopValidation:
     @staticmethod
     @pytest.mark.parametrize("gen_type", [None, "linear", "product"])
     def test_convert_product_to_linear(gen_type):
-        """Test conversion function for linear generation."""
+        """Test conversion function for linear mode."""
         d = {
             "values": {"names": ["a", "b"], "numbers": [1, 2]},
         }
         if gen_type is not None:
-            d["generation_type"] = gen_type
+            d["mode"] = gen_type
         result = convert_product_to_linear(d)
         if gen_type != "product":
-            assert result == {k: v for k, v in d.items() if k != "generation_type"}
+            assert result == {k: v for k, v in d.items() if k != "mode"}
             return
 
         exp = {"values": {"names": ("a", "a", "b", "b"), "numbers": (1, 2, 1, 2)}}
@@ -86,13 +86,13 @@ class TestLoopValidation:
         """Test conversion from product to linear."""
         d = {
             "values": {"names": ["a", "b"], "numbers": [1, 2]},
-            "generation_type": "product",
+            "mode": "product",
         }
         result = convert_product_to_linear(d)
 
         # Check the structure
         assert "values" in result
-        assert "generation_type" not in result
+        assert "mode" not in result
 
         # Check the values are correctly expanded
         expected_values = {"names": ("a", "a", "b", "b"), "numbers": (1, 2, 1, 2)}
@@ -103,7 +103,7 @@ class TestLoopValidation:
         """Test conversion with three variables."""
         d = {
             "values": {"names": ["a", "b"], "numbers": [1, 2], "letters": ["x", "y"]},
-            "generation_type": "product",
+            "mode": "product",
         }
         result = convert_product_to_linear(d)
 
@@ -122,7 +122,7 @@ class TestLoopValidation:
         """Test that conversion preserves non-values keys."""
         d = {
             "values": {"names": ["a", "b"], "numbers": [1, 2]},
-            "generation_type": "product",
+            "mode": "product",
             "other_key": "should_be_preserved",
             "another_key": [1, 2, 3],
         }
@@ -136,7 +136,7 @@ class TestLoopValidation:
         """Test the outer function 'prepare_loop_params'."""
         d = {
             "values": {"names": ["a", "b"], "numbers": [1, 2]},
-            "generation_type": gen_type,
+            "mode": gen_type,
         }
         prepare_loop_params(d)
 
@@ -413,7 +413,7 @@ class TestProcessLoop:
         assert all(isinstance(item["template"], dict) for item in result)
 
 
-class TestExplodeLoops:
+class TestExpandLoops:
     @staticmethod
     def test_no_loops():
         """Test that dictionaries without loops are properly copied."""
@@ -422,8 +422,8 @@ class TestExplodeLoops:
             "params": {"a": 1, "b": "value"},
             "nested": {"x": 10, "y": [1, 2, 3]},
         }
-        result, is_exploded = _explode_loops(d)
-        assert not is_exploded
+        result, is_expanded = _expand_loops(d)
+        assert not is_expanded
         assert result == d
         assert result is not d  # Should be a new dict
         assert result["nested"] is not d["nested"]  # Nested dict should be new
@@ -439,8 +439,8 @@ class TestExplodeLoops:
                 "params": {"name": "<<names>>", "value": "<<numbers>>"},
             }
         }
-        result, is_exploded = _explode_loops(d)
-        assert is_exploded
+        result, is_expanded = _expand_loops(d)
+        assert is_expanded
         assert isinstance(result, list)
         assert len(result) == 2
         assert result[0]["params"]["name"] == "a"
@@ -461,8 +461,8 @@ class TestExplodeLoops:
                 },
             ]
         }
-        result, is_exploded = _explode_loops(d)
-        assert not is_exploded  # It explodes the innermost dict
+        result, is_expanded = _expand_loops(d)
+        assert not is_expanded  # It expands the innermost dict
         assert isinstance(result, dict)
         assert "pipeline" in result
         assert len(result["pipeline"]) >= 2
@@ -486,8 +486,8 @@ class TestExplodeLoops:
                 ],
             }
         }
-        result, is_exploded = _explode_loops(d)
-        assert is_exploded
+        result, is_expanded = _expand_loops(d)
+        assert is_expanded
         assert isinstance(result, list)
         # Should have expanded both loops
         assert len(result) > 1
@@ -504,14 +504,14 @@ class TestExplodeLoops:
             "tuple": (1, 2, 3),
             "nested": {"immutable": "test"},
         }
-        result, is_exploded = _explode_loops(d)
-        assert not is_exploded
+        result, is_expanded = _expand_loops(d)
+        assert not is_expanded
         assert result == d
         assert result is not d
         assert result["nested"] is not d["nested"]
 
 
-class TestExplodeLoopsInPipeline:
+class TestExpandLoopsInPipeline:
     @staticmethod
     def test_basic():
         """Test processing of a simple pipeline."""
@@ -519,7 +519,7 @@ class TestExplodeLoopsInPipeline:
             "pipeline": [{"transformer": "T1"}, {"transformer": "T2"}],
             "metadata": {"version": 1},
         }
-        result = explode_loops_in_pipeline(pipe)
+        result = expand_loops(pipe)
         assert result is not pipe
         assert result == pipe
 
@@ -538,7 +538,7 @@ class TestExplodeLoopsInPipeline:
                 },
             ]
         }
-        result = explode_loops_in_pipeline(pipe)
+        result = expand_loops(pipe)
         assert len(result["pipeline"]) > len(pipe["pipeline"])
         assert result["pipeline"][0] == pipe["pipeline"][0]
 
@@ -551,7 +551,7 @@ class TestExplodeLoopsInPipeline:
                 {"transformer": "Outer"},
             ]
         }
-        result = explode_loops_in_pipeline(pipe)
+        result = expand_loops(pipe)
         assert isinstance(result["pipeline"], list)
         assert len(result["pipeline"]) == len(pipe["pipeline"])
 
@@ -559,7 +559,7 @@ class TestExplodeLoopsInPipeline:
     def test_empty():
         """Test processing of an empty pipeline."""
         pipe = {"pipeline": [], "metadata": {"version": 1}}
-        result = explode_loops_in_pipeline(pipe)
+        result = expand_loops(pipe)
         assert isinstance(result["pipeline"], list)
         assert not result["pipeline"]
         assert result["metadata"] == pipe["metadata"]
@@ -568,7 +568,7 @@ class TestExplodeLoopsInPipeline:
     def test_no_pipeline_key():
         """Test processing when a pipeline key is missing."""
         pipe = {"pipeline": {"metadata": {"v": 1}, "config": {"param": "v"}}}
-        result = explode_loops_in_pipeline(pipe)
+        result = expand_loops(pipe)
         assert result == pipe
         assert result is not pipe
 
@@ -582,14 +582,14 @@ class TestExplodeLoopsInPipeline:
             ]
         }
         pipe_copy = deepcopy(original_pipe)
-        _result = explode_loops_in_pipeline(original_pipe)
+        _result = expand_loops(original_pipe)
         assert original_pipe == pipe_copy  # Original should not be modified
 
     @staticmethod
     def test_nested_dict_independence():
         """Test that nested dictionaries are independent in the result."""
         pipe = {"pipeline": [{"nested": {"deep": {"value": 42}}}]}
-        result = explode_loops_in_pipeline(pipe)
+        result = expand_loops(pipe)
         assert result["pipeline"][0]["nested"] is not pipe["pipeline"][0]["nested"]
         assert (
                 result["pipeline"][0]["nested"]["deep"]
@@ -601,7 +601,7 @@ class TestExplodeLoopsInPipeline:
     def test_invalid_inputs(invalid_input):
         """Test handling of invalid inputs."""
         with pytest.raises((TypeError, AttributeError)):
-            explode_loops_in_pipeline(invalid_input)
+            expand_loops(invalid_input)
 
     @staticmethod
     def test_hardcoded_flat_pipeline():
@@ -621,7 +621,7 @@ class TestExplodeLoopsInPipeline:
                         },
                         {
                             "loop": {  # outermost loop
-                                # "generation_type": "linear",
+                                # "mode": "linear",
                                 "values": {
                                     "algos": ["algo_X", "algo_Y"],
                                     "names": ["name_a", "name_b"],
@@ -647,7 +647,7 @@ class TestExplodeLoopsInPipeline:
                                     },
                                     {
                                         "loop": {  # innermost loop
-                                            "generation_type": "product",
+                                            "mode": "product",
                                             "values": {
                                                 "numbers": [2, 3],
                                                 # This "names" must not be
@@ -764,7 +764,7 @@ class TestExplodeLoopsInPipeline:
                 },
             ]
         }
-        chk = explode_loops_in_pipeline(pipe)
+        chk = expand_loops(pipe)
         assert chk == exp
         loaded = load_pipeline(chk)
         loaded.show_pipeline(add_transformer_params=True)
@@ -777,7 +777,7 @@ class TestExplodeLoopsInPipeline:
                 {"transformer": "AssertNotEmpty"},
                 {
                     "loop": {  # outermost loop
-                        # "generation_type": "linear",
+                        # "mode": "linear",
                         "values": {
                             "algos": ["algo_X", "algo_Y"],
                             "names": ["name_a", "name_b"],
@@ -803,7 +803,7 @@ class TestExplodeLoopsInPipeline:
                                     },
                                     {
                                         "loop": {  # innermost loop
-                                            "generation_type": "product",
+                                            "mode": "product",
                                             "values": {
                                                 "numbers": [2, 3],
                                                 # This "names" must not be
@@ -914,7 +914,7 @@ class TestExplodeLoopsInPipeline:
                 },
             ]
         }
-        chk = explode_loops_in_pipeline(pipe)
+        chk = expand_loops(pipe)
         assert chk == exp
         extra_functions = {"outer_func": lambda x: x}
         loaded = load_pipeline(chk, extra_functions=extra_functions)
