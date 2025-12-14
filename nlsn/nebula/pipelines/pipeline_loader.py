@@ -6,8 +6,7 @@ from typing import Callable
 from nlsn.nebula.auxiliaries import extract_kwarg_names
 from nlsn.nebula.base import LazyWrapper, Transformer
 from nlsn.nebula.pipelines.loop_exploder import explode_loops_in_pipeline
-from nlsn.nebula.pipelines.pipe_aux import parse_storage_request
-from nlsn.nebula.pipelines.pipelines import TransformerPipeline
+from nlsn.nebula.pipelines.pipelines import TransformerPipeline, parse_storage_request
 from nlsn.nebula.pipelines.util import create_dict_extra_functions
 from nlsn.nebula.storage import nebula_storage as ns
 
@@ -332,7 +331,9 @@ def load_pipeline(
         raise TypeError(msg)
 
     # Transform the input type from <list> / <tuple> to <dict>.
-    if isinstance(o, (list, tuple, dict)):
+    if isinstance(o, dict):
+        pass
+    elif isinstance(o, (list, tuple)):
         o = {"pipeline": o}
     else:  # pragma: no cover
         raise TypeError("Not understood. The pipeline must be a list or a dict.")

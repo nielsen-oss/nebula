@@ -1419,7 +1419,6 @@ if __name__ == "__main__":  # pragma: no cover
     p1 = TransformerPipeline([p1a], name="FULL PIPELINE")
 
     # p1.show_pipeline(add_transformer_params=True)
-    p1._print_dag()  # noqa
 
     _li_trf = [
         DropColumns(columns="c3"),
