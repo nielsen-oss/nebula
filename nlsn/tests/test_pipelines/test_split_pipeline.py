@@ -10,7 +10,6 @@ from nlsn.nebula.pipelines.pipelines import TransformerPipeline
 from nlsn.nebula.storage import nebula_storage as ns
 from nlsn.nebula.transformers import AddLiterals, AssertNotEmpty, Cast
 from .auxiliaries import *
-from ..auxiliaries import to_polars
 
 _nan = float("nan")
 
@@ -158,7 +157,6 @@ class TestSplitPipeline:
 
         pipe.show_pipeline()
         df_chk = pipe.run(df_input)
-        df_chk = to_polars(df_chk)
         # ... and ensure it is converted back to float64 at the end
         assert df_chk["c1"].dtype == pl.Float64
         pl_assert_equal(df_chk.sort(df_chk.columns), df_input.sort(df_input.columns))

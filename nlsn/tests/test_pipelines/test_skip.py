@@ -1,4 +1,4 @@
-"""Test 'skip' pipeline functionalities."""
+"""Test 'skip' / 'perform' pipeline functionalities."""
 
 from copy import deepcopy
 

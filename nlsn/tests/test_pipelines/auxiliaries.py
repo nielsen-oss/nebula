@@ -1,4 +1,5 @@
 """Auxiliaries for testing pipelines."""
+
 from dataclasses import dataclass
 
 import narwhals as nw
