@@ -1,9 +1,8 @@
 """Shared code for pipelines."""
 
-from nlsn.nebula.shared_transformers import Count, Distinct, DropColumns, WithColumn
-
 from nlsn.nebula.base import Transformer
 from nlsn.nebula.pipelines.pipelines import TransformerPipeline
+from nlsn.nebula.transformers import Distinct, DropColumns, WithColumn, AssertNotEmpty, AddLiterals
 
 
 class RuntimeErrorTransformer(Transformer):
@@ -19,7 +18,7 @@ class RuntimeErrorTransformer(Transformer):
 def _get_apply_to_rows_is_null_dead_end():
     pipe = TransformerPipeline(
         [
-            WithColumn(column_name="new", value=-1),
+            AddLiterals(data=[{"alias": "new", "value": 1}]),
             {"store": "df_fork"},
         ],
         apply_to_rows={
@@ -106,7 +105,7 @@ def _get_apply_to_rows_skip_if_empty():
 
 def __assemble_branch_pipe(fork_pipe: TransformerPipeline) -> TransformerPipeline:
     first_stage_pipe = TransformerPipeline(Distinct())
-    last_stage_pipe = TransformerPipeline(Count())
+    last_stage_pipe = TransformerPipeline(AssertNotEmpty())
     pipe_full = TransformerPipeline(
         [
             first_stage_pipe,
@@ -273,9 +272,6 @@ def _get_branch_skip_otherwise():
         otherwise=TransformerPipeline(WithColumn(column_name="c1", value="other")),
     )
     return __assemble_branch_pipe(fork_pipe)
-
-
-
 
 
 DICT_APPLY_TO_ROWS_PIPELINES = {

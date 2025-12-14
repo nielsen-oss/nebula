@@ -1,4 +1,5 @@
 """Auxiliaries for testing pipelines."""
+from dataclasses import dataclass
 
 import narwhals as nw
 from polars.testing import assert_frame_equal
@@ -14,6 +15,7 @@ __all__ = [
     "NoParentClass",
     "RoundValues",
     "ThisTransformerIsBroken",
+    "ExtraTransformers",  # DataClass
 ]
 
 
@@ -93,3 +95,8 @@ class ThisTransformerIsBroken(Transformer):
     @staticmethod
     def _transform_nw(df):
         raise ValueError("Broken transformer")
+
+
+@dataclass
+class ExtraTransformers:
+    Distinct = Distinct

@@ -1,18 +1,11 @@
 """Test loop pipelines."""
 
-from dataclasses import dataclass
-
 import polars as pl
 import pytest
 
 from nlsn.nebula.pipelines.pipeline_loader import load_pipeline
-from nlsn.tests.test_pipelines.auxiliaries import pl_assert_equal, Distinct
 from nlsn.tests.test_pipelines.pipeline_yaml.auxiliaries import load_yaml
-
-
-@dataclass
-class ExtraTransformers:
-    Distinct = Distinct
+from .auxiliaries import *
 
 
 @pytest.fixture(scope="module", name="df_input")

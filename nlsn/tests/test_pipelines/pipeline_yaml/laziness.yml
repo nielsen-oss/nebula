@@ -3,21 +3,21 @@ pipeline:
   - transformer: "Distinct"  # w/o params
     lazy: True
 
-  - transformer: "WithColumn"  # w/ params
+  - transformer: "AddLiterals"
     lazy: True
     params:
-      column_name: "c3"
-      value: "lazy"
+      data:
+        - { "value": "lazy", "alias": "c3" }
 
-  - transformer: "WithColumn"  # lazy func
+  - transformer: "AddLiterals"
     msg: "random msg"
     lazy: True
     params:
-      column_name: "c4"
-      value: "__fn__my_func"
+      data:
+        - { "value": "__fn__my_func", "alias": "c4" }
 
-  - transformer: "WithColumn"  # lazy storage
+  - transformer: "AddLiterals"
     lazy: True
     params:
-      column_name: "c5"
-      value: "__ns__my_key"
+      data:
+        - { "value": "__ns__my_key", "alias": "c5" }

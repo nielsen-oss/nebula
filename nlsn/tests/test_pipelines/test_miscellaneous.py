@@ -6,7 +6,7 @@ import pytest
 from nlsn.nebula import nebula_storage as ns
 from nlsn.nebula.pipelines.pipelines import TransformerPipeline
 from nlsn.nebula.transformers import SelectColumns, AssertNotEmpty, DropNulls
-from nlsn.tests.test_pipelines.auxiliaries import NoParentClass, pl_assert_equal, CallMe
+from .auxiliaries import NoParentClass, pl_assert_equal, CallMe
 
 
 @pytest.fixture(scope="module", name="df_input")

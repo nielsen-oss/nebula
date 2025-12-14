@@ -1,7 +1,5 @@
 """Test the pipeline loader starting from YAML data."""
 
-from dataclasses import dataclass
-
 import numpy as np
 import pandas as pd
 import polars as pl
@@ -59,10 +57,6 @@ def test_pipeline_loader_list_tuple():
 
 def test_extra_transformers():
     df = pl.DataFrame({"a": [1, 1, 2]})
-
-    @dataclass
-    class ExtraTransformers:
-        Distinct = Distinct
 
     pipe = load_pipeline(
         [{"transformer": "Distinct"}],

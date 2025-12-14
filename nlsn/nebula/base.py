@@ -30,7 +30,19 @@ __all__ = ["LazyWrapper", "Transformer", "nlazy"]
 
 
 def nlazy(func: FunctionType) -> FunctionType:
-    """A decorator to mark a function as 'lazy'."""
+    """A decorator to mark a function as 'lazy'.
+
+    Use this decorator to mark functions that should be evaluated
+    at transform time rather than at pipeline definition time.
+
+    Example:
+        >>> @nlazy
+        ... def get_current_date():
+        ...     return datetime.now().strftime("%Y-%m-%d")
+        >>>
+        >>> # The function won't be called until transform() is invoked
+        >>> lazy_trf = LazyWrapper(AddLiterals, data=[{"alias": "date", "value": get_current_date}])
+    """
     func._n_lazy = True
     return func
 
@@ -127,14 +139,26 @@ class Transformer(metaclass=InitParamsStorage):
 
 
 def is_lazy_function(o) -> bool:
-    """Determine whether a function is lazy."""
+    """Determine whether a function is lazy (decorated with @nlazy)."""
     if not isinstance(o, FunctionType):
         return False
     return getattr(o, "_n_lazy", False)
 
 
 def is_ns_lazy_request(o) -> bool:
-    """Determine whether an object is NS + its key."""
+    """Determine whether an object is a nebula storage lazy reference.
+
+    A lazy NS request is a 2-element tuple/list where the first element
+    is the nebula_storage instance and the second is the key string.
+
+    Example:
+        >>> is_ns_lazy_request((ns, "my_key"))
+        True
+        >>> is_ns_lazy_request([ns, "my_key"])
+        True
+        >>> is_ns_lazy_request(("not_ns", "my_key"))
+        False
+    """
     if isinstance(o, (list, tuple)):
         if len(o) == 2:
             if o[0] is ns:
@@ -142,30 +166,165 @@ def is_ns_lazy_request(o) -> bool:
     return False
 
 
+def _resolve_lazy_value(obj):
+    """Recursively resolve lazy values in nested structures.
+
+    This function traverses nested dicts, lists, and tuples, resolving:
+    - Functions decorated with @nlazy: calls them and uses return value
+    - Nebula storage references (ns, "key"): fetches value from storage
+
+    Args:
+        obj: Any value that may contain lazy references at any nesting level.
+
+    Returns:
+        The resolved value with all lazy references evaluated.
+
+    Example:
+        >>> ns.set("config_value", 42)
+        >>> @nlazy
+        ... def get_timestamp():
+        ...     return "2024-01-01"
+        >>>
+        >>> nested = {
+        ...     "static": "hello",
+        ...     "from_storage": (ns, "config_value"),
+        ...     "from_func": get_timestamp,
+        ...     "nested_list": [{"deep": (ns, "config_value")}]
+        ... }
+        >>> resolved = _resolve_lazy_value(nested)
+        >>> resolved
+        {
+            "static": "hello",
+            "from_storage": 42,
+            "from_func": "2024-01-01",
+            "nested_list": [{"deep": 42}]
+        }
+    """
+    # Priority 1: Check for @nlazy decorated function
+    if is_lazy_function(obj):
+        return obj()
+
+    # Priority 2: Check for nebula storage reference (ns, "key")
+    # IMPORTANT: This must come BEFORE generic tuple handling
+    if is_ns_lazy_request(obj):
+        return obj[0].get(obj[1])
+
+    # Priority 3: Recurse into dictionaries
+    if isinstance(obj, dict):
+        return {k: _resolve_lazy_value(v) for k, v in obj.items()}
+
+    # Priority 4: Recurse into lists
+    if isinstance(obj, list):
+        return [_resolve_lazy_value(item) for item in obj]
+
+    # Priority 5: Recurse into tuples (but NOT ns references - handled above)
+    if isinstance(obj, tuple):
+        return tuple(_resolve_lazy_value(item) for item in obj)
+
+    # Base case: return value as-is
+    return obj
+
+
 def extract_lazy_params(kwargs: dict) -> dict:
-    params = {}
-    for k, v in kwargs.items():
-        if is_lazy_function(v):
-            params[k] = v()
-        elif is_ns_lazy_request(v):
-            # here v is a 2-element list/tuple
-            params[k] = v[0].get(v[1])
-        else:
-            params[k] = v
-    return params
+    """Extract and resolve lazy parameters from a kwargs dictionary.
+
+    This function recursively processes all values in the kwargs dict,
+    resolving any lazy references (functions or storage keys) found at
+    any nesting level.
+
+    Args:
+        kwargs: Dictionary of keyword arguments that may contain lazy
+                references at any nesting depth.
+
+    Returns:
+        New dictionary with all lazy references resolved.
+
+    Example:
+        >>> ns.set("threshold", 0.5)
+        >>> @nlazy
+        ... def get_columns():
+        ...     return ["a", "b", "c"]
+        >>>
+        >>> params = {
+        ...     "columns": get_columns,
+        ...     "config": {
+        ...         "threshold": (ns, "threshold"),
+        ...         "static": True
+        ...     }
+        ... }
+        >>> extract_lazy_params(params)
+        {
+            "columns": ["a", "b", "c"],
+            "config": {
+                "threshold": 0.5,
+                "static": True
+            }
+        }
+    """
+    return _resolve_lazy_value(kwargs)
 
 
 class LazyWrapper:
-    """Lazy wrapper class."""
+    """Wrapper for lazy transformer instantiation.
+
+    LazyWrapper defers transformer instantiation until transform() is called.
+    This allows parameters to be resolved at runtime rather than at pipeline
+    definition time, enabling dynamic configuration based on:
+    - Values computed by functions (decorated with @nlazy)
+    - Values stored in nebula_storage during earlier pipeline stages
+
+    Lazy references can be nested at any depth within the parameter structure.
+
+    Example:
+        >>> # Store a value during pipeline execution
+        >>> ns.set("computed_columns", ["col_a", "col_b"])
+        >>>
+        >>> # Define a lazy function
+        >>> @nlazy
+        ... def get_threshold():
+        ...     return 0.95
+        >>>
+        >>> # Create lazy transformer with nested references
+        >>> lazy_trf = LazyWrapper(
+        ...     MyTransformer,
+        ...     columns=(ns, "computed_columns"),  # flat reference
+        ...     config={
+        ...         "threshold": get_threshold,     # nested in dict
+        ...         "filters": [
+        ...             {"value": (ns, "filter_val")}  # deeply nested
+        ...         ]
+        ...     }
+        ... )
+        >>>
+        >>> # At transform time, all references are resolved
+        >>> result = lazy_trf.transform(df)
+    """
 
     def __init__(self, trf, **kwargs):
-        """Store the transformer class and its initialization parameters."""
+        """Store the transformer class and its initialization parameters.
+
+        Args:
+            trf: The transformer class (not instance) to instantiate lazily.
+            **kwargs: Keyword arguments for the transformer. May contain
+                      lazy references at any nesting level.
+        """
         self.trf = trf
         self.kwargs = kwargs
 
     def transform(self, df):
-        """Create the actual object and call the 'transform' method."""
+        """Instantiate the transformer with resolved params and transform.
+
+        This method:
+        1. Recursively resolves all lazy references in kwargs
+        2. Instantiates the transformer with resolved parameters
+        3. Calls transform() on the new instance
+
+        Args:
+            df: The dataframe to transform.
+
+        Returns:
+            The transformed dataframe.
+        """
         params: dict = extract_lazy_params(self.kwargs)
         trf = self.trf(**params)
-        ret = trf.transform(df)
-        return ret
+        return trf.transform(df)

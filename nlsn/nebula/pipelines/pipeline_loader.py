@@ -71,20 +71,106 @@ def _cache_transformer_packages(ext_transformers: list | None):
     _cache["transformer_packages"] = (ext_transformers or []) + [nebula_transformers]
 
 
+def _resolve_lazy_string_marker(obj, extra_funcs: dict[str, Callable]):
+    """Recursively resolve lazy string markers in nested structures.
+
+    This function traverses nested dicts, lists, and tuples, converting:
+    - "__fn__<name>" strings: to the corresponding function from extra_funcs
+    - "__ns__<key>" strings: to (ns, "<key>") tuples for lazy storage access
+
+    These markers are the YAML/JSON-serializable equivalents of the Python API's
+    lazy references (decorated functions and (ns, "key") tuples).
+
+    Args:
+        obj: Any value that may contain lazy string markers at any nesting level.
+        extra_funcs: Dictionary mapping function names to callable functions.
+
+    Returns:
+        The processed value with all string markers converted to lazy references.
+
+    Example (YAML input):
+        data:
+          - alias: "col1"
+            value: "__ns__stored_value"
+          - alias: "col2"
+            value: "__fn__my_function"
+
+        Becomes:
+        data:
+          - alias: "col1"
+            value: (ns, "stored_value")  # Will be resolved at transform time
+          - alias: "col2"
+            value: <function my_function>  # Will be called at transform time
+    """
+    # Check for lazy string markers
+    if isinstance(obj, str):
+        # [6:] because len("__fn__") == len("__ns__") == 6
+        if obj.startswith("__fn__"):
+            func_name: str = obj[6:]
+            if func_name not in extra_funcs:
+                available = list(extra_funcs.keys()) if extra_funcs else []
+                raise KeyError(
+                    f"Lazy function '{func_name}' not found in extra_functions. "
+                    f"Available: {available}"
+                )
+            return extra_funcs[func_name]
+        if obj.startswith("__ns__"):
+            # Return as tuple for lazy resolution at transform time
+            return (ns, obj[6:])
+        return obj
+
+    # Recurse into dictionaries
+    if isinstance(obj, dict):
+        return {k: _resolve_lazy_string_marker(v, extra_funcs) for k, v in obj.items()}
+
+    # Recurse into lists
+    if isinstance(obj, list):
+        return [_resolve_lazy_string_marker(item, extra_funcs) for item in obj]
+
+    # Recurse into tuples
+    if isinstance(obj, tuple):
+        return tuple(_resolve_lazy_string_marker(item, extra_funcs) for item in obj)
+
+    # Base case: return value as-is
+    return obj
+
+
 def extract_lazy_params(input_params: dict, extra_funcs: dict[str, Callable]) -> dict:
-    ret: dict = {}
-    for k, v in input_params.items():
-        # [6:] 6 is the len of "__fn__" / "__ns__"
-        if isinstance(v, str):
-            if v.startswith("__fn__"):
-                func_name: str = v[6:]
-                ret[k] = extra_funcs[func_name]
-                continue
-            if v.startswith("__ns__"):
-                ret[k] = (ns, v[6:])
-                continue
-        ret[k] = v
-    return ret
+    """Extract and convert lazy string markers from YAML/JSON parameters.
+
+    This is the entry point for processing lazy parameters loaded from
+    YAML or JSON configuration files. It recursively processes all values,
+    converting string markers to their lazy equivalents.
+
+    Args:
+        input_params: Dictionary of parameters that may contain lazy string
+                      markers at any nesting depth.
+        extra_funcs: Dictionary mapping function names to callable functions.
+
+    Returns:
+        New dictionary with all lazy string markers converted.
+
+    Example:
+        >>> extra_funcs = {"get_threshold": lambda: 0.5}
+        >>> params = {
+        ...     "simple": "static_value",
+        ...     "from_storage": "__ns__my_key",
+        ...     "from_func": "__fn__get_threshold",
+        ...     "nested": {
+        ...         "deep": [{"value": "__ns__nested_key"}]
+        ...     }
+        ... }
+        >>> extract_lazy_params(params, extra_funcs)
+        {
+            "simple": "static_value",
+            "from_storage": (ns, "my_key"),
+            "from_func": <function get_threshold>,
+            "nested": {
+                "deep": [{"value": (ns, "nested_key")}]
+            }
+        }
+    """
+    return _resolve_lazy_string_marker(input_params, extra_funcs)
 
 
 def _load_transformer(d: dict, **kwargs) -> Transformer | None:
@@ -128,8 +214,6 @@ def _load_generic(o, **kwargs) -> TransformerPipeline | Transformer | dict:
         return _load_transformer(o, **kwargs)
     elif "pipeline" in o:
         return _load_pipeline(o, **kwargs)
-    # elif ("pipeline" in o) and ("branch" not in o):
-    #     return _load_pipeline(o, **kwargs)
     elif parse_storage_request(o):
         return o
     else:  # pragma: no cover

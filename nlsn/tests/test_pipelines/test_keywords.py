@@ -8,7 +8,7 @@ from nlsn.nebula.pipelines.pipeline_loader import load_pipeline
 from nlsn.nebula.pipelines.pipelines import TransformerPipeline
 from nlsn.nebula.storage import nebula_storage as ns
 from nlsn.nebula.transformers import DropNulls
-from nlsn.tests.test_pipelines.auxiliaries import pl_assert_equal
+from .auxiliaries import pl_assert_equal
 
 
 @pytest.mark.parametrize("source", ["python", "yaml"])
