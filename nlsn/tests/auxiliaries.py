@@ -16,8 +16,9 @@ __all__ = [
     "assert_pandas_polars_frame_equal",
     "from_pandas",
     "get_expected_columns",
-    "sort_reset_assert",
     "to_pandas",
+    "to_polars",
+    "sort_reset_assert",
 ]
 
 
@@ -121,6 +122,17 @@ def to_pandas(df_input) -> pd.DataFrame:
         return df
 
     raise TypeError(f"Unknown df type: {type(df)}")
+
+
+def to_polars(df) -> pl.DataFrame:
+    # from narwhals to polars
+    if isinstance(df, (nw.DataFrame, nw.LazyFrame)):
+        ret = nw.to_native(df)
+    else:
+        ret = df
+    if isinstance(ret, pl.LazyFrame):
+        ret = ret.collect()
+    return ret
 
 
 def sort_reset_assert(

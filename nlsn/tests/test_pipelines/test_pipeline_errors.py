@@ -18,7 +18,7 @@ from nlsn.nebula.pipelines.pipelines import (
 )
 from nlsn.nebula.spark_util import get_spark_session
 from nlsn.nebula.transformers import *
-from nlsn.tests.test_pipelines.auxiliaries import pl_assert_equal
+from .auxiliaries import *
 
 _MSG = "this custom message"
 
@@ -65,8 +65,8 @@ class TestExceptions:
             StructField("with_null", StringType(), True),
             StructField("without_null", FloatType(), True),
         ]
-        schema = StructType(fields)
-        df = spark.createDataFrame([["a", 0.0], [None, 1.0]], schema=schema)
+        data = [["a", 0.0], [None, 1.0]]
+        df = spark.createDataFrame(data, schema=StructType(fields))
 
         t = ChangeFieldsNullability(nullable=False, columns=["with_null"])
 
@@ -119,12 +119,6 @@ class TestExceptions:
                 raise_pipeline_error(e_inner, _MSG)
         except Exception as e_outer:
             assert _MSG in str(e_outer)
-
-
-class ThisTransformerIsBroken:
-    @staticmethod
-    def transform(_df):
-        raise ValueError("Broken transformer")
 
 
 class TestCacheToNebulaStorage:
