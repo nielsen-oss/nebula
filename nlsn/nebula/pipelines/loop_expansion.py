@@ -135,14 +135,14 @@ def validate_loop_params(d: dict) -> None:
         if not isinstance(v, list):
             raise TypeError(f"Value for '{k}' must be list, got '{type(v)}'.")
 
-    gen_type = d.get("mode")
-    if gen_type is not None:
-        if not isinstance(gen_type, str):
+    mode = d.get("mode")
+    if mode is not None:
+        if not isinstance(mode, str):
             raise TypeError("The 'mode' must be a string.")
-        if gen_type not in {"linear", "product"}:
+        if mode not in {"linear", "product"}:
             raise ValueError("The 'mode' must be 'linear' or 'product'.")
 
-    if (gen_type == "linear") or not gen_type:
+    if (mode == "linear") or not mode:
         lens = {len(i) for i in values.values()}
         if len(lens) != 1:
             raise ValueError(f"'values' must have the same length. Found: {lens}")
@@ -157,14 +157,14 @@ def convert_product_to_linear(d_orig: dict) -> dict:
     Returns:
         dict: Original dict if linear, new dict with cross-product if product
     """
-    gen_type: str | None = d_orig.get("mode")
-    if gen_type is None:
+    mode: str | None = d_orig.get("mode")
+    if mode is None:
         return d_orig
 
     d_new = deepcopy(d_orig)
     del d_new["mode"]
 
-    if gen_type == "linear":
+    if mode == "linear":
         return d_new
 
     values = d_new["values"]
