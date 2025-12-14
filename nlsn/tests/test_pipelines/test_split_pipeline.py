@@ -56,9 +56,9 @@ _DATA = [
 ]
 
 # Transformer lists for split tests
-_trf_low: list = [RoundValues(input_columns="c1", precision=3)]
+_trf_low: list = [RoundValues(column="c1", precision=3)]
 _trf_hi: list = [
-    RoundValues(input_columns="c1", precision=1),
+    RoundValues(column="c1", precision=1),
     Cast(cast={"c1": "float64"}),
 ]
 

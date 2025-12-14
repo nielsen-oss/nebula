@@ -8,7 +8,7 @@ from nlsn.nebula.pipelines.pipeline_loader import load_pipeline
 from nlsn.nebula.pipelines.pipelines import TransformerPipeline
 from nlsn.nebula.transformers import AddLiterals
 from .auxiliaries import *
-from .pipeline_yaml.auxiliaries import load_yaml
+from .auxiliaries import load_yaml
 
 
 def _get_df_input():
@@ -54,7 +54,7 @@ def test_laziness_py():
         ns.set("my_key", "lazy-ns")
         df_chk = pipe.run(df_input)
         df_exp = _get_expected_output()
-        pl_assert_equal(df_chk.sort("c1"), df_exp.sort("c1"))
+        pl_assert_equal(df_chk, df_exp, sort=["c1"])
     finally:
         ns.clear()
 
@@ -74,6 +74,6 @@ def test_laziness_yaml():
         ns.set("my_key", "lazy-ns")
         df_chk = pipe.run(df_input)
         df_expected = _get_expected_output()
-        pl_assert_equal(df_chk, df_expected)
+        pl_assert_equal(df_chk, df_expected, sort=df_chk.columns)
     finally:
         ns.clear()

@@ -1,8 +1,10 @@
 """Auxiliaries for testing pipelines."""
-
+import os
 from dataclasses import dataclass
+from pathlib import Path
 
 import narwhals as nw
+import yaml
 from polars.testing import assert_frame_equal
 
 from nlsn.nebula.base import Transformer
@@ -19,12 +21,17 @@ __all__ = [
     "ExtraTransformers",  # DataClass
 ]
 
+_this_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
-def pl_assert_equal(df_chk, df_exp) -> None:
+
+def pl_assert_equal(df_chk, df_exp, sort: list[str] | None = None) -> None:
     if isinstance(df_chk, (nw.DataFrame, nw.LazyFrame)):
         df_chk = nw.to_native(df_chk)
     if isinstance(df_exp, (nw.DataFrame, nw.LazyFrame)):
         df_exp = nw.to_native(df_exp)
+    if sort:
+        df_chk = df_chk.sort(sort)
+        df_exp = df_exp.sort(sort)
     assert_frame_equal(df_chk, df_exp)
 
 
@@ -80,9 +87,9 @@ class NoParentClass:
 
 class RoundValues(Transformer):
 
-    def __init__(self, *, input_columns: str, precision: int):
+    def __init__(self, *, column: str, precision: int):
         super().__init__()
-        self._col = input_columns
+        self._col = column
         self._precision = precision
 
     def _transform_nw(self, df):
@@ -100,4 +107,15 @@ class ThisTransformerIsBroken(Transformer):
 
 @dataclass
 class ExtraTransformers:
+    AddOne = AddOne
+    CallMe = CallMe
     Distinct = Distinct
+    RoundValues = RoundValues
+    ThisTransformerIsBroken = ThisTransformerIsBroken
+
+
+def load_yaml(path) -> dict:
+    """Load a YAML file to test the 'load_pipeline' function."""
+    with open(_this_path / "yml_files" / path, "r", encoding="utf-8") as stream:
+        ret = yaml.safe_load(stream)
+    return ret

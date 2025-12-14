@@ -1,0 +1,23 @@
+name: "check-laziness"
+pipeline:
+  - transformer: "Distinct"  # w/o params
+    lazy: True
+
+  - transformer: "AddLiterals"
+    lazy: True
+    params:
+      data:
+        - { "value": "lazy", "alias": "c3" }
+
+  - transformer: "AddLiterals"
+    msg: "random msg"
+    lazy: True
+    params:
+      data:
+        - { "value": "__fn__my_func", "alias": "c4" }
+
+  - transformer: "AddLiterals"
+    lazy: True
+    params:
+      data:
+        - { "value": "__ns__my_key", "alias": "c5" }

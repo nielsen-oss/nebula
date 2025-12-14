@@ -1,5 +1,6 @@
 """Pipeline yaml loader."""
 
+from dataclasses import dataclass
 from types import ModuleType
 from typing import Callable
 
@@ -363,7 +364,7 @@ def load_pipeline(
         o: dict | list | tuple,
         *,
         extra_functions: Callable | list[Callable] | dict[str, Callable] | None = None,
-        extra_transformers: ModuleType | None = None,
+        extra_transformers: list[ModuleType] | list[dataclass] | None = None,
         evaluate_loops: bool = True,
 ) -> TransformerPipeline:
     """Load a Nebula pipeline object starting from a dictionary.

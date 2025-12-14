@@ -1,0 +1,43 @@
+name: "pipeline-with-storage"
+pipeline:
+  - pipeline:
+      - transformer: Distinct
+        lazy: True
+
+    interleaved:
+      - transformer: AssertNotEmpty
+
+    name: "flat-pipeline"
+
+  - pipeline:
+      low:
+        - transformer: RoundValues
+          params:
+            "column": "c1"
+            "precision": 3
+      hi:
+        - transformer: RoundValues
+          params:
+            "column": "c1"
+            "precision": 1
+        - transformer: Cast
+          params:
+            "cast":
+              "c1": "float32"
+        - store: df_high  # Storage request
+        - storage_debug_mode: False
+        - store_debug: df_high_debug_false  # This should not be stored as the debug is not active
+        - storage_debug_mode: True
+        - store_debug: df_high_debug_true  # This should be stored as the debug is now active
+        - storage_debug_mode: False  # Revert to the default state to avoid affecting other tests
+
+    interleaved:
+      - transformer: AssertNotEmpty
+      - transformer: Distinct
+
+    split_apply_before_appending:
+      - transformer: Distinct
+
+    name: "split-pipeline"
+    cast_subset_to_input_schema: True
+    split_function: split_function

@@ -1,6 +1,5 @@
 """Pipeline configurations for apply_to_rows tests.
 
-These replace the YAML files and _shared.py factory functions.
 Each function returns a configured TransformerPipeline ready to run.
 """
 

@@ -1,5 +1,7 @@
 """Unit-tests for pipeline utils."""
 
+import os
+
 import narwhals as nw
 import pandas as pd
 import polars as pl
@@ -250,3 +252,28 @@ class TestToSchema:
 
         for df_chk, df_exp in zip(result, expected):
             pd.testing.assert_frame_equal(df_chk, df_exp, check_dtype=True)
+
+    @pytest.mark.skipif(os.environ.get("TESTS_NO_SPARK") == "true", reason="no spark")
+    @pytest.mark.parametrize("to_nw", [True, False])
+    def test_spark(self, spark, list_dfs, to_nw):
+        df_input = from_pandas(list_dfs[0], "spark", to_nw=to_nw, spark=spark)
+
+        print(df_input)
+        raise AssertionError
+
+        # dataframes = [from_pandas(i, "spark", to_nw=False, spark=None) for i in dataframes]
+        #
+        # if to_nw == 1:
+        #     dataframes[1] = nw.from_native(dataframes[1])
+        # elif to_nw == "all":
+        #     dataframes = [nw.from_native(i) for i in dataframes]
+        #
+        # pl_schema = {"id": pl.Int64, "value": pl.Float32}
+        # result = to_schema(dataframes, dtypes if backend == "pandas" else pl_schema)
+        # if to_nw is not None:
+        #     result = [nw.to_native(i) for i in result]
+        #
+        # result = [to_pandas(i) for i in result]
+        #
+        # for df_chk, df_exp in zip(result, expected):
+        #     pd.testing.assert_frame_equal(df_chk, df_exp, check_dtype=True)

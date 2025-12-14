@@ -45,7 +45,7 @@ class TestDropNulls:
         df_exp = df_input_spark.dropna(how=how)
         assert_df_equality(df_chk, df_exp, ignore_row_order=True)
 
-    @pytest.mark.skipif(os.environ["TESTS_NO_SPARK"] == "true", reason="spark not available")
+    @pytest.mark.skipif(os.environ.get("TESTS_NO_SPARK") == "true", reason="no spark")
     @pytest.mark.parametrize("how", ["any", "all"])
     def test_spark_columns_subset(self, df_input_spark, how):
         """Test DiscardNulls transformer selecting specific columns."""

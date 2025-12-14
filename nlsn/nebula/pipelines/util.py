@@ -11,12 +11,13 @@ from nlsn.nebula.base import (
     is_lazy_function,
     is_ns_lazy_request,
 )
-from nlsn.nebula.df_types import GenericDataFrame, NwDataFrame
+from nlsn.nebula.df_types import GenericDataFrame, NwDataFrame, get_dataframe_type
 from nlsn.nebula.nw_util import get_condition, null_cond_to_false, to_native_dataframes
 from nlsn.nebula.pipelines.transformer_type_util import is_transformer
 
 __all__ = [
     "create_dict_extra_functions",
+    "get_native_schema",
     "get_pipeline_name",
     "get_transformer_name",
     "is_lazy_transformer",
@@ -113,6 +114,22 @@ def is_lazy_transformer(t) -> bool:
 def is_plain_transformer_list(lst: list | tuple) -> bool:
     """True if the iterable contains only Transformers (or is empty)."""
     return all(is_transformer(i) for i in lst)
+
+
+def get_native_schema(df):
+    if isinstance(df, (nw.DataFrame, nw.LazyFrame)):
+        df = nw.to_native(df)
+
+    if get_dataframe_type(df) == "spark":
+        schema = df.schema
+    elif get_dataframe_type(df) == "pandas":
+        schema = df.dtypes.to_dict()
+    elif get_dataframe_type(df) == "polars":
+        schema = df.schema
+    else:  # pragma: no cover
+        raise ValueError("Unsupported dataframe type")
+
+    return schema
 
 
 def get_pipeline_name(o) -> str:

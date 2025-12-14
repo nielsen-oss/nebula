@@ -17,7 +17,7 @@ from nlsn.nebula.auxiliaries import (
     get_class_name,
 )
 from nlsn.nebula.base import LazyWrapper, Transformer
-from nlsn.nebula.df_types import GenericDataFrame, get_dataframe_type
+from nlsn.nebula.df_types import GenericDataFrame, is_natively_spark
 from nlsn.nebula.logger import logger
 from nlsn.nebula.nw_util import df_is_empty, append_dataframes, join_dataframes
 from nlsn.nebula.pipelines._checks import *
@@ -137,7 +137,7 @@ def _get_n_partitions(df: "GenericDataFrame", obj: PipeType) -> int:
     """Get the number of partitions if the DF is a spark one and if requested."""
     n = 0
     if obj.repartition_output_to_original or obj.coalesce_output_to_original:
-        if get_dataframe_type(df) == "spark":
+        if is_natively_spark(df):
             n = df.rdd.getNumPartitions()
     return n
 
@@ -145,10 +145,10 @@ def _get_n_partitions(df: "GenericDataFrame", obj: PipeType) -> int:
 def _repartition_coalesce(df, obj: PipeType, n: int) -> "GenericDataFrame":
     """Repartition / coalesce if "df" is a spark DF and if requested."""
     if obj.repartition_output_to_original:
-        if get_dataframe_type(df) == "spark":
+        if is_natively_spark(df):
             df = df.repartition(n)
     elif obj.coalesce_output_to_original:
-        if get_dataframe_type(df) == "spark":
+        if is_natively_spark(df):
             df = df.coalesce(n)
     return df
 
@@ -594,14 +594,7 @@ def _run_pipeline(
         pipe_name = get_pipeline_name(obj)
         logger.info(f"Running {pipe_name}")
 
-        if get_dataframe_type(df) == "spark":
-            input_schema = df.schema
-        elif get_dataframe_type(df) == "pandas":
-            input_schema = df.dtypes.to_dict()
-        elif get_dataframe_type(df) == "polars":
-            input_schema = df.schema
-        else:  # pragma: no cover
-            raise ValueError("Unsupported dataframe type")
+        input_schema = get_native_schema(df)
 
         dict_df_split_input: dict[str, "GenericDataFrame"]
         dict_df_split_input = obj.split_function(df)

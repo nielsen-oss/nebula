@@ -8,7 +8,7 @@ from nlsn.nebula.pipelines.pipeline_loader import (
     load_pipeline,
 )
 from nlsn.nebula.storage import nebula_storage as ns
-from nlsn.tests.test_pipelines.pipeline_yaml.auxiliaries import load_yaml
+from nlsn.tests.test_pipelines.auxiliaries import load_yaml
 
 
 def my_split_function(_df):

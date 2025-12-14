@@ -16,7 +16,8 @@ __all__ = [
     "GenericNativeDataFrame",
     "GenericDataFrame",
     "NwDataFrame",
-    "get_dataframe_type"
+    "get_dataframe_type",
+    "is_natively_spark",
 ]
 
 NwDataFrame = nw.DataFrame | nw.LazyFrame
@@ -107,3 +108,14 @@ def get_dataframe_type(df) -> str:
         f"Unknown dataframe type: {type(df)}. "
         f"Supported types: {', '.join(supported)}"
     )
+
+
+def is_natively_spark(df) -> bool:
+    if HAS_SPARK:
+        if isinstance(df, (nw.DataFrame, nw.LazyFrame)):
+            df_native = nw.from_native(df)
+        else:
+            df_native = df
+
+        return get_dataframe_type(df_native) == "spark"
+    return False
