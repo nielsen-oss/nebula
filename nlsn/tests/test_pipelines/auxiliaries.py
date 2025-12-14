@@ -12,6 +12,7 @@ from nlsn.nebula.storage import nebula_storage as ns
 
 __all__ = [
     "pl_assert_equal",
+    "load_yaml",
     "AddOne",
     "CallMe",
     "Distinct",

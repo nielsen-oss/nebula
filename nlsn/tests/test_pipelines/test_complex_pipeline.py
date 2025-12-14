@@ -10,8 +10,7 @@ from nlsn.nebula.pipelines.pipeline_loader import load_pipeline
 from nlsn.nebula.pipelines.pipelines import TransformerPipeline
 from nlsn.nebula.storage import nebula_storage as ns
 from nlsn.nebula.transformers import *
-from nlsn.tests.test_pipelines.auxiliaries import *
-from nlsn.tests.test_pipelines.auxiliaries import load_yaml
+from .auxiliaries import *
 
 _TRANSFORMERS = [Distinct()]
 _INTERLEAVED = [AssertNotEmpty()]

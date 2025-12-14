@@ -6,7 +6,6 @@ import polars as pl
 import pytest
 
 from nlsn.nebula.pipelines.pipeline_loader import load_pipeline
-from .auxiliaries import load_yaml
 from .auxiliaries import *
 
 

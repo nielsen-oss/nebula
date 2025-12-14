@@ -8,7 +8,6 @@ from nlsn.nebula.pipelines.pipeline_loader import load_pipeline
 from nlsn.nebula.pipelines.pipelines import TransformerPipeline
 from nlsn.nebula.transformers import AddLiterals
 from .auxiliaries import *
-from .auxiliaries import load_yaml
 
 
 def _get_df_input():
