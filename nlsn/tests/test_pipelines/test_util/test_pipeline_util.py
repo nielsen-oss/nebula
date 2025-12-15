@@ -6,6 +6,7 @@ import narwhals as nw
 import pandas as pd
 import polars as pl
 import pytest
+from pyspark.sql.types import FloatType, LongType, StringType, StructField, StructType
 
 from nlsn.nebula.base import Transformer
 from nlsn.nebula.pipelines.pipelines import TransformerPipeline
@@ -256,24 +257,19 @@ class TestToSchema:
     @pytest.mark.skipif(os.environ.get("TESTS_NO_SPARK") == "true", reason="no spark")
     @pytest.mark.parametrize("to_nw", [True, False])
     def test_spark(self, spark, list_dfs, to_nw):
-        df_input = from_pandas(list_dfs[0], "spark", to_nw=to_nw, spark=spark)
+        df_input_pd = list_dfs[0]
+        df_input = from_pandas(df_input_pd, "spark", to_nw=to_nw, spark=spark)
 
-        print(df_input)
-        raise AssertionError
+        spark_schema = [
+            StructField("id", LongType(), True),
+            StructField("value", FloatType(), True),
+            StructField("name", StringType(), True),
+        ]
 
-        # dataframes = [from_pandas(i, "spark", to_nw=False, spark=None) for i in dataframes]
-        #
-        # if to_nw == 1:
-        #     dataframes[1] = nw.from_native(dataframes[1])
-        # elif to_nw == "all":
-        #     dataframes = [nw.from_native(i) for i in dataframes]
-        #
-        # pl_schema = {"id": pl.Int64, "value": pl.Float32}
-        # result = to_schema(dataframes, dtypes if backend == "pandas" else pl_schema)
-        # if to_nw is not None:
-        #     result = [nw.to_native(i) for i in result]
-        #
-        # result = [to_pandas(i) for i in result]
-        #
-        # for df_chk, df_exp in zip(result, expected):
-        #     pd.testing.assert_frame_equal(df_chk, df_exp, check_dtype=True)
+        df_chk = to_schema([df_input], StructType(spark_schema))[0]
+        if to_nw:
+            df_chk = nw.to_native(df_chk)
+
+        assert df_chk.schema[1].dataType.typeName() == "float"  # in spark is 32bit
+        df_exp = df_input_pd.copy().astype({"value": "float32"})
+        pd.testing.assert_frame_equal(df_chk.toPandas(), df_exp, check_dtype=True)
