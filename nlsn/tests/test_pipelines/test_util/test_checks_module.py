@@ -105,7 +105,7 @@ def test_branch_extra_keys_for_dead_end():
     ],
 )
 def test_branch_extra_keys_for_append(o):
-    """Not allowed keys for append / dead-end 'branch' configuration."""
+    """Not allowed keys for 'append' / 'dead-end' the branch configuration."""
     with pytest.raises(KeyError):
         assert_branch_inputs(o)
 

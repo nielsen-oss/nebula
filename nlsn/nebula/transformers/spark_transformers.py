@@ -222,7 +222,7 @@ class CpuInfo(Transformer):
 
         Args:
             n_partitions (int):
-                The CPU name is retrieved through a UDF that runs on a mock
+                The CPU name is retrieved through an UDF that runs on a mock
                 dataframe, not the provided one as input.
                 The parameter 'n_partitions' defines the number of rows and
                 partitions of this dummy dataframe that will be created.
@@ -781,7 +781,7 @@ def _expand_ascending_windowing_cols(ascending, order_cols) -> list[str]:
     if n_order_cols != n_ascending:
         msg = f"Length of order columns: {n_order_cols} does not "
         msg += f"match length of sort criteria: {n_ascending}."
-        raise AssertionError(msg)
+        raise ValueError(msg)
     return ascending
 
 

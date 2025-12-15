@@ -115,10 +115,10 @@ class AssertCount(Transformer):
 
 class AssertNotEmpty(Transformer):
     def __init__(self, *, df_name: str = "DataFrame"):
-        """Raise AssertionError if dataframe is empty.
+        """Raise AssertionError if the dataframe is empty.
 
         Args:
-            df_name: Name to use in error message (default: "DataFrame")
+            df_name: Name to use in the error message (default: "DataFrame")
 
         Raises:
             AssertionError: If dataframe has no rows

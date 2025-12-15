@@ -88,7 +88,7 @@ class TestMathOperator:
             t.transform(df_input)
 
     def test_wrong_strategy_type(self):
-        """Test MathOperator with wrong strategy type."""
+        """Test MathOperator with a wrong strategy type."""
         with pytest.raises(TypeError):
             MathOperator(strategy=10)
 
@@ -161,7 +161,7 @@ class TestMathOperator:
         t = MathOperator(strategy=strategy)
         df_result = t.transform(df_input).select("col1", "col2", "chk")
 
-        # Build expected result using Python operators
+        # Build an expected result using Python operators
         operators_map: dict = {
             "add": py_operator.add,
             "sub": py_operator.sub,

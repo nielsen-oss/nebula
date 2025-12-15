@@ -87,9 +87,9 @@ class Join(Transformer):
                 A string for the join column name, or a list of column names.
                 The name of the join column(s) must exist on both sides.
             left_on	(str | list[str] | None):
-            	Join column of the left DataFrame.
+                Join column of the left DataFrame.
             right_on (str | list[str] | None):
-            	Join column of the right DataFrame.
+                Join column of the right DataFrame.
             suffix (str):
                 Suffix to append to columns with a duplicate name.
                 Defaults to "right".

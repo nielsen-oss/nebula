@@ -138,7 +138,7 @@ class TestAddLiterals:
         df_out = t.transform(nw_df)
         df_out_native = nw.to_native(df_out)
 
-        # Check pandas nullable integer dtype
+        # Check Pandas nullable integer dtype
         assert df_out_native["nullable_int"].dtype == "Int64"
         assert df_out_native["nullable_int"].isna().all()
 
@@ -446,7 +446,7 @@ class TestCast:
             cast.transform(df)
 
     def test_polars_struct_missing_colon_raises(self):
-        """Test that struct field without colon raises error."""
+        """Test that struct field without a colon raises error."""
         df = pl.DataFrame({
             "col": [{"x": 1}, {"x": 2}]
         })

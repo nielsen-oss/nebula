@@ -536,7 +536,7 @@ class TestUnpivot:
         )
         result = transformer.transform(wide_df)
 
-        # category is NOT in id_cols, so it gets dropped entirely
+        # 'category' is NOT in id_cols, so it gets dropped entirely
         assert result.shape == (9, 3)
         assert set(result.columns) == {"product_id", "month", "amount"}
 

@@ -60,7 +60,7 @@ def test_load_pipeline_wrong_keyword():
 
 
 def test_load_pipeline_wrong_nested_keyword():
-    """Test 'load_pipeline' with a wrong transformer name."""
+    """Test 'load_pipeline' with the wrong transformer name."""
     data = {
         "name": "pipeline-wrong-keyword",
         "pipeline": [{"transformer_A": "Distinct"}],

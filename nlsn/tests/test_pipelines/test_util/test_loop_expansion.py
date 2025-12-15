@@ -583,7 +583,7 @@ class TestExpandLoopsInPipeline:
         }
         pipe_copy = deepcopy(original_pipe)
         _result = expand_loops(original_pipe)
-        assert original_pipe == pipe_copy  # Original should not be modified
+        assert original_pipe == pipe_copy  # the original one should be unchanged
 
     @staticmethod
     def test_nested_dict_independence():

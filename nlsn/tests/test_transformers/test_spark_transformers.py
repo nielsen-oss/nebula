@@ -703,7 +703,7 @@ class TestSparkExplode:
         base_len = sum(len(i) for i in data_col if i)
 
         # Number of rows where data is null or the array is empty.
-        # This number sum up with base_len when "outer" = True
+        # This number sums up with base_len when "outer" = True
         null_len = len([True for i in data_col if not i])
 
         return base_len, null_len

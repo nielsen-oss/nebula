@@ -95,7 +95,7 @@ class TestJoin:
         assert "customer_name" in result.columns
 
     def test_anti_join(self, df_left, df_right):
-        """Test anti join returns only non-matching left rows."""
+        """Test anti-join returns only non-matching left rows."""
         ns.set("right_table", df_right)
 
         transformer = Join(store_key="right_table", on="user_id", how="anti")
