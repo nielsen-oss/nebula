@@ -47,5 +47,5 @@ if HAS_POLARS:
         'duration': pl.Duration, 'timedelta': pl.Duration,
         'time': pl.Time,
     }
-else:
+else:  # pragma: no cover
     PL_TYPES = None

@@ -106,12 +106,21 @@ class TestAssertCount:
             t.transform(df)
 
 
+@pytest.mark.parametrize("to_nw", [True, False])
 class TestAssertNotEmpty:
+    """Test 'AssertNotEmpty' transformer, Complete tests in 'TestDfIsEmpty'."""
 
     @pytest.mark.parametrize("backend", ["pandas", "polars"])
-    def test_not_empty(self, spark, backend: str):
-        # Complete tests in 'TestDfIsEmpty'
+    def test_not_empty(self, backend: str, to_nw: bool):
         df = pd.DataFrame({"a": [1, 2], "b": [3, 4]})
-        df = from_pandas(df, backend, to_nw=False, spark=spark)
+        df = from_pandas(df, backend, to_nw=to_nw)
         t = AssertNotEmpty()
         t.transform(df)
+
+    @pytest.mark.parametrize("backend", ["pandas", "polars"])
+    def test_empty(self, backend: str, to_nw: bool):
+        df = pd.DataFrame({"a": [], "b": []})
+        df = from_pandas(df, backend, to_nw=to_nw)
+        t = AssertNotEmpty()
+        with pytest.raises(AssertionError):
+            t.transform(df)

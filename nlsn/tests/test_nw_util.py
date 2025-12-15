@@ -259,8 +259,7 @@ class TestDfIsEmpty:
     @pytest.mark.skipif(os.environ.get("TESTS_NO_SPARK") == "true", reason="no spark")
     def test_spark_empty(self, spark):
         df = spark.createDataFrame([], schema="a: int, b: int")
-        with pytest.raises(AssertionError):
-            df_is_empty(df)
+        assert df_is_empty(df)
 
 
 class TestGetCondition:

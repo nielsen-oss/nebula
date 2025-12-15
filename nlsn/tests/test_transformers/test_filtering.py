@@ -81,7 +81,7 @@ class TestDropNulls:
         t = DropNulls(how="all", drop_na=True)
         result = t.transform(df)
 
-        # Only third row has all nulls
+        # Only the third row has all nulls
         assert len(result) == 3
         assert result["col_a"][0] == 1.0
         assert result["col_a"][1] is None
@@ -106,7 +106,7 @@ class TestDropNulls:
         assert result["user_id"].to_list() == [1, 3]
 
     def test_polars_with_pattern_and_nan_handling(self):
-        """Test dropping rows with NaN vs null distinction."""
+        """Test dropping rows with NaN vs. null distinction."""
         df = pl.DataFrame({
             "user_id": [1, 2, 3, 4],
             "revenue_q1": [100.0, float('nan'), 300.0, 400.0],
@@ -140,16 +140,17 @@ class TestDropNulls:
         assert result["value"][1] != result["value"][1]  # NaN != NaN
 
     @pytest.mark.parametrize("how", ["any", "all"])
-    def test_pandas_how(self, how: str):
+    @pytest.mark.parametrize("columns", [None, "age"])
+    def test_pandas_how(self, how: str, columns):
         """Test 'how' parameter in pandas."""
         df = pd.DataFrame({
             "user_id": [1, 2, 3, 4, 5],
             "age": [25.0, float('nan'), float('nan'), float('nan'), 45.0],
             "score": [100.0, 200.0, float('nan'), 400.0, 500.0],
         })
-        t = DropNulls(how=how)
+        t = DropNulls(how=how, columns=columns)
         df_chk = t.transform(df)
-        df_exp = df.dropna(how=how)
+        df_exp = df.dropna(how=how, subset=columns)
         pd.testing.assert_frame_equal(df_chk, df_exp)
 
     @pytest.mark.parametrize("thresh", [1, 2])
@@ -198,7 +199,7 @@ class TestFilterValidation:
             )
 
     def test_invalid_perform_value_rejected(self):
-        """Test that invalid perform values are rejected."""
+        """Test that invalid 'perform' values are rejected."""
         with pytest.raises((ValueError, AssertionError)):
             Filter(
                 input_col="age",
@@ -518,7 +519,7 @@ class TestFilter:
         assert set(result_native["name"]) == {"Alice", "Dave"}
 
     def test_remove_contains_keeps_nulls(self, df_strings):
-        """Test that remove + contains keeps null values."""
+        """Test that 'remove' + 'contains' keep null values."""
         t = Filter(
             input_col="email",
             perform="remove",

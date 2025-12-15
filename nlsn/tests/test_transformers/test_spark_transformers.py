@@ -22,6 +22,14 @@ from nlsn.nebula.transformers.spark_transformers import _Partitions, _Window
 from nlsn.nebula.transformers.spark_transformers import validate_window_frame_boundaries
 
 
+def test_cache(spark):
+    schema = StructType([StructField("c1", IntegerType(), True)])
+    df = spark.createDataFrame([[1]], schema=schema)
+    t = Cache()
+    df_chk = t.transform(df)
+    assert df_chk.is_cached
+
+
 def test_cpu_info(spark):
     """Test CpuInfo."""
     schema = StructType([StructField("c1", IntegerType(), True)])
@@ -35,7 +43,7 @@ def test_log_data_skew(spark):
     schema = StructType([StructField("c1", IntegerType(), True)])
     data = [[i] for i in range(100)]
     df = spark.createDataFrame(data, schema=schema)
-    t = LogDataSkew()
+    t = LogDataSkew(persist=True)
     t.transform(df)
 
 

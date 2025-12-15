@@ -180,7 +180,7 @@ class ColumnsToMap(Transformer):
             startswith=startswith,
             endswith=endswith,
         )
-        self._excl_cols: list[str] = ensure_flat_list(exclude_columns)
+        self._excl_cols: set[str] = set(ensure_flat_list(exclude_columns))
         self._cast_value: str | None = cast_values
         self._drop: bool = drop_input_columns
 

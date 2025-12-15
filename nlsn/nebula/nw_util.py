@@ -505,7 +505,7 @@ def validate_operation(
 
     # Null/NaN operators don't need value or compare_col
     if operator in NULL_OPERATORS:
-        if value is not None or compare_col is not None:
+        if value is not None or compare_col is not None:  # pragma: no cover
             raise ValueError(
                 f"Operator '{operator}' does not accept 'value' or 'compare_col'"
             )
@@ -531,10 +531,6 @@ def validate_operation(
         raise ValueError(
             f"Operator '{operator}' does not support column comparison"
         )
-
-    # Type-specific validations (only when value is provided)
-    if value is None:
-        return  # compare_col is provided instead, skip type checks
 
     if operator in {"is_in", "is_not_in"}:
         if isinstance(value, str):

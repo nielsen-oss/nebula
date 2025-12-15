@@ -113,18 +113,6 @@ class Transformer(metaclass=InitParamsStorage):
         # it requires separated logic
         return self._select_transform(df)
 
-    def transform_pandas(self, df):
-        """Public transform method for Pandas transformers."""
-        return self._transform_pandas(df)
-
-    def transform_polars(self, df):
-        """Public transform method for Polars transformers."""
-        return self._transform_polars(df)
-
-    def transform_spark(self, df):
-        """Public transform method for Spark transformers."""
-        return self._transform_spark(df)
-
     def _select_transform(self, df):
         # Fallback for non-Narwhals transformation
         name: str = get_dataframe_type(df)

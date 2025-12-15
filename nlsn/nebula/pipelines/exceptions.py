@@ -20,7 +20,7 @@ def _try_enhance_spark_exception(e: Exception, msg: str) -> bool:
 
     Returns True if the exception was enhanced, False otherwise.
     """
-    if not HAS_SPARK:
+    if not HAS_SPARK:  # pragma: no cover
         return False
 
     # Import lazily to avoid issues if Spark internals change
@@ -29,7 +29,7 @@ def _try_enhance_spark_exception(e: Exception, msg: str) -> bool:
         if isinstance(e, Py4JJavaError) and hasattr(e, 'errmsg'):
             e.errmsg = f"{msg}\n{e.errmsg}"
             return True
-    except (ImportError, AttributeError):
+    except (ImportError, AttributeError):  # pragma: no cover
         pass
 
     try:
@@ -37,7 +37,7 @@ def _try_enhance_spark_exception(e: Exception, msg: str) -> bool:
         if isinstance(e, CapturedException) and hasattr(e, 'desc'):
             e.desc = f"{msg}\n{e.desc}"
             return True
-    except (ImportError, AttributeError):
+    except (ImportError, AttributeError):  # pragma: no cover
         pass
 
     return False

@@ -42,7 +42,7 @@ if HAS_SPARK:
 # Handle case where no backends are installed
 if _df_types:
     GenericNativeDataFrame = reduce(operator.or_, _df_types)
-else:
+else:  # pragma: no cover
     # Fallback type when no backends installed
     # This allows imports to work, but any usage will fail with helpful message
     GenericNativeDataFrame = Any
@@ -75,17 +75,17 @@ def get_dataframe_type(df) -> str:
     # Fallback: isinstance checks (more reliable but requires imports)
     if HAS_PANDAS:
         from pandas import DataFrame as pandas_DF
-        if isinstance(df, pandas_DF):
+        if isinstance(df, pandas_DF):  # pragma: no cover
             return "pandas"
 
     if HAS_POLARS:
         import polars as pl
-        if isinstance(df, (pl.DataFrame, pl.LazyFrame)):
+        if isinstance(df, (pl.DataFrame, pl.LazyFrame)):  # pragma: no cover
             return "polars"
 
     if HAS_SPARK:
         from pyspark.sql import DataFrame as ps_DF
-        if isinstance(df, ps_DF):
+        if isinstance(df, ps_DF):  # pragma: no cover
             return "spark"
 
     # Build a helpful error message
@@ -97,7 +97,7 @@ def get_dataframe_type(df) -> str:
     if HAS_SPARK:
         supported.append("pyspark.sql.DataFrame")
 
-    if not supported:
+    if not supported:  # pragma: no cover
         raise TypeError(
             f"Unknown dataframe type: {type(df)}. "
             "No supported backends are installed. "
@@ -113,7 +113,7 @@ def get_dataframe_type(df) -> str:
 def is_natively_spark(df) -> bool:
     if HAS_SPARK:
         if isinstance(df, (nw.DataFrame, nw.LazyFrame)):
-            df_native = nw.from_native(df)
+            df_native = nw.to_native(df)
         else:
             df_native = df
 

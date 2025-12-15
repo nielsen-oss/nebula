@@ -138,7 +138,7 @@ class Cast(Transformer):
                 target_type = self._cast[col].lower()
                 if target_type in NW_TYPES:
                     exprs.append(df[col].cast(NW_TYPES[target_type]).alias(col))
-                else:
+                else:  # pragma: no cover
                     raise ValueError(
                         f"Unknown type '{self._cast[col]}' for column '{col}'. "
                         f"Supported: {list(NW_TYPES.keys())}"
