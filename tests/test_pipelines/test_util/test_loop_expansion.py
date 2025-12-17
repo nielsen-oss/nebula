@@ -965,6 +965,6 @@ class TestExpandLoopsInPipeline:
             ]
         }
         chk = expand_loops(pipe)
-        # assert chk == exp
+        assert chk == exp
         loaded = load_pipeline(chk)
         loaded.show_pipeline(add_transformer_params=True)

@@ -205,7 +205,8 @@ def _substitute_params(o, params: dict):
     elif isinstance(o, dict):
         ret = {}
         for k, v in o.items():
-            ret[k] = _substitute_params(v, params)
+            new_key = _replace_multiple_params(k, params) if isinstance(k, str) else k
+            ret[new_key] = _substitute_params(v, params)
         return ret
     else:
         return o
