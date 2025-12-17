@@ -118,4 +118,4 @@ def is_natively_spark(df) -> bool:
             df_native = df
 
         return get_dataframe_type(df_native) == "spark"
-    return False
+    return False  # pragma: no cover

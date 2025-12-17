@@ -8,6 +8,7 @@ import pytest
 from nlsn.nebula.transformers.meta import *
 from nlsn.tests.auxiliaries import from_pandas, to_pandas, sort_reset_assert
 from nlsn.tests.constants import TEST_BACKENDS
+from nlsn.tests.test_pipelines.auxiliaries import pl_assert_equal
 
 
 class TestDataFrameMethod:
@@ -74,34 +75,31 @@ class TestDataFrameMethod:
         with pytest.raises(ValueError):
             DataFrameMethod(method="nonexistent_method")
 
-    def test_method_not_available_for_lazyframe(self):
-        """Test that DataFrame-only methods raise AttributeError on LazyFrame."""
-        df_lazy = pl.LazyFrame({
-            "c1": ["a", "b", "c"],
-            "c2": [1, 2, 3],
-        })
-        df_nw = nw.from_native(df_lazy)
+    @pytest.mark.parametrize("to_lazy", [True, False])
+    def test_method_not_available_for_lazyframe(self, to_lazy: bool):
+        """Test that Data/LazyFrame-only methods raise an error on Lazy/DataFrame."""
+        df = pl.DataFrame({"c1": ["a", "b"], "c2": [1, 2]})
 
-        # Try to call a DataFrame-only method (e.g., to_dict)
-        # Note: We need to find a method that exists in DataFrame but not LazyFrame
-        # For this test, we'll assume 'to_dict' or similar exists
-        # If not available, adjust to an actual DataFrame-only method
-
-        # Check if there's actually a difference in methods
+        # Note: need to find a method that exists in DataFrame/LazyFrame
+        # but not LazyFrame/DataFrame
         df_methods = {i for i in dir(nw.DataFrame) if i.islower() and i[0] != "_"}
         lazy_methods = {i for i in dir(nw.LazyFrame) if i.islower() and i[0] != "_"}
-        df_only = df_methods - lazy_methods
+        if to_lazy:
+            df = df.lazy()
+            only = df_methods - lazy_methods
+        else:
+            only = lazy_methods - df_methods
 
-        if not df_only:
+        if not only:
             pytest.skip("No DataFrame-only methods found in current Narwhals version")
 
-        # Use the first DataFrame-only method
-        df_only_method = sorted(df_only)[0]
+        # Use the first only method
+        only_method = sorted(only)[0]
 
-        t = DataFrameMethod(method=df_only_method)
+        t = DataFrameMethod(method=only_method)
 
         with pytest.raises(AttributeError):
-            t.transform(df_nw)
+            t.transform(df)
 
     def test_method_with_args_and_kwargs(self):
         """Test calling unique() method with both args and kwargs."""
@@ -244,6 +242,21 @@ class TestHorizontalFunction:
         assert "avg_temp" in result.columns
         # Mean of (20, 28, 24) = 24.0, etc.
         assert result["avg_temp"].to_list() == [24.0, 26.0, 23.0]
+
+    def test_max_horizontal_with_no_selection(self):
+        """Test max_horizontal without actually selecting a column."""
+        df = pl.DataFrame({
+            "score_math": [85, 90, 78],
+            "score_english": [92, 88, 95],
+            "score_max": [0, 0, 0],
+        })
+        t = HorizontalFunction(
+            output_col="score_max",
+            function="max_horizontal",
+            startswith="invalid_"
+        )
+        df_out = t.transform(df)
+        pl_assert_equal(df, df_out)
 
 
 class TestWithColumns:

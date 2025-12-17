@@ -51,7 +51,7 @@ class InjectData(Transformer):  # FIXME: move to keyword. add kwargs
         self._broadcast = broadcast
 
     def _post(self, df_in, df_out):
-        # Match input type
+        # Match the input type
         if isinstance(df_in, (nw.DataFrame, nw.LazyFrame)):
             df_out = nw.from_native(df_out)
 
