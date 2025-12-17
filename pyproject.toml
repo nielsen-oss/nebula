@@ -3,7 +3,7 @@ requires = ["setuptools>=61", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "nlsnnebula"
+name = "nebula"
 version = "0.0.1"
 description = "Declarative data transformation pipelines for Pandas, Polars, and PySpark"
 authors = [
@@ -29,8 +29,10 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "http://www.nielsen.com"
+Homepage = "https://github.com/nielsen-oss/nebula"
+Documentation = "https://github.com/nielsen-oss/nebula#readme"
 Source = "https://github.com/nielsen-oss/nebula"
+Issues = "https://github.com/nielsen-oss/nebula/issues"
 
 [project.optional-dependencies]
 # Backend support
@@ -56,10 +58,10 @@ dev = [
 
 # Testing with all backends
 test = [
-    "nlsnnebula[all]",
+    "nebula[all]",
     "pytest>=7.4.4",
     "pytest-cov",
-    "chispa", # For Spark DataFrame comparison
+    "chispa",
 ]
 
 # Pipeline visualization
@@ -77,18 +79,26 @@ utils = [
 
 # Everything
 full = [
-    "nlsnnebula[all,dev,test,viz,utils]",
+    "nebula[all,dev,test,viz,utils]",
 ]
 
-[tool.setuptools.packages.find]
-include = ["nlsn", "nlsn.*"]
-namespaces = true
+[tool.setuptools.package-dir]
+"" = "src"
 
+[tool.setuptools.packages.find]
+where = ["src"]
+
+# --- Pytest configuration ---
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "--cov=nebula --cov-report=term-missing"
+
+# --- Ruff configuration ---
 [tool.ruff]
-# Set the line length, just like Black
 line-length = 88
-# Fix all fixable errors
 fix = true
+src = ["src", "tests"]
 
 [tool.ruff.lint]
 # Enable all the rule sets you were using before:
@@ -98,21 +108,27 @@ fix = true
 # PL: pylint
 select = ["E", "F", "I", "D", "PL"]
 
-# Ignore any specific rules you don't like
 # ignore = ["D100", "PLR2004"]
 
 # --- Pydocstyle configuration ---
 [tool.ruff.lint.pydocstyle]
-# This mimics using a config file for docstring convention
-# Options: "google", "numpy", "pep257"
 convention = "google"
 
-# --- Pylint configuration ---
 [tool.ruff.lint.pylint]
-# Example: set max-args, just like in .pylintrc
 max-args = 6
 
 [tool.ruff.format]
-# Use black-compatible formatting
 quote-style = "double"
 indent-style = "space"
+
+# --- Coverage configuration ---
+[tool.coverage.run]
+source = ["src/nebula"]
+branch = true
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if __name__ == .__main__.:",
+    "raise NotImplementedError",
+]

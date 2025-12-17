@@ -2,7 +2,6 @@ build/
 dist/
 docs/_static
 htmlcov/
-nlsn/tests/coverage_html
 notebooks/
 public/
 spark_local/
