@@ -919,3 +919,52 @@ class TestExpandLoopsInPipeline:
         extra_functions = {"outer_func": lambda x: x}
         loaded = load_pipeline(chk, extra_functions=extra_functions)
         loaded.show_pipeline(add_transformer_params=True)
+
+    @staticmethod
+    def test_nested_templating():
+        """Unit-test with nested templated values."""
+        pipe = {
+            "pipeline": [
+                {
+                    "pipeline": [
+                        {
+                            "loop": {
+                                # "mode": "linear",
+                                "values": {
+                                    "names": ["name_a", "name_b"],
+                                },
+                                "transformer": "RenameColumns",
+                                "params": {
+                                    "mapping": {"no": "change", "<<names>>": "pre_<<names>>"},
+                                },
+                            }
+                        }
+                    ]
+                }
+            ]
+        }
+
+        exp = {
+            "pipeline": [
+                {
+                    "pipeline": [
+                        {
+                            "transformer": "RenameColumns",
+                            "params": {
+                                "mapping": {"no": "change", "name_a": "pre_name_a"},
+                            },
+                        },
+                        {
+                            "transformer": "RenameColumns",
+                            "params": {
+                                "mapping": {"no": "change", "name_b": "pre_name_b"},
+                            },
+                        },
+                    ]
+                }
+            ]
+        }
+        chk = expand_loops(pipe)
+        assert chk == exp
+        loaded = load_pipeline(chk)
+        loaded.show_pipeline(add_transformer_params=True)
