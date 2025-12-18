@@ -129,12 +129,12 @@ class RenameColumns(Transformer):
         assert_only_one_non_none(
             columns=columns,
             mapping=mapping,
-            regex_pattern=regex_pattern
+            regex_pattern=regex_pattern or regex_replacement
         )
         super().__init__()
 
         if bool(regex_pattern) != bool(regex_replacement):
-            raise AssertionError(
+            raise ValueError(
                 "'replacement' must be provided when 'regex_pattern' is used."
             )
         self._regex_pattern: str | None = regex_pattern
@@ -142,14 +142,14 @@ class RenameColumns(Transformer):
         self._fail_on_missing_columns: bool = fail_on_missing_columns
 
         if bool(columns) != bool(columns_renamed):
-            raise AssertionError(
+            raise ValueError(
                 "'columns_renamed' and 'columns' must be used together."
             )
 
         columns: list[str] = ensure_flat_list(columns)
         columns_renamed: list[str] = ensure_flat_list(columns_renamed)
         if len(columns) != len(columns_renamed):
-            raise AssertionError(
+            raise ValueError(
                 f"len(columns)={len(columns)} != len(columns_renamed)={len(columns_renamed)}"
             )
 
@@ -160,10 +160,10 @@ class RenameColumns(Transformer):
 
     def _check_diff(self, df):
         diff = set(self._map_rename.keys()) - set(df.columns)
-        if diff and self._fail_on_missing_columns:
+        if diff and self._fail_on_missing_columns:  # pragma: no cover
             diff_str = ", ".join(diff)
             msg = f"Some columns to be renamed are NOT present in the dataframe! {diff_str}"
-            raise AssertionError(msg)
+            raise ValueError(msg)
 
     def _get_regex_mapping(self, nw_df) -> dict[str, str]:
         return {c: re.sub(self._regex_pattern, self._regex_repl, c) for c in nw_df.columns}

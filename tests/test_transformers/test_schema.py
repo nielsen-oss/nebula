@@ -364,6 +364,7 @@ class TestCast:
                 {"id": "2", "values": ["30", "40"]},
                 {"id": "3", "values": ["50", "60"]}
             ],
+            "untouched": [0, 0, 0]
         })
 
         cast = Cast(cast={
@@ -401,30 +402,27 @@ class TestCast:
         # Assert nested types
         assert result["list_col"].dtype == pl.List(pl.Int64)
         assert result["list_col"][0].to_list() == [1, 2]
-
         assert result["nested_list_col"].dtype == pl.List(pl.List(pl.Int64))
-
         assert result["array_col"].dtype == pl.Array(pl.Int64, 3)
-
         assert result["struct_col"].dtype == pl.Struct([
             pl.Field("name", pl.String),
             pl.Field("age", pl.Int64)
         ])
-
         assert result["struct_no_braces_col"].dtype == pl.Struct([
             pl.Field("x", pl.Int64),
             pl.Field("y", pl.Int64)
         ])
-
         assert result["list_struct_col"].dtype == pl.List(pl.Struct([
             pl.Field("id", pl.Int64),
             pl.Field("val", pl.Int64)
         ]))
-
         assert result["struct_list_col"].dtype == pl.Struct([
             pl.Field("id", pl.Int64),
             pl.Field("values", pl.List(pl.Int64))
         ])
+
+        # Assert untouched
+        assert result["untouched"].dtype == df["untouched"].dtype
 
     def test_polars_array_invalid_width_raises(self):
         """Test that array without width raises error."""

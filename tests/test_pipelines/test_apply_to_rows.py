@@ -7,11 +7,13 @@ Tests the apply_to_rows feature which:
 4. Merges results back (unless dead-end)
 """
 
+import numpy as np
 import polars as pl
 import pytest
 
 from nebula.storage import nebula_storage as ns
 from .apply_to_rows_configs import *
+from ..auxiliaries import pl_assert_equal
 
 
 @pytest.fixture(scope="module")
@@ -91,23 +93,19 @@ class TestApplyToRowsOtherwise:
 
     def test_otherwise_transforms_non_matching_rows(self, df_input):
         """Both branches apply their respective transforms."""
+        n_rows = df_input.shape[0]
         pipe = pipe_apply_to_rows_otherwise()
         df_out = pipe.run(df_input)
 
-        # Matched rows: c1 = "matched"
-        df_matched = df_out.filter(pl.col("idx") > 5)
-        assert all(v == "matched" for v in df_matched["c1"].to_list())
+        index = np.arange(n_rows)
+        ar_exp = np.where(index > 5, "matched", "not_matched")
+        df_exp = (
+            df_input.drop("c1")
+            .with_columns(pl.Series(name="c1", values=ar_exp))
+            .select(df_input.columns)
+        )
 
-        # Non-matched rows: c1 = "not_matched"
-        df_unmatched = df_out.filter(pl.col("idx") <= 5)
-        assert all(v == "not_matched" for v in df_unmatched["c1"].to_list())
-
-    def test_otherwise_preserves_row_count(self, df_input):
-        """All rows should be present in output."""
-        pipe = pipe_apply_to_rows_otherwise()
-        df_out = pipe.run(df_input)
-
-        assert df_out.shape[0] == df_input.shape[0]
+        pl_assert_equal(df_out, df_exp)
 
 
 class TestApplyToRowsSkipIfEmpty:
@@ -117,6 +115,7 @@ class TestApplyToRowsSkipIfEmpty:
         """When no rows match and skip_if_empty=True, output equals input."""
         pipe = pipe_apply_to_rows_skip_if_empty()
         df_out = pipe.run(df_input)
+        pl_assert_equal(df_out, df_input)
 
         # Should be identical to input
         assert df_out.sort("idx").equals(df_input.sort("idx"))

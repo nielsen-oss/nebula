@@ -141,7 +141,7 @@ class TestExtractFunction:
 
 class TestExtractLazyParams:
     extra_funcs = {"func": lambda: "lambda"}
-    regular_params = {"p1": "param_1", "p2": 2, "p3": [1], "p4": {"a": 1, "b": 2}}
+    regular_params = {"p1": "param_1", "p2": 2, "p3": [1], "p4": {"a": 1, "b": 2}, "p5": (5,)}
 
     def test_no_lazy_params(self):
         """Tests input with no lazy parameters."""

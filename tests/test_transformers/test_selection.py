@@ -112,6 +112,18 @@ class TestRenameColumns:
         chk_cols = list(df_out.columns)
         assert chk_cols == expected
 
+    @pytest.mark.parametrize("columns_renamed", [None, ["b", "c"]])
+    def test_mismatch_column_pairs(self, columns_renamed: list[str] | None):
+        """If Passed, len(columns) must be equal to len(columns_renamed)."""
+        with pytest.raises(ValueError):
+            RenameColumns(columns=["a"], columns_renamed=columns_renamed)
+
+    @pytest.mark.parametrize("pattern, replacement", ([None, "a."], ["a.", None]))
+    def test_mismatch_regex_pairs(self, pattern: str | None, replacement: str | None):
+        """If Passed, len(columns) must be equal to len(columns_renamed)."""
+        with pytest.raises(ValueError):
+            RenameColumns(regex_pattern=pattern, regex_replacement=replacement)
+
 
 class TestSelectColumns:
     """Test SelectColumns transformer."""

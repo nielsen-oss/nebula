@@ -140,7 +140,6 @@ class ColumnsToMap(Transformer):
             glob: str | None = None,
             startswith: str | Iterable[str] | None = None,
             endswith: str | Iterable[str] | None = None,
-            exclude_columns: str | Iterable[str] | None = None,
             cast_values: str | None = None,
             drop_input_columns: bool = False,
     ):
@@ -163,8 +162,6 @@ class ColumnsToMap(Transformer):
             endswith (str | iterable(str) | None):
                 Select all the columns whose names end with the provided
                 string(s). Defaults to None.
-            exclude_columns (str | iterable(str) | None):
-                List of columns that will not be selected. Defaults to None.
             cast_values (str | DataType | None):
                 If provided, cast the values to the specified type.
                 Defaults to None.
@@ -172,7 +169,7 @@ class ColumnsToMap(Transformer):
                 If True, drop the input columns. Defaults to False.
         """
         super().__init__()
-        self._output_column = output_column
+        self._output_column: str = output_column
         self._set_columns_selections(
             columns=columns,
             regex=regex,
@@ -180,14 +177,11 @@ class ColumnsToMap(Transformer):
             startswith=startswith,
             endswith=endswith,
         )
-        self._excl_cols: set[str] = set(ensure_flat_list(exclude_columns))
         self._cast_value: str | None = cast_values
         self._drop: bool = drop_input_columns
 
     def _transform_spark(self, df):
         input_columns: list[str] = self._get_selected_columns(df)
-        if self._excl_cols:
-            input_columns = [i for i in input_columns if i not in self._excl_cols]
 
         pairs = []
         for name in input_columns:

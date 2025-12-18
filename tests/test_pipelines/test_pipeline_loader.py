@@ -65,3 +65,33 @@ def test_extra_transformers():
     df_chk = pipe.run(df)
     df_exp = df.unique()
     pl_assert_equal(df_chk.sort("a"), df_exp.sort("a"))
+
+
+def test_apply_to_rows_otherwise():
+    index = np.arange(10)
+    df = pl.DataFrame({"idx": index})
+
+    main_pipe = [{
+        "transformer": "AddLiterals",
+        "params": {"data": [{"value": "matched", "alias": "c1"}]},
+    }]
+    otherwise = {
+        "transformer": "AddLiterals",
+        "params": {"data": [{"value": "not_matched", "alias": "c1"}]},
+    }
+    pipe = load_pipeline(
+        {
+            "pipeline": main_pipe,
+            "apply_to_rows": {
+                "input_col": "idx",
+                "operator": "gt",
+                "value": 5,
+            },
+            "otherwise": otherwise,
+        }
+    )
+    df_chk = pipe.run(df)
+
+    ar_exp = np.where(index > 5, "matched", "not_matched")
+    df_exp = pl.DataFrame({"idx": index, "c1": ar_exp})
+    pl_assert_equal(df_chk, df_exp)

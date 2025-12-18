@@ -126,7 +126,7 @@ class Cast(Transformer):
             if df_type == "spark":
                 return nw.from_native(self._transform_spark(df_native))
 
-            raise ValueError(
+            raise ValueError(  # pragma: no cover
                 f"Backend '{df_type}' does not support nested type casting. "
                 f"Supported: polars, spark. Cast: {self._cast}"
             )
