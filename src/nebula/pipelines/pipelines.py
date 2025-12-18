@@ -1404,7 +1404,7 @@ class TransformerPipeline:
         )
 
 
-if __name__ == "__main__":  # pragma: no cover
+if __name__ == "__main__":
     from nebula.transformers import (
         AssertNotEmpty,
         SelectColumns,

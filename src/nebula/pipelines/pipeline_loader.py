@@ -1,4 +1,6 @@
-"""Pipeline yaml loader."""
+"""Text pipeline loader."""
+
+# noinspection PyDoctest
 
 from dataclasses import dataclass
 from types import ModuleType
@@ -443,74 +445,25 @@ def load_pipeline(
     return _load_pipeline(o, extra_funcs=extra_funcs)
 
 
-if __name__ == "__main__":  # pragma: no cover
-    # Just for testing and debugging.
+if __name__ == "__main__":
     pipe_cfg = {
-        "df_input_name": "HELLO",
+        "df_input_name": "START",
         "name": "main-pipeline",
         "pipeline": [
-            {"transformer": "EmptyArrayToNull", "params": {"glob": "*"}},
-            {"transformer": "Distinct"},
+            {"transformer": "SelectColumns", "params": {"glob": "cx_*"}},
+            {"transformer": "AssertNotEmpty"},
             {
                 "branch": {"storage": "df_ads_metadata_input", "end": "append"},
                 "pipeline": [
                     {"transformer": "LogDataSkew"},
-                    {
-                        "transformer": "RoundValues",
-                        "params": {"input_columns": "c1", "precision": 1},
-                    },
+                    {"transformer": "DropColumns", "params": {"columns": "cx_0"}},
                 ],
-            },
-            {
-                "transformer": "RoundValues",
-                "params": {"input_columns": "c1", "precision": 1},
             },
         ],
     }
-
     pipe = load_pipeline(
         pipe_cfg,
         #     extra_functions=extra_functions,
-        #     extra_transformers=my_n1_transformer,  # <module>
+        #     extra_transformers=my_n1_transformer,
     )
-
     pipe.show_pipeline(add_transformer_params=True)
-
-    # pipe_example_dict = {
-    #     "name": "outer pipe",
-    #     "split_function": "split_func_outer",
-    #     "pipeline": {
-    #         "outer_split_1": {
-    #             "name": "nested pipe",
-    #             "split_function": "split_func_nested",
-    #             "pipeline": {
-    #                 # "nested_split_1": None,
-    #                 "nested_split_1": [],
-    #                 # 'nested_split_1': [{"transformer": "Count"}],
-    #                 "nested_split_2": [
-    #                     {
-    #                         "transformer": "EmptyArrayToNull",
-    #                         "params": {"columns": "col_2"},
-    #                     }
-    #                 ],
-    #             },
-    #         },
-    #         "outer_split_2": [
-    #             {
-    #                 "transformer": "Cast",
-    #                 "params": {"cast": {"col_2": "float"}},
-    #             },
-    #             {"store": "outer_split_2"},
-    #             {"store_debug": "outer_split_2_debug"},
-    #         ],
-    #     },
-    # }
-    #
-    # dict_split_funcs = {
-    #     "split_func_outer": lambda x: x,
-    #     "split_func_nested": lambda x: x,
-    # }
-    #
-    # pipe_example = load_pipeline(pipe_example_dict, extra_functions=dict_split_funcs)
-    #
-    # pipe_example.show_pipeline(add_transformer_params=True)

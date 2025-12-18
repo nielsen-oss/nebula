@@ -27,7 +27,7 @@ class InitParamsStorage(type):
         return obj
 
 
-if __name__ == "__main__":  # pragma: no cover
+if __name__ == "__main__":
     # Print initialization parameters stored with InitParamsStorage
     class Parent(metaclass=InitParamsStorage):
         def __init__(self):
