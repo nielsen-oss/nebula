@@ -3,101 +3,102 @@ requires = ["setuptools>=61", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "nlsnnebula"
+name = "nebula"
 version = "0.0.1"
-description = "A collection of dataframe transformers with pipeline assembly and execution capabilities"
+description = "Declarative data transformation pipelines for Pandas, Polars, and PySpark"
 authors = [
     { name = "DSci Global Platform Support Team", email = "dscigps@nielsen.com" },
 ]
 readme = "README.md"
-requires-python = ">=3.9"
-keywords = ["nielsen"]
+requires-python = ">=3.10"
+keywords = ["etl", "pipeline", "dataframe", "pandas", "polars", "pyspark", "narwhals", "data-engineering"]
 classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
     "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Scientific/Engineering",
 ]
 license = { file = "LICENSE" }
 dependencies = [
-    "polars>=1.34.0",
-    "pyspark==3.5.6",
-    "pandas>=1.2.5",
-    "pytest>=7.4.4",
-    "setuptools>=61.0.0",
+    "narwhals>=2.0.0",
 ]
 
 [project.urls]
-Homepage = "http://www.nielsen.com"
+Homepage = "https://github.com/nielsen-oss/nebula"
+Documentation = "https://github.com/nielsen-oss/nebula#readme"
 Source = "https://github.com/nielsen-oss/nebula"
+Issues = "https://github.com/nielsen-oss/nebula/issues"
 
+[project.optional-dependencies]
+# Backend support
+pandas = ["pandas>=1.2.5"]
+polars = ["polars>=1.34.0"]
+spark = ["pyspark>=3.5.0"]
 
-[dependency-groups]
+# All backends
+all = [
+    "pandas>=1.2.5",
+    "polars>=1.34.0",
+    "pyspark>=3.5.0",
+]
+
+# Development dependencies
 dev = [
-    "pre-commit>=4.3.0",
-    "py-cpuinfo",
-    "holidays>=0.26",
-    "pyarrow"
-  ]
-
-test = [
-    "chispa",
-    "coverage",
-    "holidays>=0.26",
-    "lxml",
-    "numpy",
-    "orjson",
-    "pyarrow",
-    "py-cpuinfo",
-    "pytest",
+    "pytest>=7.4.4",
     "pytest-cov",
-    "pyyaml"
+    "coverage",
+    "pre-commit>=4.3.0",
+    "ruff>=0.1.0",
 ]
 
+# Testing with all backends
+test = [
+    "nebula[all]",
+    "pytest>=7.4.4",
+    "pytest-cov",
+    "chispa",
+]
+
+# Pipeline visualization
+viz = [
+    "graphviz",
+]
+
+# Performance/utilities
+utils = [
+    "py-cpuinfo",
+    "pyarrow",
+    "orjson",
+    "pyyaml",
+]
+
+# Everything
 full = [
-  {include-group = "dev"},
-  {include-group = "test"}
+    "nebula[all,dev,test,viz,utils]",
 ]
 
-# TODO Discuss what to include in optionals
-# [project.optional-dependencies]
-
-# dev = [
-#     "pre-commit>=4.3.0",
-#     "py-cpuinfo",
-#     "holidays>=0.26",
-#     "pyarrow"
-# ]
-
-# test = [
-#     "chispa",
-#     "coverage",
-#     "holidays>=0.26",
-#     "lxml",
-#     "numpy",
-#     "orjson",
-#     "pyarrow",
-#     "py-cpuinfo",
-#     "pytest",
-#     "pytest-cov",
-#     "pyyaml"
-# ]
-
-# full = [
-#     ".[dev]",
-#     ".[test]"
-# ]
+[tool.setuptools.package-dir]
+"" = "src"
 
 [tool.setuptools.packages.find]
-include = ["nlsn", "nlsn.*"]
-namespaces = true
+where = ["src"]
 
+# --- Pytest configuration ---
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "--cov=nebula --cov-report=term-missing"
 
-
-# In your pyproject.toml
-
+# --- Ruff configuration ---
 [tool.ruff]
-# Set the line length, just like Black
 line-length = 88
-# Fix all fixable errors
 fix = true
+src = ["src", "tests"]
 
 [tool.ruff.lint]
 # Enable all the rule sets you were using before:
@@ -107,22 +108,27 @@ fix = true
 # PL: pylint
 select = ["E", "F", "I", "D", "PL"]
 
-# Ignore any specific rules you don't like
 # ignore = ["D100", "PLR2004"]
 
 # --- Pydocstyle configuration ---
 [tool.ruff.lint.pydocstyle]
-# This mimics using a config file for docstring convention
-# Options: "google", "numpy", "pep257"
 convention = "google"
 
-# --- Pylint configuration ---
 [tool.ruff.lint.pylint]
-# Example: set max-args, just like in .pylintrc
 max-args = 6
 
-
 [tool.ruff.format]
-# Use black-compatible formatting
 quote-style = "double"
 indent-style = "space"
+
+# --- Coverage configuration ---
+[tool.coverage.run]
+source = ["src/nebula"]
+branch = true
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if __name__ == .__main__.:",
+    "raise NotImplementedError",
+]

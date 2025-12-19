@@ -44,10 +44,6 @@ cpu-info:
     packages: ['py-cpuinfo']
     used in transformers: ['CpuInfo']
 
-holidays:
-    packages: ['holidays>=0.26']
-    used in transformers: ['IsHoliday']
-
 pandas:
     packages: ['pandas>=1.2.5']
     used in transformers: ['LogDataSkew']
@@ -58,7 +54,7 @@ To install a specific dependency put its name inside square brackets, e.g.:
 
 Or, to install more options, separate the option names with a comma.
 
-Eg `pip install ".[cpu-info, holidays]"`
+Eg `pip install ".[cpu-info, graphviz]"`
 
 To install all the packages above use the parameter `full`
 

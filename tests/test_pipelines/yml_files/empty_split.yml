@@ -1,0 +1,29 @@
+split-is-none:
+  name: "outer pipe"
+  split_function: split_func_outer
+  pipeline:
+    outer_low:
+      name: "nested pipe"
+      split_function: split_func_inner
+      pipeline:
+        inner_low:   # None
+        inner_hi:
+          - transformer: AssertNotEmpty
+
+    outer_hi:
+      - transformer: AssertNotEmpty
+
+split-is-empty-list:
+  name: "outer pipe"
+  split_function: split_func_outer
+  pipeline:
+    outer_low:
+      name: "nested pipe"
+      split_function: split_func_inner
+      pipeline:
+        inner_low: [ ]  # empty list
+        inner_hi:
+          - transformer: AssertNotEmpty
+
+    outer_hi:
+      - transformer: AssertNotEmpty

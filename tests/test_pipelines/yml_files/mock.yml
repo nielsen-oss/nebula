@@ -1,0 +1,62 @@
+pipeline_1:
+  name: "pipeline_1"
+
+  pipeline:
+
+    - name: CLEANING-STEP
+      pipeline:
+        - transformer: Cast
+          msg: "Cast column 'col_2' to float"
+          params:
+            cast:
+              col_2: "float"
+        - transformer: DropNulls
+          params:
+            columns: "col_2"
+        - transformer: AssertNotEmpty
+          params:  # try w/ empty params
+        - transformer: AssertNotEmpty  # try w/o params
+
+    - name: SPLIT-PIPELINE
+      pipeline:
+        split_n_1:
+          - transformer: Cast
+            params:
+              cast:
+                col_1: "int"
+        split_n_2:
+          - transformer: DropNulls
+            params:
+              columns: "col_x"
+          - transformer: Cast
+            params:
+              cast:
+                col_3: "float"
+            skip: true
+          - transformer: Cast
+            params:
+              cast:
+                col_3: "float"
+            perform: false
+          - transformer: DropNulls
+            params:
+              columns: "col_4"
+      split_apply_before_appending:
+        - transformer: Cast
+          params:
+            cast:
+              col_5: "float"
+      split_function: my_split_function
+      coalesce_output_to_original: true
+
+    - transformer: DropNulls
+      params:
+        columns: "col_array"
+
+  interleaved:
+    - transformer: LogDataSkew
+  append_interleaved: true
+  prepend_interleaved: true
+
+  repartition_output_to_original: true
+  coalesce_output_to_original: false

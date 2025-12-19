@@ -1,6 +1,6 @@
 """Example of custom transformers."""
 
-from nlsn.nebula.storage import nebula_storage as ns
+from nebula.storage import nebula_storage as ns
 
 
 class Custom_3:

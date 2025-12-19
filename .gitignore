@@ -2,7 +2,6 @@ build/
 dist/
 docs/_static
 htmlcov/
-nlsn/tests/coverage_html
 notebooks/
 public/
 spark_local/
@@ -10,7 +9,7 @@ tmp/
 venv/
 venv*/
 .venv/
-spark*/
+/spark*
 .coverage
 .idea/
 .ipynb_checkpoints/
