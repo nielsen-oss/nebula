@@ -2,10 +2,7 @@
 
 import pytest
 
-from nebula.pipelines.pipelines import (
-    _remove_last_transformers,
-    parse_storage_request,
-)
+from nebula.pipelines.pipe_aux import parse_storage_request
 from nebula.transformers import AssertNotEmpty
 
 
@@ -58,40 +55,3 @@ class TestStorageRequest:
     def test_valid_key(key):
         """Valid requests."""
         assert parse_storage_request(key).value > 0
-
-
-@pytest.mark.parametrize(
-    "li, n",
-    [
-        ([1, 2, 3], 3),
-        ([1, 2, 3], 1),
-        ([AssertNotEmpty(), AssertNotEmpty(), 1], 1),
-        ([AssertNotEmpty(), {"store": "a"}, 1], 1),
-    ],
-)
-def test__remove_last_transformers_error(li, n):
-    """Test '_remove_last_transformers' function with wrong arguments."""
-    with pytest.raises(AssertionError):
-        _remove_last_transformers(li, n)
-
-
-# Do not duplicate references in the next test
-c1 = AssertNotEmpty()
-c2 = AssertNotEmpty()
-store_1 = {"store": "a"}
-store_2 = {"store": "b"}
-
-
-@pytest.mark.parametrize(
-    "li_input, n, exp",
-    [
-        ([c1, c2], 1, [c1]),
-        ([c1, c2, {"store": "a"}, c1], 2, [c1, {"store": "a"}]),
-        ([c1, c2, store_1, store_2, c1], 2, [c1, store_1, store_2]),
-        ([], 1, []),  # empty lists are allowed
-    ],
-)
-def test__remove_last_transformers(li_input, n, exp):
-    """Test '_remove_last_transformers' function."""
-    _remove_last_transformers(li_input, n)
-    assert li_input == exp

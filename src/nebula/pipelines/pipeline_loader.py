@@ -9,7 +9,8 @@ from typing import Callable
 from nebula.auxiliaries import extract_kwarg_names
 from nebula.base import LazyWrapper, Transformer
 from nebula.pipelines.loop_expansion import expand_loops
-from nebula.pipelines.pipelines import TransformerPipeline, parse_storage_request
+from nebula.pipelines.pipe_aux import parse_storage_request
+from nebula.pipelines.pipelines import TransformerPipeline
 from nebula.pipelines.util import create_dict_extra_functions
 from nebula.storage import nebula_storage as ns
 

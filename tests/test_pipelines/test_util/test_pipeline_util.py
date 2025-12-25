@@ -8,75 +8,9 @@ import polars as pl
 import pytest
 from pyspark.sql.types import FloatType, LongType, StringType, StructField, StructType
 
-from nebula.base import Transformer
-from nebula.pipelines.pipelines import TransformerPipeline
 from nebula.pipelines.util import *
 from nebula.transformers import *
 from ...auxiliaries import from_pandas, to_pandas
-
-
-@pytest.mark.parametrize(
-    "args",
-    [
-        ([DropNulls(glob="*")], True),
-        ([AssertNotEmpty()], True),
-        ([[AssertNotEmpty()]], False),
-        ([AssertNotEmpty(), 1], False),
-    ],
-)
-def test_is_plain_transformer_list(args):
-    """Test 'is_plain_transformer_list' function."""
-    lst, exp = args
-    assert is_plain_transformer_list(lst) == exp
-
-
-def test_get_pipeline_name():
-    """Test 'get_pipeline_name' function."""
-    p1 = TransformerPipeline([])
-    p1_name = get_pipeline_name(p1)
-    assert "TransformerPipeline" in p1_name
-
-    p2 = TransformerPipeline([], name="p2_test")
-    p2_name = get_pipeline_name(p2)
-    assert "TransformerPipeline" in p2_name
-    assert "p2_test" in p2_name
-
-
-@pytest.mark.parametrize(
-    "transformers",
-    [
-        AssertNotEmpty(),
-        [AssertNotEmpty()],
-        (AssertNotEmpty(),),
-        [AssertNotEmpty(), AssertNotEmpty()],
-        (AssertNotEmpty(), AssertNotEmpty()),
-        [],
-        None,
-    ],
-)
-def test_sanitize_list_transformers_valid(transformers):
-    """Test 'sanitize_list_transformers' function with valid inputs."""
-    chk = sanitize_list_transformers(transformers)
-    if not transformers:
-        assert chk == []
-        return
-
-    if isinstance(transformers, tuple):
-        exp = list(transformers)
-    elif isinstance(transformers, list):
-        exp = transformers
-    elif isinstance(transformers, Transformer):
-        exp = [transformers]
-    else:
-        raise ValueError("Unknown input test")
-    assert exp == chk
-
-
-@pytest.mark.parametrize("transformers", [1, [1], [AssertNotEmpty(), 1]])
-def test_sanitize_list_transformers_error(transformers):
-    """Test 'sanitize_list_transformers' function with wrong inputs."""
-    with pytest.raises(ValueError):
-        sanitize_list_transformers(transformers)
 
 
 @pytest.mark.parametrize("add_params", [True, False])

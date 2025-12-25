@@ -16,11 +16,13 @@ from __future__ import annotations
 from copy import deepcopy
 from typing import Any, Callable, TYPE_CHECKING
 
+from nebula.pipelines.pipe_aux import is_split_pipeline
 from .node_id import assign_ids_to_tree
 from .nodes import (
     PipelineNode, SequenceNode, TransformerNode, FunctionNode,
     StorageNode, ForkNode, MergeNode, InputNode, OutputNode,
 )
+from .. import transformer_type_util
 
 if TYPE_CHECKING:
     pass
@@ -112,7 +114,7 @@ class IRBuilder:
         root.add_step(input_node)
 
         # Determine pipeline type and build accordingly
-        if self._is_split_pipeline():
+        if is_split_pipeline(self.data, self.split_function):
             self._build_split_pipeline(root)
         elif self.branch:
             self._build_branch_pipeline(root)
@@ -129,14 +131,6 @@ class IRBuilder:
         assign_ids_to_tree(root)
 
         return root
-
-    def _is_split_pipeline(self) -> bool:
-        """Check if this is a split pipeline."""
-        return (
-                isinstance(self.data, dict)
-                and self.split_function is not None
-                and len(self.data) > 1
-        )
 
     def _build_linear_pipeline(self, root: SequenceNode) -> None:
         """Build a linear (sequential) pipeline."""
@@ -204,7 +198,7 @@ class IRBuilder:
 
     def _build_branch_pipeline(self, root: SequenceNode) -> None:
         """Build a branch pipeline (fork from main or stored df)."""
-        end_type = self.branch.get('end', 'dead_end')
+        end_type = self.branch['end']
         storage_key = self.branch.get('storage')
 
         # Create fork node
@@ -239,8 +233,8 @@ class IRBuilder:
         root.add_step(fork)
 
         # Create merge node (unless dead-end)
-        if end_type == 'dead_end':
-            merge_type = 'dead_end'
+        if end_type == 'dead-end':
+            merge_type = 'dead-end'
         elif end_type == 'join':
             merge_type = 'join'
         else:
@@ -272,7 +266,7 @@ class IRBuilder:
                 'operator': self.apply_to_rows.get('operator'),
                 'value': self.apply_to_rows.get('value'),
                 'comparison_column': self.apply_to_rows.get('comparison_column'),
-                'dead_end': is_dead_end,
+                'dead-end': is_dead_end,
                 'skip_if_empty': self.apply_to_rows.get('skip_if_empty', False),
             },
         )
@@ -289,12 +283,14 @@ class IRBuilder:
             fork.otherwise = otherwise_steps
             for step in otherwise_steps:
                 step.parent = fork
+        else:
+            fork.otherwise = []
 
         root.add_step(fork)
 
         # Create merge node
         merge = MergeNode(
-            merge_type='dead_end' if is_dead_end else 'append',
+            merge_type='dead-end' if is_dead_end else 'append',
             config={
                 'allow_missing_columns': self.allow_missing_columns,
                 'repartition_output_to_original': self.repartition_output_to_original,
@@ -369,7 +365,7 @@ class IRBuilder:
             return storage_op
 
         # Handle Transformer or LazyWrapper
-        if self._is_transformer(item):
+        if transformer_type_util.is_transformer(item):
             description = None
             if hasattr(item, 'get_description'):
                 description = item.get_description()
@@ -378,7 +374,7 @@ class IRBuilder:
         if (
                 isinstance(item, (tuple, list)) and
                 (len(item) == 2) and
-                self._is_transformer(item[0]) and
+                transformer_type_util.is_transformer(item[0]) and
                 isinstance(item[1], str)
         ):
             if not isinstance(item[1], str):
@@ -432,16 +428,6 @@ class IRBuilder:
             )
 
         raise TypeError(f"Unknown item type in pipeline: {type(item)}: {item}")
-
-    def _is_transformer(self, obj) -> bool:  # FIXME: I dont like
-        """Check if object is a Transformer or LazyWrapper."""
-        # Duck typing check
-        if hasattr(obj, 'transform') and callable(obj.transform):
-            return True
-        # LazyWrapper has 'trf' attribute
-        if hasattr(obj, 'trf'):
-            return True
-        return False
 
     def _parse_storage_request(self, item) -> StorageNode | None:
         """Parse a storage request dict into a StorageNode.

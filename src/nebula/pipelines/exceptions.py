@@ -4,6 +4,8 @@ from typing import NoReturn
 
 from nebula.backend_util import HAS_SPARK
 
+# FIXME: reimplement
+
 __all__ = [
     "PipelineError",
     "raise_pipeline_error",

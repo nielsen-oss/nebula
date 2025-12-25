@@ -20,10 +20,26 @@ if TYPE_CHECKING:
 
 __all__ = ["PipelinePrinter", "print_pipeline"]
 
-MERGE_KWS = {"allow_missing_columns",
-             "cast_subsets_to_input_schema",
-             "repartition_output_to_original",
-             "coalesce_output_to_original"}
+MERGE_KWS = {
+    # merging params
+    "allow_missing_columns",
+    "cast_subsets_to_input_schema",
+    "repartition_output_to_original",
+    "coalesce_output_to_original"
+    # join 
+    "end",
+    "on",
+    "how",
+    "broadcast",
+    "left_on",
+    "right_on",
+    "suffix",
+    # mix
+    "storage",
+    "skip",
+    "perform",
+    "skip_if_empty",
+}
 
 
 class PipelinePrinter:
@@ -133,7 +149,7 @@ class PipelinePrinter:
         indent = self._indent(level)
 
         # Add header
-        msg_step_count = self._get_msg_step_count(node)
+        msg_step_count = self._get_msg_step_count(node, zero_to_null=True)
         header = f"*** {node.name if node.name else 'Pipeline'} ***"
         if msg_step_count:
             header += f" ({msg_step_count})"
@@ -237,7 +253,7 @@ class PipelinePrinter:
             if storage:
                 header = f"------ BRANCH (from storage: {storage}) ------"
             else:
-                header = "------ BRANCH ------"
+                header = "------ BRANCH (from the primary DF) ------"
         elif node.fork_type == 'apply_to_rows':
             col = node.config.get('input_col')
             op = node.config.get('operator')
@@ -255,19 +271,28 @@ class PipelinePrinter:
                 if value and (key not in no_show.union(MERGE_KWS)):
                     lines.append(f"{indent}  - {key}: {value}")
 
-        # Visit branches
-        for branch_name, branch_steps in node.branches.items():
+        if node.fork_type == 'split':
+            # Visit splits
+            for split_name, branch_steps in node.branches.items():
+                msg_step_count = self._get_msg_step_count(branch_steps)
+                lines.append(f"{indent}**SPLIT <<< {split_name} >>> ({msg_step_count}):")
+                for step in branch_steps:
+                    self._visit_node(step, level + 1, lines, add_params, add_ids)
+
+        else:  # branch | apply_to_rows
+            flow_name = "Branch" if node.fork_type == 'branch' else "Apply To rows"
+            branch_steps = list(node.branches.values())[0]
             msg_step_count = self._get_msg_step_count(branch_steps)
-            lines.append(f"{indent}BRANCH <<< {branch_name} >>> ({msg_step_count}):")
+            lines.append(f"{indent}>> {flow_name} ({msg_step_count}):")
             for step in branch_steps:
                 self._visit_node(step, level + 1, lines, add_params, add_ids)
 
-        # Visit otherwise
-        if node.otherwise:
-            msg_step_count = self._get_msg_step_count(node.otherwise)
-            lines.append(f"{indent}+-+-+-+-+ OTHERWISE +-+-+-+-+ ({msg_step_count})")
-            for step in node.otherwise:
-                self._visit_node(step, level + 1, lines, add_params, add_ids)
+            # Visit otherwise
+            if node.otherwise:
+                msg_step_count = self._get_msg_step_count(node.otherwise)
+                lines.append(f"{indent}>> Otherwise ({msg_step_count})")
+                for step in node.otherwise:
+                    self._visit_node(step, level + 1, lines, add_params, add_ids)
 
     def _visit_merge(
             self,
@@ -283,10 +308,8 @@ class PipelinePrinter:
         if node.merge_type == 'append':
             line = f"{indent}<<< Append DFs >>>"
         elif node.merge_type == 'join':
-            how = node.config.get('how', 'inner')
-            on = node.config.get('on', [])
-            line = f"{indent}<<< Join DFs ({how} on {on}) >>>"
-        elif node.merge_type == 'dead_end':
+            line = f"{indent}<<< Join DFs >>>"
+        elif node.merge_type == 'dead-end':
             line = f"{indent}<<< Dead End (no merge) >>>"
         else:
             line = f"{indent}<<< Merge ({node.merge_type}) >>>"
@@ -301,15 +324,15 @@ class PipelinePrinter:
                 if value and key in MERGE_KWS:
                     lines.append(f"{indent}  - {key}: {value}")
 
-    def _get_msg_step_count(self, obj) -> str:
+    def _get_msg_step_count(self, obj, zero_to_null: bool = False) -> str:
         from ..ir.nodes import SequenceNode
         if isinstance(obj, SequenceNode):
             n_nodes = self._count_transformations(obj)
         else:
             n_nodes = sum(self._count_transformations(i) for i in obj)
-        if n_nodes == 0:
+        if zero_to_null and (n_nodes == 0):
             return ""
-        plural = "s" if n_nodes > 1 else ""
+        plural = "s" if n_nodes != 1 else ""
         return f"{n_nodes} transformation{plural}"
 
     @staticmethod

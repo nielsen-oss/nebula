@@ -133,7 +133,7 @@ def pipe_branch_join() -> TransformerPipeline:
     return TransformerPipeline(
         [
             DropColumns(columns=["c1", "c2"]),
-            [AddLiterals(data=[{"value": "joined", "alias": "new_col"}])],
+            AddLiterals(data=[{"value": "joined", "alias": "new_col"}]),
         ],
         branch={
             "end": "join",

@@ -299,7 +299,7 @@ class TestSplitPipelineApplyTransformerBeforeAndAfter:
     def test_error_pipeline_instead_of_transformer(self, where: str):
         """Pass a TransformerPipeline instead of a transformer - should raise."""
         dict_transformers = {"low": AssertNotEmpty(), "hi": AssertNotEmpty()}
-        with pytest.raises(ValueError):
+        with pytest.raises(TypeError):
             TransformerPipeline(
                 dict_transformers,
                 split_function=_split_function,
@@ -321,9 +321,9 @@ class TestSplitPipelineDeadEnd:
             )
 
     @pytest.mark.parametrize("splits_no_merge", ["hi", ["hi"], ("hi",), {"hi"}])
-    def test_dead_end_different_types(self, splits_no_merge):
+    def test_splits_no_merge(self, df_input, splits_no_merge):
         """Test with different 'splits_no_merge' types."""
-        dict_transformers = {"low": [], "hi": []}
+        dict_transformers = {"low": [], "hi": [], "null": []}
 
         pipe = TransformerPipeline(
             dict_transformers,
@@ -331,8 +331,10 @@ class TestSplitPipelineDeadEnd:
             splits_no_merge=splits_no_merge,
         )
 
-        assert pipe.splits_no_merge == {"hi"}
         pipe.show()
+        df_chk = pipe.run(df_input)
+        df_exp = df_input.filter((pl.col("c1") < 10) | pl.col("c1").is_null() | pl.col("c1").is_nan())
+        pl_assert_equal(df_chk, df_exp, ["c1"])
 
     @pytest.mark.parametrize(
         "splits_no_merge", [["hi"], ["hi", "null"], ["low", "hi", "null"]]
@@ -444,17 +446,14 @@ class TestSplitPipelineSingleSplitDictionary:
 
     def test_single_split_becomes_linear(self, df_input: pl.DataFrame):
         """Test that a single-split dictionary becomes a linear pipeline."""
+        # FIXME: wrong docstring -> changed behavior
         # When dict has only one key, it should be treated as linear pipeline
         # and split_function should be ignored
-        pipe = TransformerPipeline(
-            {"only": [Distinct()]},
-            split_function=None,  # Can be None for single-split
-        )
-
-        df_chk = pipe.run(df_input)
-        df_exp = df_input.unique()
-
-        pl_assert_equal(df_chk.sort(df_chk.columns), df_exp.sort(df_exp.columns))
+        with pytest.raises(ValueError):
+            TransformerPipeline(
+                {"only": [Distinct()]},
+                split_function=None,  # Can be None for single-split
+            )
 
 
 class TestSplitFunctionKeyMismatch:

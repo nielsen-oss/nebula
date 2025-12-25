@@ -26,7 +26,7 @@ from nebula.base import Transformer
 from nebula.df_types import GenericDataFrame, is_natively_spark
 from nebula.nw_util import append_dataframes, join_dataframes
 from nebula.nw_util import df_is_empty
-from nebula.nw_util import get_condition, null_cond_to_false
+from nebula.pipelines.util import to_schema, get_native_schema, split_df
 from nebula.storage import nebula_storage as ns
 from .context import ExecutionContext
 from .hooks import NoOpHooks, PipelineHooks
@@ -35,9 +35,9 @@ from ..ir.nodes import (
     PipelineNode, SequenceNode, TransformerNode, FunctionNode,
     StorageNode, ForkNode, MergeNode, InputNode, OutputNode,
 )
-from ..util import to_schema, get_native_schema
 
 __all__ = ["PipelineExecutor", "execute_pipeline"]
+
 
 def _get_n_partitions(df: "GenericDataFrame") -> int:
     """Get the number of partitions if the DF is a spark one and if requested."""
@@ -46,6 +46,7 @@ def _get_n_partitions(df: "GenericDataFrame") -> int:
         n = df.rdd.getNumPartitions()
     return n
 
+
 def _repartition_coalesce(df, cfg: dict, n: int) -> "GenericDataFrame":
     """Repartition / coalesce if "df" is a spark DF and if requested."""
     if cfg.get("repartition_output_to_original"):
@@ -53,6 +54,7 @@ def _repartition_coalesce(df, cfg: dict, n: int) -> "GenericDataFrame":
     elif cfg.get("coalesce_output_to_original"):
         df = df.coalesce(n)
     return df
+
 
 class PipelineExecutor:
     """Executes a pipeline IR tree.
@@ -332,12 +334,15 @@ class PipelineExecutor:
             branch_ctx = self._execute_node(step, branch_ctx)
 
         # Execute otherwise if present
-        otherwise_df = None
         if node.otherwise:
             otherwise_ctx = ctx.clone_with_df(ctx.df)
             for step in node.otherwise:
                 otherwise_ctx = self._execute_node(step, otherwise_ctx)
             otherwise_df = otherwise_ctx.df
+        else:
+            # Branch from primary df, no otherwise pipeline
+            # Preserve original df for merge
+            otherwise_df = ctx.df
 
         # Store results for merge
         ctx.metadata['branch_results'] = {
@@ -356,19 +361,8 @@ class PipelineExecutor:
         if not isinstance(df, (nw.DataFrame, nw.LazyFrame)):
             df = nw.from_native(df)
 
-        # FIXME: no ...
-        raise
-        cond = get_condition(
-            col_name=node.config.get('input_col'),
-            operator=node.config.get('operator'),
-            value=node.config.get('value'),
-            compare_col=node.config.get('comparison_column'),
-        )
-
         # Split DataFrame
-        matched_df = df.filter(cond)
-        otherwise_cond = ~null_cond_to_false(cond)
-        otherwise_df = df.filter(otherwise_cond)
+        matched_df, otherwise_df = split_df(df, node.config)
 
         # Check skip_if_empty
         matched_result = None
@@ -407,16 +401,19 @@ class PipelineExecutor:
         branch_results = ctx.metadata.get('branch_results', {})
         fork_config = ctx.metadata.get('fork_config', {})
 
-        if node.merge_type == 'dead_end':
+        if node.merge_type == 'dead-end':
             # For dead-end, use the otherwise result or original df
             otherwise_df = branch_results.get('otherwise')
             original_df = ctx.metadata.get('original_df', ctx.df)
             ctx.df = otherwise_df if otherwise_df is not None else original_df
 
         elif node.merge_type == 'append':
-            # Collect all DataFrames to append
             dfs_to_append = []
+            # Collect all DataFrames to append
+            splits_no_merge = fork_config.get("splits_no_merge", set())
             for name, df in branch_results.items():
+                if name in splits_no_merge:
+                    continue
                 if df is not None:
                     dfs_to_append.append(df)
 
@@ -451,8 +448,8 @@ class PipelineExecutor:
         if self.force_interleaved is not None:
             ctx.df = self.force_interleaved.transform(ctx.df)
 
-        if node.merge_type != 'dead_end':
-            n_part_orig = fork_config.get("spark_input_repartition")
+        if node.merge_type != 'dead-end':
+            n_part_orig = fork_config.get("spark_input_partitions")
             if n_part_orig:  # 0 if backed != spark
                 ctx.df = _repartition_coalesce(ctx.df, fork_config, n_part_orig)
 
@@ -478,7 +475,8 @@ class PipelineExecutor:
         ctx.start_node(node.id)
         return ctx
 
-    def _store_fail_cache(self, ctx: ExecutionContext) -> None:
+    @staticmethod
+    def _store_fail_cache(ctx: ExecutionContext) -> None:
         """Store cached DataFrames to nebula_storage on failure."""
         for key, df in ctx.fail_cache.items():
             storage_key = f"FAIL_DF_{key}"

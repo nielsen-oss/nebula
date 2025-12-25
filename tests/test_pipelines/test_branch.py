@@ -12,9 +12,9 @@ import os
 import polars as pl
 import pytest
 
+from nebula.pipelines.pipeline_loader import load_pipeline
 from nebula.storage import nebula_storage as ns
 from .branch_configs import *
-from nebula.pipelines.pipeline_loader import load_pipeline
 
 
 @pytest.fixture
@@ -89,7 +89,7 @@ class TestBranchDeadEnd:
 
 
 class TestBranchAppend:
-    """Append: branch result is unioned to main DataFrame."""
+    """Append: branch result is appended to main DataFrame."""
 
     def test_append_doubles_rows(self, df_input):
         """Output should have 2x rows (original + branch)."""

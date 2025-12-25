@@ -82,17 +82,3 @@ def test_pipeline_flat_list_transformers(
     pipe.show()
     df_chk = pipe.run(df_input)
     pl_assert_equal(df_chk, df_exp)
-
-
-@pytest.mark.parametrize("split_func", [None, lambda x: x])
-def test_pipeline_single_split(df_input: pl.DataFrame, split_func):
-    """Test TransformerPipeline pipeline w/ list of transformers."""
-    df_exp = df_input.drop_nulls().drop_nulls()
-    pipe = TransformerPipeline(
-        {"no split": _TRANSFORMERS},
-        split_function=split_func,
-        name="single split",
-    )
-    pipe.show()
-    df_chk = pipe.run(df_input)
-    pl_assert_equal(df_chk, df_exp)

@@ -40,7 +40,7 @@ def test_forced_transformer(df_input):
     pipe.show()
 
     ns.clear()
-    df_chk = pipe.run(df_input, CallMe())
+    df_chk = pipe.run(df_input, force_interleaved_transformer=CallMe())
     n: int = ns.get("_call_me_")
     exp_n = len(list_trf_1) + len(list_trf_2)
     assert n == exp_n

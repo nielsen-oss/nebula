@@ -2,7 +2,7 @@
 
 import importlib
 from types import ModuleType
-from typing import Callable, Optional
+from typing import Optional
 
 import pyspark.sql
 from pyspark.sql import functions as F
@@ -48,7 +48,7 @@ def udf_lib_version_in_spark_workers(s: str) -> str:  # pragma: no cover
     """Try to return the version of the requested package in spark workers."""
 
     def _look_for_version(
-        _module: ModuleType, _attr: str
+            _module: ModuleType, _attr: str
     ) -> Optional[str]:  # pragma: no cover
         try:
             version = getattr(_module, _attr)
@@ -58,7 +58,7 @@ def udf_lib_version_in_spark_workers(s: str) -> str:  # pragma: no cover
         if isinstance(version, str):
             return version
 
-        if isinstance(version, Callable):
+        if callable(version):
             try:
                 version_called = version()
             except TypeError:

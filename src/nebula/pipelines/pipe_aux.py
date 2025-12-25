@@ -10,9 +10,8 @@ __all__ = [
     "Node",
     "NodeType",
     "StoreRequest",
-    "get_replace_with_stored_df_msg",
-    "get_store_debug_key_msg",
-    "get_store_key_msg",
+    "is_keyword_request",
+    "is_split_pipeline",
     "parse_storage_request",
 ]
 
@@ -29,6 +28,13 @@ Not understood. At this stage the pipeline is expecting:
     - {"storage_debug_mode": True/False}
     - {"replace_with_stored_df": "your df name"}
 """.strip()
+
+PIPELINE_KEYWORDS: set[str] = {
+    "store",
+    "store_debug",
+    "storage_debug_mode",
+    "replace_with_stored_df",
+}
 
 
 class NodeType(Enum):
@@ -80,6 +86,22 @@ class Node:
         self.children.append(o)
 
 
+def is_keyword_request(d: dict) -> bool:
+    if isinstance(d, dict):
+        if len(d) == 1:
+            return set(d).issubset(PIPELINE_KEYWORDS)
+    return False
+
+
+def is_split_pipeline(data, split_function) -> bool:
+    """Check if the pipeline is split one."""
+    return (
+            isinstance(data, dict)
+            and split_function is not None
+            and len(data) > 1
+    )
+
+
 class StoreRequest(Enum):
     NULL = 0
     STORE_DF = 1
@@ -89,28 +111,7 @@ class StoreRequest(Enum):
     REPLACE_WITH_STORED_DF = 5
 
 
-def get_replace_with_stored_df_msg(d: dict) -> tuple[str, str]:
-    """Create the message to visualize for a 'replace_with_stored_df' request."""
-    key = d["replace_with_stored_df"]
-    msg = f'Replace the main dataframe with the one stored with the key "{key}"'
-    return key, msg
-
-
-def get_store_debug_key_msg(d: dict) -> tuple[str, str]:
-    """Create the message to visualize for a store-debug request."""
-    key = d["store_debug"]
-    msg = f'Store the dataframe with the key "{key}" in debug mode'
-    return key, msg
-
-
-def get_store_key_msg(d: dict) -> tuple[str, str]:
-    """Create the message to visualize for a store request."""
-    key = d["store"]
-    msg = f'Store the dataframe with the key "{key}"'
-    return key, msg
-
-
-def parse_storage_request(o) -> StoreRequest:
+def parse_storage_request(o) -> StoreRequest:  # FIXME: unify
     """Checks if the given object represents a storage request and parse it.
 
     A storage request is a <dictionary<str>,<str>> with only

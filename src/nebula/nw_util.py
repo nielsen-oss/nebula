@@ -13,6 +13,7 @@ from nebula.df_types import get_dataframe_type
 
 __all__ = [
     "append_dataframes",
+    "assert_join_params",
     "df_is_empty",
     "get_condition",
     "join_dataframes",

@@ -201,13 +201,13 @@ def _function_params_to_yaml_format(args, kwargs) -> str:
 #     return __get_kws_html(new_params)
 
 
-
 def _generic_flat_params_to_yaml_format(params: dict[str, Any]) -> str:
     ret = []
     for k, v in params.items():
         parsed = str(v) + '<br ALIGN="LEFT"/>'
         ret.append((k, parsed))
     return __get_kws_html(ret)
+
 
 class GraphvizRenderer:
     """Renders pipeline IR as Graphviz diagram.
@@ -298,7 +298,7 @@ class GraphvizRenderer:
         elif isinstance(node, ForkNode):
             return self._render_fork(node, dot, add_params, add_description, parent_gv_name)
         elif isinstance(node, MergeNode):
-            return self._render_merge(node, dot, parent_gv_name)
+            return self._render_merge(node, dot, add_params)
         elif isinstance(node, InputNode):
             return self._render_input(node, dot, parent_gv_name)
         elif isinstance(node, OutputNode):
@@ -431,17 +431,13 @@ class GraphvizRenderer:
         elif node.fork_type == 'branch':
             storage = node.config.get('storage')
             if storage:
-                label = f"Branch (from: {storage})"
+                label = f"Branch from storage '{storage}'"
             else:
                 label = "Branch"
         elif node.fork_type == 'apply_to_rows':
-            col = node.config.get('input_col', '?')
-            op = node.config.get('operator', '?')
-            val = node.config.get('value', '?')
-            label = self._build_html_label(
-                "Apply to rows",
-                params=[f"input_col={col}", f"operator={op}", f"value={val}"]
-            )
+            params = {k: v for k, v in node.config.items() if v}
+            params = _generic_flat_params_to_yaml_format(params)
+            label = self._build_html_label("Apply to rows", params=params)
         else:
             label = f"Fork: {node.fork_type}"
 
@@ -452,7 +448,7 @@ class GraphvizRenderer:
         for branch_name, branch_steps in node.branches.items():
             # Add branch name node
             branch_label_gv = self._get_gv_node_name(f"{node.id}_branch_{branch_name}")
-            dot.node(branch_label_gv, label=f'"<<< {branch_name} >>>"', **_STYLES['branch_name'])
+            dot.node(branch_label_gv, label=f'[{branch_name.title()}]', **_STYLES['branch_name'])
             dot.edge(fork_gv_name, branch_label_gv)
 
             # Render branch steps
@@ -468,7 +464,7 @@ class GraphvizRenderer:
         # Render otherwise if present
         if node.otherwise:
             otherwise_label_gv = self._get_gv_node_name(f"{node.id}_otherwise")
-            dot.node(otherwise_label_gv, label="Otherwise", **_STYLES['otherwise'])
+            dot.node(otherwise_label_gv, label='[Otherwise]', **_STYLES['otherwise'])
             dot.edge(fork_gv_name, otherwise_label_gv)
 
             last_gv_name = otherwise_label_gv
@@ -490,24 +486,25 @@ class GraphvizRenderer:
             self,
             node: "MergeNode",
             dot: "Digraph",
-            parent_gv_name: str | None,
+            add_params: bool,
     ) -> str:
         """Render a merge node."""
         if node.merge_type == 'append':
-            label = "*** Append DFs ***"
+            label = "Append DFs"
         elif node.merge_type == 'join':
-            how = node.config.get('how', 'inner')
-            on = node.config.get('on', [])
-            label = f"*** Join ({how} on {on}) ***"
-        elif node.merge_type == 'dead_end':
+            label = "Join"
+        elif node.merge_type == 'dead-end':
             label = "Dead End"
         else:
             label = f"Merge: {node.merge_type}"
 
-        params = {k: v for k, v in node.config.items() if v}
-        if params:
-            params = _generic_flat_params_to_yaml_format(params)
-            label = self._build_html_label(label, params=params)
+        if add_params:
+            params = {k: v for k, v in node.config.items() if v}
+            if params:
+                params = _generic_flat_params_to_yaml_format(params)
+                label = self._build_html_label(label, params=params)
+            else:
+                label = f"<<B>{label}</B>>"
 
         merge_gv_name = self._add_node(dot, node, label, 'merge', None)
 

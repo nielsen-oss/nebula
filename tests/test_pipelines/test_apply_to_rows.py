@@ -105,7 +105,7 @@ class TestApplyToRowsOtherwise:
             .select(df_input.columns)
         )
 
-        pl_assert_equal(df_out, df_exp)
+        pl_assert_equal(df_out, df_exp, sort=["idx"])
 
 
 class TestApplyToRowsSkipIfEmpty:

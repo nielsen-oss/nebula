@@ -259,13 +259,13 @@ class MergeNode(PipelineNode):
     Merge types:
     - 'append': Vertical concatenation (union by name)
     - 'join': SQL-style join with on/how parameters
-    - 'dead_end': No merge, branch result is discarded
+    - 'dead-end': No merge, branch result is discarded
     
     Attributes:
         merge_type: How to combine the branches.
         config: Merge-specific config (join keys, allow_missing_cols, etc.).
     """
-    merge_type: Literal['append', 'join', 'dead_end'] = 'append'
+    merge_type: Literal['append', 'join', 'dead-end'] = 'append'
     config: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self):
@@ -280,7 +280,7 @@ class MergeNode(PipelineNode):
             how = self.config.get('how', 'inner')
             on = self.config.get('on', [])
             return f"Join DataFrames ({how} on {on})"
-        elif self.merge_type == 'dead_end':
+        elif self.merge_type == 'dead-end':
             return "Dead end (no merge)"
         return f"Unknown merge: {self.merge_type}"
 

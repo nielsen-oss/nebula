@@ -14,11 +14,8 @@ from nebula.pipelines.transformer_type_util import is_transformer
 __all__ = [
     "create_dict_extra_functions",
     "get_native_schema",
-    "get_pipeline_name",
     "get_transformer_name",
     "is_lazy_transformer",
-    "is_plain_transformer_list",
-    "sanitize_list_transformers",
     "split_df",
     "to_schema",
 ]
@@ -107,11 +104,6 @@ def is_lazy_transformer(t) -> bool:
     return isinstance(t, LazyWrapper)
 
 
-def is_plain_transformer_list(lst: list | tuple) -> bool:
-    """True if the iterable contains only Transformers (or is empty)."""
-    return all(is_transformer(i) for i in lst)
-
-
 def get_native_schema(df):
     if isinstance(df, (nw.DataFrame, nw.LazyFrame)):
         df = nw.to_native(df)
@@ -126,51 +118,6 @@ def get_native_schema(df):
         raise ValueError("Unsupported dataframe type")
 
     return schema
-
-
-def get_pipeline_name(o) -> str:
-    """Extract the pipeline name.
-
-    E.g., if the pipeline has <name> return:
-    **SplitPipeline**: <name>
-
-    Otherwise, return only the class name
-    **SplitPipeline**
-    """
-    cls_name: str = o.__class__.__name__
-    name = f"*** {cls_name} ***"
-    if hasattr(o, "name"):
-        inner_name = getattr(o, "name")
-        if inner_name:
-            name += f': "{inner_name}"'
-
-    if hasattr(o, "get_number_transformers"):
-        name += f" ({o.get_number_transformers()} transformers)"
-    return name
-
-
-# def _get_transformer_params_formatted(
-#         tf_name: str, *, li_attrs: list[str], as_list: bool, max_len: int, wrap_text: bool
-# ) -> str | list[str]:
-#     if not li_attrs:  # pragma: no cover
-#         return [tf_name] if as_list else tf_name
-#
-#     if wrap_text:
-#         ret: str = tf_name + "\nPARAMETERS:\n"
-#         if max_len > 0:
-#             li_attrs_short = [truncate_long_string(i, max_len) for i in li_attrs]
-#             ret += "\n".join(li_attrs_short)
-#         else:
-#             ret += "\n".join(li_attrs)
-#     elif as_list:
-#         if max_len > 0:
-#             li_attrs = [truncate_long_string(i, max_len) for i in li_attrs]
-#         ret: list[str] = [tf_name, *li_attrs]
-#     else:
-#         str_params: str = truncate_long_string(", ".join(li_attrs), max_len)
-#         ret: str = tf_name + " -> PARAMS: " + str_params
-#
-#     return ret
 
 
 def _get_transformer_params_formatted(
@@ -235,117 +182,6 @@ def replace_params_references(obj):
 
     # Base case: return as-is
     return obj
-
-
-#
-# def get_transformer_name(
-#         obj: Transformer | LazyWrapper,
-#         *,
-#         add_params: bool = False,
-#         max_len: int = 80,
-#         wrap_text: bool = False,
-#         as_list: bool = False,
-# ) -> str | list[str]:
-#     """Get the name of a transformer object.
-#
-#     Args:
-#         obj (Transformer):
-#             The transformer object.
-#         add_params (bool):
-#             If True, include transformer initialization
-#             parameters in the name.
-#         max_len (int):
-#             When 'as_list' is set to False:
-#                 After converting the transformer input parameters to a single
-#                 string, truncate the characters in the middle in order not to
-#                 exceede 'max_len'.
-#             When 'as_list' is set to True:
-#                 Each string-parameter in the list is truncated at 'max_len'.
-#             If max_len <= 0, the parameter is ignored. Defaults to 80.
-#         wrap_text (bool):
-#             If True, the string of parameters will be returned as wrapped text,
-#             creating a new line for each parameter. In this case, the
-#             'max_len' parameter is ignored.
-#             This behavior is only applicable if the 'add_params' parameter
-#             is set to True.
-#             Defaults to False.
-#         as_list (bool):
-#             If True, the name of the transformer and the parameters are
-#             returned as strings in a list. In this case, the 'max_len'
-#             parameter refers to each string in the output list.
-#             This behavior is only applicable if the 'add_params' parameter
-#             is set to True.
-#             The trasformer name will always be the first element of the list.
-#             Defaults to False.
-#
-#     Returns (str | list(str)):
-#         (str): The transformer name, possibly including initialization
-#             parameters.
-#         list(str): list containing the transformer name (first element)
-#             and the parameters as strings.
-#
-#     Raises:
-#         AssertionError: If both wrap_text and as_list are True.
-#
-#     Example:
-#         >>> class CustomTransformer(Transformer):
-#         >>>     def _transform(self, df): ...
-#         >>> my_transformer = CustomTransformer(param1=42, param2="example")
-#         >>> name = get_transformer_name(my_transformer, add_params=True)
-#         >>> print(name)
-#         'CustomTransformer -> PARAMS: param1=42, param2="example"'
-#     """
-#     if add_params and wrap_text and as_list:
-#         raise ValueError('"wrap_text" and "as_list" cannot be both True.')
-#
-#     is_lazy = is_lazy_transformer(obj)
-#
-#     tf_name: str = f"(Lazy) {obj.trf.__name__}" if is_lazy else obj.__class__.__name__
-#
-#     if not add_params:
-#         return [tf_name] if as_list else tf_name
-#
-#     li_attrs: list[str] = []
-#     v_show: str
-#
-#     if is_lazy:
-#         tf_attrs = obj.kwargs
-#         if not tf_attrs:
-#             return [tf_name] if as_list else tf_name
-#
-#         try:
-#             # Extract and format call parameters
-#             for k, v in sorted(tf_attrs.items()):
-#                 if is_lazy_function(v):
-#                     v_show = f"{v.__name__}()"
-#                 else:
-#                     v_processed = replace_ns_references(v)
-#                     v_show = f'"{v_processed}"' if isinstance(v_processed, str) else v_processed
-#
-#                 li_attrs.append(f"{k}={v_show}")
-#         except:  # noqa PyBroadException  pragma: no cover
-#             return [tf_name] if as_list else tf_name
-#
-#     else:
-#         tf_attrs = getattr(obj, "transformer_init_parameters", {})
-#         if not tf_attrs:
-#             return [tf_name] if as_list else tf_name
-#
-#         try:
-#             # Extract and format initialization parameters
-#             for k, v in sorted(tf_attrs.items()):
-#                 v_show = f'"{v}"' if isinstance(v, str) else v
-#                 li_attrs.append(f"{k}={v_show}")
-#         except:  # noqa PyBroadException  pragma: no cover
-#             return [tf_name] if as_list else tf_name
-#
-#     return _get_transformer_params_formatted(
-#         tf_name,
-#         li_attrs=li_attrs,
-#         as_list=as_list,
-#         max_len=max_len,
-#         wrap_text=wrap_text,
-#     )
 
 
 def get_transformer_name(
@@ -452,35 +288,108 @@ def get_transformer_name(
     )
 
 
-def sanitize_list_transformers(transformers) -> list[Transformer]:
-    """Ensure that the input object is a flat list of transformers.
+def is_eligible_transformer(o) -> bool:
+    if is_transformer(o):
+        return True
+    if isinstance(o, tuple):
+        if len(o) == 2:
+            return is_transformer(o[0]) and isinstance(o[1], str)
+    return False
+
+
+def is_eligible_function(o) -> bool:
+    # Plain callable
+    if callable(o) and not isinstance(o, tuple):
+        return True
+
+    if isinstance(o, tuple):
+        n = len(o)
+        if n < 2 or n > 4:
+            return False
+        if not callable(o[0]):
+            return False
+
+        # o[1] must be args (list or tuple)
+        if not isinstance(o[1], (list, tuple)):
+            return False
+
+        if n == 2:
+            return True
+
+        # o[2] must be kwargs (dict)
+        if not isinstance(o[2], dict):
+            return False
+
+        if n == 3:
+            return True
+
+        # o[3] must be description (str)
+        return isinstance(o[3], str)
+
+    return False
+
+
+def sanitize_steps(data) -> list:
+    """Sanitize and flatten a list of pipeline steps.
+
+    Accepts transformers, functions, keyword requests, and nested lists.
+    Flattens nested lists and validates each element.
 
     Args:
-        transformers (Transform | list(Transformer) | tuple(transformer)):
-            Input list.
+        data: A single step or list of steps. Each step can be:
+            - A Transformer instance
+            - A tuple (Transformer, description_str)
+            - A callable function
+            - A tuple (func, args) or (func, args, kwargs) or (func, args, kwargs, desc)
+            - A keyword request dict like {"store": "key"}
+            - A nested list/tuple of any of the above
 
-    Returns (list(Transformer)):
-        Flat list of transformers.
+    Returns:
+        Flattened list of validated steps.
 
-    Raises: ValueError if a not allowed type is passed.
+    Raises:
+        TypeError: If any element is not a valid step type.
     """
-    ret: list[Transformer]
-    if transformers:
-        if is_transformer(transformers):
-            ret = [transformers]
+    if data is None:
+        return []
+
+    # Handle single non-list items
+    if not isinstance(data, (list, tuple)):
+        if is_eligible_transformer(data):
+            return [data]
+        if is_eligible_function(data):
+            return [data]
+        if is_keyword_request(data):
+            return [data]
+        raise TypeError(f"Invalid step type: {type(data)}. Got: {data}")
+
+    # If it's a tuple, check if it's a valid step (not a container to flatten)
+    if isinstance(data, tuple):
+        if is_eligible_transformer(data):
+            return [data]
+        if is_eligible_function(data):
+            return [data]
+        # Otherwise treat tuple as a container to flatten
+
+    # Flatten and validate list/tuple contents
+    result = []
+    for item in data:
+        if is_eligible_transformer(item):
+            result.append(item)
+        elif is_eligible_function(item):
+            result.append(item)
+        elif is_keyword_request(item):
+            result.append(item)
+        elif isinstance(item, (list, tuple)):
+            # Recurse for nested lists/tuples
+            result.extend(sanitize_steps(item))
         else:
-            msg = 'Argument  must be a <Transformer> or a <list<Transformer>>'
-            if not isinstance(transformers, (list, tuple)):
-                raise ValueError(msg)
-            if not all(is_transformer(i) for i in transformers):
-                raise ValueError(msg)
-            if isinstance(transformers, tuple):
-                ret = list(transformers)
-            else:
-                ret = transformers
-    else:
-        ret = []
-    return ret
+            raise TypeError(
+                f"Invalid step in pipeline. Expected Transformer, callable, "
+                f"keyword request, or nested list. Got {type(item)}: {item}"
+            )
+
+    return result
 
 
 def split_df(df, cfg: dict) -> tuple[NwDataFrame, NwDataFrame]:

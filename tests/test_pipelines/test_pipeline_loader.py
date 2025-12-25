@@ -94,4 +94,4 @@ def test_apply_to_rows_otherwise():
 
     ar_exp = np.where(index > 5, "matched", "not_matched")
     df_exp = pl.DataFrame({"idx": index, "c1": ar_exp})
-    pl_assert_equal(df_chk, df_exp)
+    pl_assert_equal(df_chk, df_exp, sort=["idx"])
