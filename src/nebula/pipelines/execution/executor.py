@@ -76,7 +76,7 @@ class PipelineExecutor:
             hooks: PipelineHooks | None = None,
             resume_from: str | None = None,
             checkpoint_storage: str | None = None,
-            force_interleaved: Transformer | Callable = None,
+            force_interleaved: Transformer | Callable | None = None,
     ):
         """Initialize the executor.
         
@@ -293,7 +293,7 @@ class PipelineExecutor:
 
         # Execute each branch and collect results
         branch_results = {}
-        dead_end_splits = node.config.get('dead_end_splits', set())
+        dead_end_splits = node.config.get('splits_no_merge', set())
         skip_if_empty = node.config.get('splits_skip_if_empty', set())
 
         for branch_name, branch_steps in node.branches.items():

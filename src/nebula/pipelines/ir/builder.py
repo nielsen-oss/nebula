@@ -191,7 +191,7 @@ class IRBuilder:
                 'cast_subsets_to_input_schema': self.cast_subsets_to_input_schema,
                 'repartition_output_to_original': self.repartition_output_to_original,
                 'coalesce_output_to_original': self.coalesce_output_to_original,
-                'dead_end_splits': self.splits_no_merge,
+                'splits_no_merge': self.splits_no_merge,
             },
         )
         root.add_step(merge)
@@ -346,7 +346,7 @@ class IRBuilder:
 
         return steps
 
-    def _create_node(self, item) -> PipelineNode:
+    def _create_node(self, item) -> PipelineNode | None:
         """Create appropriate node type from an item.
         
         Handles:
@@ -379,9 +379,6 @@ class IRBuilder:
                 transformer_type_util.is_transformer(item[0]) and
                 isinstance(item[1], str)
         ):
-            if not isinstance(item[1], str):
-                raise TypeError("If the transformer is passed as tuple/list, "
-                                "the second element, the description, must be a <str>")
             return TransformerNode(transformer=item[0], description=item[1])
 
         # Handle bare function

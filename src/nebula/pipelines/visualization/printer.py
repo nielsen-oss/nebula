@@ -27,7 +27,7 @@ MERGE_KWS = {
     "allow_missing_columns",
     "cast_subsets_to_input_schema",
     "repartition_output_to_original",
-    "coalesce_output_to_original"
+    "coalesce_output_to_original",
     # join 
     "end",
     "on",
