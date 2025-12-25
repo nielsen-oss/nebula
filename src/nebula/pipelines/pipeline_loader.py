@@ -74,11 +74,10 @@ def _cache_transformer_packages(ext_transformers: list | None):
     _cache["transformer_packages"] = (ext_transformers or []) + [nebula_transformers]
 
 
-def _resolve_lazy_string_marker(obj, extra_funcs: dict[str, Callable]):
+def _resolve_lazy_string_marker(obj):
     """Recursively resolve lazy string markers in nested structures.
 
     This function traverses nested dicts, lists, and tuples, converting:
-    - "__fn__<name>" strings: to the corresponding function from extra_funcs
     - "__ns__<key>" strings: to (ns, "<key>") tuples for lazy storage access
 
     These markers are the YAML/JSON-serializable equivalents of the Python API's
@@ -86,7 +85,6 @@ def _resolve_lazy_string_marker(obj, extra_funcs: dict[str, Callable]):
 
     Args:
         obj: Any value that may contain lazy string markers at any nesting level.
-        extra_funcs: Dictionary mapping function names to callable functions.
 
     Returns:
         The processed value with all string markers converted to lazy references.
@@ -95,50 +93,37 @@ def _resolve_lazy_string_marker(obj, extra_funcs: dict[str, Callable]):
         data:
           - alias: "col1"
             value: "__ns__stored_value"
-          - alias: "col2"
-            value: "__fn__my_function"
 
         Becomes:
         data:
           - alias: "col1"
             value: (ns, "stored_value")  # Will be resolved at transform time
-          - alias: "col2"
-            value: <function my_function>  # Will be called at transform time
     """
     # Check for lazy string markers
     if isinstance(obj, str):
-        # [6:] because len("__fn__") == len("__ns__") == 6
-        if obj.startswith("__fn__"):
-            func_name: str = obj[6:]
-            if func_name not in extra_funcs:
-                available = list(extra_funcs.keys()) if extra_funcs else []
-                raise KeyError(
-                    f"Lazy function '{func_name}' not found in extra_functions. "
-                    f"Available: {available}"
-                )
-            return extra_funcs[func_name]
+        # [6:] because len("__ns__") == 6
         if obj.startswith("__ns__"):
             # Return as tuple for lazy resolution at transform time
-            return (ns, obj[6:])
+            return ns, obj[6:]
         return obj
 
     # Recurse into dictionaries
     if isinstance(obj, dict):
-        return {k: _resolve_lazy_string_marker(v, extra_funcs) for k, v in obj.items()}
+        return {k: _resolve_lazy_string_marker(v) for k, v in obj.items()}
 
     # Recurse into lists
     if isinstance(obj, list):
-        return [_resolve_lazy_string_marker(item, extra_funcs) for item in obj]
+        return [_resolve_lazy_string_marker(item) for item in obj]
 
     # Recurse into tuples
     if isinstance(obj, tuple):
-        return tuple(_resolve_lazy_string_marker(item, extra_funcs) for item in obj)
+        return tuple(_resolve_lazy_string_marker(item) for item in obj)
 
     # Base case: return value as-is
     return obj
 
 
-def extract_lazy_params(input_params: dict, extra_funcs: dict[str, Callable]) -> dict:
+def extract_lazy_params(input_params: dict) -> dict:
     """Extract and convert lazy string markers from YAML/JSON parameters.
 
     This is the entry point for processing lazy parameters loaded from
@@ -148,7 +133,6 @@ def extract_lazy_params(input_params: dict, extra_funcs: dict[str, Callable]) ->
     Args:
         input_params: Dictionary of parameters that may contain lazy string
                       markers at any nesting depth.
-        extra_funcs: Dictionary mapping function names to callable functions.
 
     Returns:
         New dictionary with all lazy string markers converted.
@@ -158,22 +142,20 @@ def extract_lazy_params(input_params: dict, extra_funcs: dict[str, Callable]) ->
         >>> params = {
         ...     "simple": "static_value",
         ...     "from_storage": "__ns__my_key",
-        ...     "from_func": "__fn__get_threshold",
         ...     "nested": {
         ...         "deep": [{"value": "__ns__nested_key"}]
         ...     }
         ... }
-        >>> extract_lazy_params(params, extra_funcs)
+        >>> extract_lazy_params(params)
         {
             "simple": "static_value",
             "from_storage": (ns, "my_key"),
-            "from_func": <function get_threshold>,
             "nested": {
                 "deep": [{"value": (ns, "nested_key")}]
             }
         }
     """
-    return _resolve_lazy_string_marker(input_params, extra_funcs)
+    return _resolve_lazy_string_marker(input_params)
 
 
 def _load_transformer(d: dict, **kwargs) -> Transformer | None:
@@ -198,11 +180,11 @@ def _load_transformer(d: dict, **kwargs) -> Transformer | None:
 
     try:
         if is_lazy:
-            lazy_params: dict = extract_lazy_params(params, kwargs["extra_funcs"])
+            lazy_params: dict = extract_lazy_params(params)
             t_loaded = LazyWrapper(t, **lazy_params)
         else:
             t_loaded = t(**params)
-        desc = d.get("msg")
+        desc = d.get("description")
         # If the description is provided and the base class is Transformer:
         if desc and isinstance(t_loaded, Transformer):
             t_loaded.set_description(desc)
@@ -349,7 +331,7 @@ def _load_pipeline(o, *, extra_funcs) -> TransformerPipeline:
         split_apply_before_appending=split_apply_before_appending,
         splits_no_merge=o.get("splits_no_merge"),
         splits_skip_if_empty=o.get("splits_skip_if_empty"),
-        cast_subset_to_input_schema=o.get("cast_subset_to_input_schema", False),
+        cast_subsets_to_input_schema=o.get("cast_subsets_to_input_schema", False),
         repartition_output_to_original=o.get("repartition_output_to_original", False),
         coalesce_output_to_original=o.get("coalesce_output_to_original", False),
         branch=o.get("branch"),
@@ -466,4 +448,4 @@ if __name__ == "__main__":
         #     extra_functions=extra_functions,
         #     extra_transformers=my_n1_transformer,
     )
-    pipe.show_pipeline(add_transformer_params=True)
+    pipe.show(add_params=True)

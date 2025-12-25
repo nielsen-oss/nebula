@@ -23,7 +23,7 @@ def _get_df_input():
 def test_transformer_no_parent_class_in_pipeline(df_input):
     """Test a pipeline with a transformer without a known parent class."""
     pipe = TransformerPipeline(NoParentClass())
-    pipe.show_pipeline()
+    pipe.show()
 
     df_chk = pipe.run(df_input)
     pl_assert_equal(df_chk, df_input)
@@ -37,7 +37,7 @@ def test_forced_transformer(df_input):
     pipe_1 = TransformerPipeline(list_trf_1)
     pipe_2 = TransformerPipeline(list_trf_2)
     pipe = TransformerPipeline([pipe_1, pipe_2])
-    pipe.show_pipeline()
+    pipe.show()
 
     ns.clear()
     df_chk = pipe.run(df_input, CallMe())

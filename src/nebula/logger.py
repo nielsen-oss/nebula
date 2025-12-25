@@ -4,7 +4,8 @@ import logging
 
 __all__ = ["logger"]
 
-_fmt = "%(asctime)s | %(filename)s:%(lineno)s [%(levelname)s]: %(message)s "
+# _fmt = "%(asctime)s | %(filename)s:%(lineno)s [%(levelname)s]: %(message)s "
+_fmt = "%(asctime)s | [%(levelname)s]: %(message)s "
 
 
 class Logger:

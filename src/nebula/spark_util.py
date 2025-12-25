@@ -61,7 +61,7 @@ def cast_to_schema(
         exp_cols = schema.names
         diff = compare_lists_of_string(cols, exp_cols, names=names)
         print("\n".join(diff))
-        msg = "'cast_subset_to_input_schema' -> Different number of columns"
+        msg = "'cast_subsets_to_input_schema' -> Different number of columns"
         raise AssertionError(msg)
 
     exp_columns: list[str] = [i.name for i in schema]

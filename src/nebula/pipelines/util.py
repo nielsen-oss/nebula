@@ -1,16 +1,12 @@
 """Pipeline utils."""
 
+from types import FunctionType
 from typing import Callable
 
 import narwhals as nw
 
 from nebula.auxiliaries import truncate_long_string
-from nebula.base import (
-    LazyWrapper,
-    Transformer,
-    is_lazy_function,
-    is_ns_lazy_request,
-)
+from nebula.base import LazyWrapper, Transformer, is_ns_lazy_request
 from nebula.df_types import GenericDataFrame, NwDataFrame, get_dataframe_type
 from nebula.nw_util import get_condition, null_cond_to_false, to_native_dataframes
 from nebula.pipelines.transformer_type_util import is_transformer
@@ -153,14 +149,38 @@ def get_pipeline_name(o) -> str:
     return name
 
 
+# def _get_transformer_params_formatted(
+#         tf_name: str, *, li_attrs: list[str], as_list: bool, max_len: int, wrap_text: bool
+# ) -> str | list[str]:
+#     if not li_attrs:  # pragma: no cover
+#         return [tf_name] if as_list else tf_name
+#
+#     if wrap_text:
+#         ret: str = tf_name + "\nPARAMETERS:\n"
+#         if max_len > 0:
+#             li_attrs_short = [truncate_long_string(i, max_len) for i in li_attrs]
+#             ret += "\n".join(li_attrs_short)
+#         else:
+#             ret += "\n".join(li_attrs)
+#     elif as_list:
+#         if max_len > 0:
+#             li_attrs = [truncate_long_string(i, max_len) for i in li_attrs]
+#         ret: list[str] = [tf_name, *li_attrs]
+#     else:
+#         str_params: str = truncate_long_string(", ".join(li_attrs), max_len)
+#         ret: str = tf_name + " -> PARAMS: " + str_params
+#
+#     return ret
+
+
 def _get_transformer_params_formatted(
-        tf_name: str, *, li_attrs: list[str], as_list: bool, max_len: int, wrap_text: bool
+        *, li_attrs: list[str], as_list: bool, max_len: int, wrap_text: bool
 ) -> str | list[str]:
     if not li_attrs:  # pragma: no cover
-        return [tf_name] if as_list else tf_name
+        return [] if as_list else ""
 
     if wrap_text:
-        ret: str = tf_name + "\nPARAMETERS:\n"
+        ret: str = ""
         if max_len > 0:
             li_attrs_short = [truncate_long_string(i, max_len) for i in li_attrs]
             ret += "\n".join(li_attrs_short)
@@ -169,12 +189,163 @@ def _get_transformer_params_formatted(
     elif as_list:
         if max_len > 0:
             li_attrs = [truncate_long_string(i, max_len) for i in li_attrs]
-        ret: list[str] = [tf_name, *li_attrs]
+        ret: list[str] = li_attrs
     else:
-        str_params: str = truncate_long_string(", ".join(li_attrs), max_len)
-        ret: str = tf_name + " -> PARAMS: " + str_params
+        ret: str = truncate_long_string(", ".join(li_attrs), max_len)
 
     return ret
+
+
+def replace_params_references(obj):
+    """Recursively parse an iterable and replace nebula storage references.
+
+    Traverses dict, list, tuple structures and replaces any 2-element
+    list/tuple where the first element is nebula_storage with a string
+    like 'ns.get("key")'.
+
+    Args:
+        obj: Any object - will recursively process dicts, lists, tuples.
+
+    Returns:
+        The object with all ns references replaced by their string representation.
+
+    Example:
+        >>> data = {'data': [{'alias': 'c5', 'value': (ns, 'my_key')}]}
+        >>> replace_params_references(data)
+        {'data': [{'alias': 'c5', 'value': 'ns.get("my_key")'}]}
+    """
+    # Check for ns lazy request FIRST (before generic list/tuple handling)
+    if is_ns_lazy_request(obj):
+        return f'ns.get("{obj[1]}")'
+
+    if isinstance(obj, FunctionType):
+        return obj.__name__
+
+    # Recurse into dictionaries
+    if isinstance(obj, dict):
+        return {k: replace_params_references(v) for k, v in obj.items()}
+
+    # Recurse into lists
+    if isinstance(obj, list):
+        return [replace_params_references(item) for item in obj]
+
+    # Recurse into tuples (preserve tuple type)
+    if isinstance(obj, tuple):
+        return tuple(replace_params_references(item) for item in obj)
+
+    # Base case: return as-is
+    return obj
+
+
+#
+# def get_transformer_name(
+#         obj: Transformer | LazyWrapper,
+#         *,
+#         add_params: bool = False,
+#         max_len: int = 80,
+#         wrap_text: bool = False,
+#         as_list: bool = False,
+# ) -> str | list[str]:
+#     """Get the name of a transformer object.
+#
+#     Args:
+#         obj (Transformer):
+#             The transformer object.
+#         add_params (bool):
+#             If True, include transformer initialization
+#             parameters in the name.
+#         max_len (int):
+#             When 'as_list' is set to False:
+#                 After converting the transformer input parameters to a single
+#                 string, truncate the characters in the middle in order not to
+#                 exceede 'max_len'.
+#             When 'as_list' is set to True:
+#                 Each string-parameter in the list is truncated at 'max_len'.
+#             If max_len <= 0, the parameter is ignored. Defaults to 80.
+#         wrap_text (bool):
+#             If True, the string of parameters will be returned as wrapped text,
+#             creating a new line for each parameter. In this case, the
+#             'max_len' parameter is ignored.
+#             This behavior is only applicable if the 'add_params' parameter
+#             is set to True.
+#             Defaults to False.
+#         as_list (bool):
+#             If True, the name of the transformer and the parameters are
+#             returned as strings in a list. In this case, the 'max_len'
+#             parameter refers to each string in the output list.
+#             This behavior is only applicable if the 'add_params' parameter
+#             is set to True.
+#             The trasformer name will always be the first element of the list.
+#             Defaults to False.
+#
+#     Returns (str | list(str)):
+#         (str): The transformer name, possibly including initialization
+#             parameters.
+#         list(str): list containing the transformer name (first element)
+#             and the parameters as strings.
+#
+#     Raises:
+#         AssertionError: If both wrap_text and as_list are True.
+#
+#     Example:
+#         >>> class CustomTransformer(Transformer):
+#         >>>     def _transform(self, df): ...
+#         >>> my_transformer = CustomTransformer(param1=42, param2="example")
+#         >>> name = get_transformer_name(my_transformer, add_params=True)
+#         >>> print(name)
+#         'CustomTransformer -> PARAMS: param1=42, param2="example"'
+#     """
+#     if add_params and wrap_text and as_list:
+#         raise ValueError('"wrap_text" and "as_list" cannot be both True.')
+#
+#     is_lazy = is_lazy_transformer(obj)
+#
+#     tf_name: str = f"(Lazy) {obj.trf.__name__}" if is_lazy else obj.__class__.__name__
+#
+#     if not add_params:
+#         return [tf_name] if as_list else tf_name
+#
+#     li_attrs: list[str] = []
+#     v_show: str
+#
+#     if is_lazy:
+#         tf_attrs = obj.kwargs
+#         if not tf_attrs:
+#             return [tf_name] if as_list else tf_name
+#
+#         try:
+#             # Extract and format call parameters
+#             for k, v in sorted(tf_attrs.items()):
+#                 if is_lazy_function(v):
+#                     v_show = f"{v.__name__}()"
+#                 else:
+#                     v_processed = replace_ns_references(v)
+#                     v_show = f'"{v_processed}"' if isinstance(v_processed, str) else v_processed
+#
+#                 li_attrs.append(f"{k}={v_show}")
+#         except:  # noqa PyBroadException  pragma: no cover
+#             return [tf_name] if as_list else tf_name
+#
+#     else:
+#         tf_attrs = getattr(obj, "transformer_init_parameters", {})
+#         if not tf_attrs:
+#             return [tf_name] if as_list else tf_name
+#
+#         try:
+#             # Extract and format initialization parameters
+#             for k, v in sorted(tf_attrs.items()):
+#                 v_show = f'"{v}"' if isinstance(v, str) else v
+#                 li_attrs.append(f"{k}={v_show}")
+#         except:  # noqa PyBroadException  pragma: no cover
+#             return [tf_name] if as_list else tf_name
+#
+#     return _get_transformer_params_formatted(
+#         tf_name,
+#         li_attrs=li_attrs,
+#         as_list=as_list,
+#         max_len=max_len,
+#         wrap_text=wrap_text,
+#     )
 
 
 def get_transformer_name(
@@ -235,14 +406,12 @@ def get_transformer_name(
         'CustomTransformer -> PARAMS: param1=42, param2="example"'
     """
     if add_params and wrap_text and as_list:
-        raise AssertionError('"wrap_text" and "as_list" cannot be both True.')
+        raise ValueError('"wrap_text" and "as_list" cannot be both True.')
 
     is_lazy = is_lazy_transformer(obj)
 
-    tf_name: str = f"(Lazy) {obj.trf.__name__}" if is_lazy else obj.__class__.__name__
-
     if not add_params:
-        return [tf_name] if as_list else tf_name
+        return [] if as_list else ""
 
     li_attrs: list[str] = []
     v_show: str
@@ -250,27 +419,22 @@ def get_transformer_name(
     if is_lazy:
         tf_attrs = obj.kwargs
         if not tf_attrs:
-            return [tf_name] if as_list else tf_name
+            return [] if as_list else ""
 
         try:
             # Extract and format call parameters
             for k, v in sorted(tf_attrs.items()):
-                if is_lazy_function(v):
-                    v_show = f"{v.__name__}()"
-                elif is_ns_lazy_request(v):
-                    # here v is a 2-element list/tuple
-                    v_show = f'ns.get("{v[1]}")'
-                else:
-                    v_show = f'"{v}"' if isinstance(v, str) else v
+                v_processed = replace_params_references(v)
+                v_show = f'"{v_processed}"' if isinstance(v_processed, str) else v_processed
 
                 li_attrs.append(f"{k}={v_show}")
-        except:  # noqa PyBroadException  pragma: no cover
-            return [tf_name] if as_list else tf_name
+        except Exception as e:  # noqa PyBroadException  pragma: no cover
+            return [] if as_list else ""
 
     else:
         tf_attrs = getattr(obj, "transformer_init_parameters", {})
         if not tf_attrs:
-            return [tf_name] if as_list else tf_name
+            return [] if as_list else ""
 
         try:
             # Extract and format initialization parameters
@@ -278,10 +442,9 @@ def get_transformer_name(
                 v_show = f'"{v}"' if isinstance(v, str) else v
                 li_attrs.append(f"{k}={v_show}")
         except:  # noqa PyBroadException  pragma: no cover
-            return [tf_name] if as_list else tf_name
+            return [] if as_list else ""
 
     return _get_transformer_params_formatted(
-        tf_name,
         li_attrs=li_attrs,
         as_list=as_list,
         max_len=max_len,

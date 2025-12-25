@@ -87,7 +87,7 @@ def _get_df_exp(df_input, trf_hi):
     for t in [_APPLY_BEFORE_APPENDING]:
         df_hi = t.transform(df_hi)
 
-    # Emulate 'cast_subset_to_input_schema' = True
+    # Emulate 'cast_subsets_to_input_schema' = True
     df_hi = df_hi.with_columns(nw.col("c1").cast(nw.Float64()))
 
     df_ret = nw.concat([df_low, df_hi], how="vertical")
@@ -146,13 +146,13 @@ def test_complex_pipeline(
         append_interleaved=append_interleaved,
         split_apply_before_appending=_APPLY_BEFORE_APPENDING,
         name="split-pipeline",
-        cast_subset_to_input_schema=True,
+        cast_subsets_to_input_schema=True,
     )
 
     pipe = TransformerPipeline([flat_pipeline, split_pipeline])
     df_exp, df_high_exp = _get_df_exp(df_input, trf_hi)
 
-    pipe.show_pipeline()
+    pipe.show()
 
     df_chk = pipe.run(df_input)
     pl_assert_equal(df_chk, df_chk, sort=df_chk.columns)
@@ -186,11 +186,11 @@ def test_pipeline_loader_with_storage(df_input):
         extra_functions=split_function,
         extra_transformers=[ExtraTransformers],
     )
-    pipe.show_pipeline(add_transformer_params=True)
+    pipe.show(add_params=True)
 
     df_exp, df_high_exp = _get_df_exp(df_input, trf_hi)
 
-    pipe.show_pipeline()
+    pipe.show()
 
     df_chk = pipe.run(df_input)
 

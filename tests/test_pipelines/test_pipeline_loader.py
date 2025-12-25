@@ -36,7 +36,7 @@ def test_mock_pipelines_empty_splits(pipeline_key: str):
     }
 
     pipe = load_pipeline(data, extra_functions=dict_split_functions)
-    pipe.show_pipeline(add_transformer_params=True)
+    pipe.show(add_params=True)
     df_chk = pipe.run(df_input).sort_index()
     pd.testing.assert_frame_equal(df_input, df_chk)
 

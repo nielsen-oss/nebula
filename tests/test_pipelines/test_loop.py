@@ -18,7 +18,7 @@ def test_loop_pipeline(df_input):
     """Test a nested for-loop in spark."""
     yaml_data = load_yaml("loop.yml")
     pipe = load_pipeline(yaml_data, extra_transformers=[ExtraTransformers])
-    pipe.show_pipeline(add_transformer_params=True)
+    pipe.show(add_params=True)
 
     df_exp = (
         df_input

@@ -476,9 +476,8 @@ def truncate_long_string(s: str, w: int) -> str:
     >>> truncate_long_string("This is a long string", 10)
     'Th ... ng'
     """
-    half_w = w // 2 - 3
-
     if len(s) > w:
+        half_w = w // 2 - 3
         return s[:half_w] + " ... " + s[-half_w:]
     else:
         return s

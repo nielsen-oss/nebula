@@ -78,7 +78,6 @@ class RoundValues(Transformer):
         self._precision = precision
 
     def _transform_nw(self, df):
-        import narwhals as nw
         return df.with_columns(
             nw.col(self._col).round(self._precision).alias(self._col)
         )

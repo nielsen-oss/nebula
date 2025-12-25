@@ -127,7 +127,7 @@ class TestSplitPipeline:
             name=name,
         )
 
-        pipe.show_pipeline()
+        pipe.show()
         df_chk = pipe.run(df_input)
 
         # Create the expected DF
@@ -146,7 +146,7 @@ class TestSplitPipeline:
 
         pl_assert_equal(df_chk.sort(df_chk.columns), df_exp.sort(df_exp.columns))
 
-    def test_cast_subset_to_input_schema(self, df_input):
+    def test_cast_subsets_to_input_schema(self, df_input):
         """Test with various configurations."""
         # cast c1 to float32 ...
         dict_splits = {"low": [], "hi": [Cast(cast={"c1": "float32"})], "null": []}
@@ -154,10 +154,10 @@ class TestSplitPipeline:
         pipe = TransformerPipeline(
             dict_splits,
             split_function=_split_function_with_null,
-            cast_subset_to_input_schema=True,
+            cast_subsets_to_input_schema=True,
         )
 
-        pipe.show_pipeline()
+        pipe.show()
         df_chk = pipe.run(df_input)
         # ... and ensure it is converted back to float64 at the end
         assert df_chk["c1"].dtype == pl.Float64
@@ -232,7 +232,7 @@ class TestSplitPipeline:
             allow_missing_columns=True,
         )
 
-        pipe.show_pipeline()
+        pipe.show()
         df_chk = pipe.run(df_input)
 
         df_exp = df_input.filter(pl.col("c1").is_not_null() & pl.col("c1").is_not_nan()).unique()
@@ -273,11 +273,11 @@ class TestSplitPipelineApplyTransformerBeforeAndAfter:
         pipe = TransformerPipeline(
             dict_transformers,
             split_function=_split_function,
-            cast_subset_to_input_schema=True,
+            cast_subsets_to_input_schema=True,
             **{where: transformer}
         )
 
-        pipe.show_pipeline()
+        pipe.show()
 
         df_chk = pipe.run(df_input)
 
@@ -332,7 +332,7 @@ class TestSplitPipelineDeadEnd:
         )
 
         assert pipe.splits_no_merge == {"hi"}
-        pipe.show_pipeline()
+        pipe.show()
 
     @pytest.mark.parametrize(
         "splits_no_merge", [["hi"], ["hi", "null"], ["low", "hi", "null"]]
@@ -361,7 +361,7 @@ class TestSplitPipelineDeadEnd:
             splits_no_merge=splits_no_merge,
         )
 
-        pipe.show_pipeline()
+        pipe.show()
         df_out = pipe.run(df_input)
 
         # Check the df output
@@ -410,7 +410,7 @@ class TestSplitPipelineSplitOrder:
             split_order=split_order,
         )
 
-        pipe.show_pipeline()
+        pipe.show()
         df_chk = pipe.run(df_input)
         splits = _split_function(df_input)
         df_hi = splits["hi"]
@@ -429,12 +429,12 @@ class TestSplitPipelineMutuallyExclusive:
     """Test mutually exclusive parameters."""
 
     def test_cast_and_allow_missing_mutually_exclusive(self):
-        """Test that cast_subset_to_input_schema and allow_missing_columns are mutually exclusive."""
+        """Test that cast_subsets_to_input_schema and allow_missing_columns are mutually exclusive."""
         with pytest.raises(AssertionError):
             TransformerPipeline(
                 {"a": [], "b": []},
                 split_function=lambda df: {"a": df, "b": df},
-                cast_subset_to_input_schema=True,
+                cast_subsets_to_input_schema=True,
                 allow_missing_columns=True,
             )
 

@@ -39,5 +39,5 @@ pipeline:
       - transformer: Distinct
 
     name: "split-pipeline"
-    cast_subset_to_input_schema: True
+    cast_subsets_to_input_schema: True
     split_function: split_function

@@ -6,7 +6,7 @@ from typing import Optional, Union
 from nebula.pipelines.pipe_aux import *
 from nebula.pipelines.transformer_type_util import is_transformer
 
-__all__ = ["create_dag", "print_dag"]
+__all__ = ["create_dag"]
 
 
 def create_dag(pipeline, df_input_name: str, df_output_name: str):
@@ -128,7 +128,7 @@ class _DAG:
         # -> for split pipeline only
         # - split_function: Optional[Callable]
         # - splits_no_merge: Union[None, str, List[str]]
-        # - cast_subset_to_input_schema: bool
+        # - cast_subsets_to_input_schema: bool
         # - repartition_output_to_original: bool
         # - coalesce_output_to_original: bool
         # obj is a flat pipeline
@@ -252,7 +252,7 @@ class _DAG:
                 "name": obj.name,
                 "split_function": obj.split_function,
                 "splits_no_merge": obj.splits_no_merge,
-                "cast_subset_to_input_schema": obj.cast_subset_to_input_schema,
+                "cast_subsets_to_input_schema": obj.cast_subsets_to_input_schema,
                 "repartition_output_to_original": obj.repartition_output_to_original,
                 "coalesce_output_to_original": obj.coalesce_output_to_original,
             }
@@ -277,7 +277,7 @@ class _DAG:
 
             _merge_kws_msg = {
                 "Allow missing columns": obj.allow_missing_cols,
-                "Cast each split to input schema": obj.cast_subset_to_input_schema,
+                "Cast each split to input schema": obj.cast_subsets_to_input_schema,
             }
             if obj.repartition_output_to_original:
                 _merge_kws_msg["Repartition to original"] = True

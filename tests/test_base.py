@@ -6,27 +6,10 @@ import pytest
 from nebula.base import (
     LazyWrapper,
     extract_lazy_params,
-    is_lazy_function,
     is_ns_lazy_request,
-    nlazy,
 )
-from nebula.transformers import AssertNotEmpty, SelectColumns
 from nebula.storage import nebula_storage as ns
-
-
-@nlazy
-def _lazy():
-    return "ok"
-
-
-def _not_lazy():
-    return "ok"
-
-
-@pytest.mark.parametrize("func, exp", [(_lazy, True), (_not_lazy, False)])
-def test_is_lazy_function(func, exp: bool):
-    """Test 'is_lazy_function' function."""
-    assert is_lazy_function(func) is exp
+from nebula.transformers import AssertNotEmpty, SelectColumns
 
 
 @pytest.mark.parametrize(
@@ -50,19 +33,12 @@ def test_extract_lazy_params():
     ns.clear()
     ns.set("key", 10)
 
-    kws = {
-        "a": _lazy,
-        "b": _not_lazy,
-        "c": (ns, "key"),
-        "d": 100,
-    }
+    kws = {"a": (ns, "key"), "b": 100}
 
     try:
         chk = extract_lazy_params(kws)
-        assert chk["a"] == "ok"
-        assert chk["b"] is _not_lazy
-        assert chk["c"] == 10
-        assert chk["d"] == 100
+        assert chk["a"] == 10
+        assert chk["b"] == 100
     finally:
         ns.clear()
 

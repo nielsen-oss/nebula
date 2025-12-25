@@ -650,7 +650,7 @@ def _run_pipeline(
         # It is useless (nothing to merge) and throws an error in 'reduce'.
         if li_df_split:
             try:
-                if obj.cast_subset_to_input_schema:
+                if obj.cast_subsets_to_input_schema:
                     li_df_split = to_schema(li_df_split, input_schema)
                 df = append_dataframes(
                     li_df_split, allow_missing_cols=obj.allow_missing_cols
@@ -710,10 +710,6 @@ def _show_pipeline(
             max_len=pipeline_config["max_len_string_param"],
         )
         ret.append((level, " - " + tf_name))
-        if hasattr(obj, "get_description"):
-            trf_desc = obj.get_description()
-            if trf_desc:
-                ret.append((level, f"     Description: {trf_desc}"))
 
     # obj is a storage request
     elif _storage_request.value > 0:
@@ -784,7 +780,7 @@ def _show_pipeline(
 
         # Splits to merge
         split_title = ""
-        if obj.cast_subset_to_input_schema:
+        if obj.cast_subsets_to_input_schema:
             split_title = "CAST EACH SPLIT TO MERGE TO THE INPUT SCHEMA AND "
         ret.append((level, split_title + "MERGE SPLITS:"))
         flag_no_split_to_merge = True
@@ -813,7 +809,6 @@ class TransformerPipeline:
             data: PipeType | dict[str, PipeType],
             *,
             name: str | None = None,
-            description: str | None = None,
             split_function: Callable | None = None,
             split_order: list[str] | None = None,
             interleaved: TransformerOrTransformerList = None,
@@ -823,7 +818,7 @@ class TransformerPipeline:
             split_apply_before_appending: TransformerOrTransformerList = None,
             splits_no_merge: str | Iterable[str] | None = None,
             splits_skip_if_empty: str | Iterable[str] | None = None,
-            cast_subset_to_input_schema: bool = False,
+            cast_subsets_to_input_schema: bool = False,
             repartition_output_to_original: bool = False,
             coalesce_output_to_original: bool = False,
             allow_missing_columns: bool = False,
@@ -864,9 +859,6 @@ class TransformerPipeline:
                 All the transformers must be initialized.
             name (str | None):
                 Name of the pipeline that will appear in the log / dag.
-                Defaults to None.
-            description (str | None):
-                Description of the pipeline that will appear in the log / dag.
                 Defaults to None.
             split_function (callable | None):
                 Function to create a split pipeline (used if 'data' is a
@@ -917,7 +909,7 @@ class TransformerPipeline:
                 subset DataFrame for the indicated splits is empty. This
                 requires an eager operation due to the use of the 'isEmpty'
                 method. Defaults to None.
-            cast_subset_to_input_schema (bool):
+            cast_subsets_to_input_schema (bool):
                 Cast each split dataframe to the input schema before the
                 splitting occurs.
                 This parameter is used only for split pipelines or when the
@@ -1061,7 +1053,6 @@ class TransformerPipeline:
         self.branch: dict[str, str] | None = None
         self.apply_to_rows: dict[str, Any] | None = None
 
-        self.description = description if description else ""
         self._pipe_type: NodeType
 
         self.name: str | None = name
@@ -1077,7 +1068,7 @@ class TransformerPipeline:
         self.repartition_output_to_original: bool = False
         self.coalesce_output_to_original: bool = False
         self.allow_missing_cols: bool = False
-        self.cast_subset_to_input_schema: bool = False
+        self.cast_subsets_to_input_schema: bool = False
 
         self.split_function: Callable | None = None
 
@@ -1100,7 +1091,7 @@ class TransformerPipeline:
             if self._pipe_type == NodeType.SPLIT_PIPELINE:
                 # They cannot be both True
                 assert_at_most_one_args(
-                    cast_subset_to_input_schema=cast_subset_to_input_schema,
+                    cast_subsets_to_input_schema=cast_subsets_to_input_schema,
                     allow_missing_columns=allow_missing_columns,
                 )
                 ensure_no_branch_or_apply_to_rows_in_split_pipeline(
@@ -1116,7 +1107,7 @@ class TransformerPipeline:
                         data = []
                     branch = None
                     otherwise = None
-                    cast_subset_to_input_schema = False
+                    cast_subsets_to_input_schema = False
                     repartition_output_to_original = False
                     coalesce_output_to_original = False
                     allow_missing_columns = False
@@ -1159,7 +1150,7 @@ class TransformerPipeline:
                     self.coalesce_output_to_original = False
                     self.allow_missing_cols = False
 
-            self.cast_subset_to_input_schema = bool(cast_subset_to_input_schema)
+            self.cast_subsets_to_input_schema = bool(cast_subsets_to_input_schema)
 
             self.splits_no_merge = self.__set_aux_splits(splits_no_merge)
             self.splits_skip_if_empty = self.__set_aux_splits(splits_skip_if_empty)
@@ -1350,20 +1341,20 @@ class TransformerPipeline:
         """Return the overall number of transformers."""
         return self._n_transformers
 
-    def show_pipeline(
-            self, split_indentation: int = 4, add_transformer_params: bool = False
+    def show(
+            self, split_indentation: int = 4, add_params: bool = False
     ) -> None:
         """Iterate through the pipeline recursively and print the transformers.
 
         Args:
             split_indentation (int):
                 Indentations for splits.
-            add_transformer_params:
+            add_params:
                 If True, add the transformer initialization parameters.
                 Default False.
         """
         ret = []
-        _show_pipeline(self, 0, ret, add_transformer_params)
+        _show_pipeline(self, 0, ret, add_params)
 
         prepend = " " * split_indentation
         for lev, name in ret:
@@ -1393,14 +1384,14 @@ class TransformerPipeline:
 
         return df_ret
 
-    def plot_dag(
-            self, add_transformer_params=False, add_transformer_description=False
+    def plot(
+            self, add_params=False, add_description=False
     ):  # pragma: no cover
         """Plot the dag using GraphViz & pyyaml."""
         from ._graphviz import create_graph
 
         return create_graph(
-            self._dag.dag, add_transformer_params, add_transformer_description
+            self._dag.dag, add_params, add_description
         )
 
 
@@ -1416,13 +1407,13 @@ if __name__ == "__main__":
         return x
 
 
-    p1a = TransformerPipeline({"s1": [], "s2": []}, split_function=_f_split, name="p1a")
+    _split_pipe = TransformerPipeline({"s1": [], "s2": []}, split_function=_f_split, name="p1a")
 
-    p1 = TransformerPipeline([p1a], name="FULL PIPELINE")
+    _wrapper_pipe = TransformerPipeline([_split_pipe], name="FULL PIPELINE")
 
     # p1.show_pipeline(add_transformer_params=True)
 
-    _li_trf = [
+    _list_trf = [
         DropColumns(columns="c3"),
         {"store": "df_x_processed"},
         {"store_debug": "df_x_processed_debug"},
@@ -1430,7 +1421,7 @@ if __name__ == "__main__":
     ]
 
     pipe_example = TransformerPipeline(
-        _li_trf,
+        _list_trf,
         interleaved=[AssertNotEmpty()],
         prepend_interleaved=True,
         append_interleaved=True,

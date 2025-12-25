@@ -4,7 +4,7 @@ These tests verify that lazy references (functions and storage keys)
 are correctly resolved at any nesting depth within parameter structures.
 """
 
-from nebula.base import nlazy, extract_lazy_params
+from nebula.base import extract_lazy_params
 from nebula.pipelines.pipeline_loader import extract_lazy_params as extract_lazy_params_text
 from nebula.storage import nebula_storage as ns
 
@@ -15,18 +15,6 @@ class TestBasePyLazyResolution:
     @staticmethod
     def setup_method():
         ns.clear()
-
-    def test_flat_lazy_function(self):
-        """Flat @nlazy function should be called."""
-
-        @nlazy
-        def get_value():
-            return 42
-
-        params = {"value": get_value}
-        result = extract_lazy_params(params)
-
-        assert result == {"value": 42}
 
     def test_flat_ns_reference(self):
         """Flat (ns, "key") should be resolved."""
@@ -99,40 +87,15 @@ class TestBasePyLazyResolution:
             ]
         }
 
-    def test_nested_lazy_function_in_dict(self):
-        """@nlazy function nested in dict should be called."""
-
-        @nlazy
-        def get_columns():
-            return ["a", "b", "c"]
-
-        params = {
-            "config": {
-                "columns": get_columns
-            }
-        }
-        result = extract_lazy_params(params)
-
-        assert result == {
-            "config": {
-                "columns": ["a", "b", "c"]
-            }
-        }
-
     def test_deeply_nested_resolution(self):
         """Lazy references at arbitrary depth should be resolved."""
         ns.set("deep_value", "found_it")
-
-        @nlazy
-        def deep_func():
-            return "func_result"
 
         params = {
             "level1": {
                 "level2": {
                     "level3": [
                         {"level4": (ns, "deep_value")},
-                        {"level4_func": deep_func}
                     ]
                 }
             }
@@ -144,7 +107,6 @@ class TestBasePyLazyResolution:
                 "level2": {
                     "level3": [
                         {"level4": "found_it"},
-                        {"level4_func": "func_result"}
                     ]
                 }
             }
@@ -168,15 +130,10 @@ class TestBasePyLazyResolution:
         ns.set("key1", "value1")
         ns.set("key2", "value2")
 
-        @nlazy
-        def get_number():
-            return 42
-
         params = {
             "static_str": "hello",
             "static_int": 123,
             "lazy_ns": (ns, "key1"),
-            "lazy_func": get_number,
             "nested": {
                 "static": True,
                 "lazy": (ns, "key2")
@@ -184,7 +141,6 @@ class TestBasePyLazyResolution:
             "list_mixed": [
                 "static",
                 (ns, "key1"),
-                get_number
             ]
         }
         result = extract_lazy_params(params)
@@ -193,16 +149,8 @@ class TestBasePyLazyResolution:
             "static_str": "hello",
             "static_int": 123,
             "lazy_ns": "value1",
-            "lazy_func": 42,
-            "nested": {
-                "static": True,
-                "lazy": "value2"
-            },
-            "list_mixed": [
-                "static",
-                "value1",
-                42
-            ]
+            "nested": {"static": True, "lazy": "value2"},
+            "list_mixed": ["static", "value1"]
         }
 
 
@@ -220,24 +168,8 @@ class TestPipelineLoaderLazyResolution:
     def test_flat_ns_string_marker(self):
         """Flat __ns__ marker should become (ns, key) tuple."""
         params = {"value": "__ns__my_key"}
-        extra_funcs = {}
-
-        result = extract_lazy_params_text(params, extra_funcs)
-
+        result = extract_lazy_params_text(params)
         assert result["value"] == (ns, "my_key")
-
-    def test_flat_fn_string_marker(self):
-        """Flat __fn__ marker should become function reference."""
-
-        def my_func():
-            return 42
-
-        params = {"value": "__fn__my_func"}
-        extra_funcs = {"my_func": my_func}
-
-        result = extract_lazy_params_text(params, extra_funcs)
-
-        assert result["value"] is my_func
 
     # -------------------------------------------------------------------------
     # Nested parameter tests (NEW behavior)
@@ -250,7 +182,7 @@ class TestPipelineLoaderLazyResolution:
                 "threshold": "__ns__threshold_key"
             }
         }
-        result = extract_lazy_params_text(params, {})
+        result = extract_lazy_params_text(params)
 
         assert result == {
             "config": {
@@ -266,57 +198,26 @@ class TestPipelineLoaderLazyResolution:
                 {"alias": "c2", "value": "__ns__dynamic_value"},
             ]
         }
-        result = extract_lazy_params_text(params, {})
+        result = extract_lazy_params_text(params)
 
         # After YAML parsing, we have (ns, key) tuples
         assert result["data"][0] == {"alias": "c1", "value": "static"}
         assert result["data"][1]["alias"] == "c2"
         assert result["data"][1]["value"] == (ns, "dynamic_value")
 
-    def test_nested_fn_in_list_of_dicts(self):
-        """__fn__ in list of dicts should become function reference."""
-
-        def my_func():
-            return "computed"
-
-        params = {
-            "data": [
-                {"alias": "c1", "value": "__fn__my_func"},
-            ]
-        }
-        result = extract_lazy_params_text(params, {"my_func": my_func})
-
-        assert result["data"][0]["alias"] == "c1"
-        assert result["data"][0]["value"] is my_func
-
     def test_deeply_nested_markers(self):
         """Markers at arbitrary depth should be converted."""
-
-        def deep_func():
-            return "deep"
 
         params = {
             "level1": {
                 "level2": [
                     {"value": "__ns__deep_key"},
-                    {"func": "__fn__deep_func"}
                 ]
             }
         }
-        result = extract_lazy_params_text(params, {"deep_func": deep_func})
+        result = extract_lazy_params_text(params)
 
         assert result["level1"]["level2"][0]["value"] == (ns, "deep_key")
-        assert result["level1"]["level2"][1]["func"] is deep_func
-
-    def test_unknown_function_raises_error(self):
-        """Unknown __fn__ reference should raise KeyError."""
-        params = {"value": "__fn__unknown_func"}
-
-        try:
-            extract_lazy_params_text(params, {})
-            assert False, "Expected KeyError to be raised"
-        except KeyError as e:
-            assert "unknown_func" in str(e)
 
     def test_static_strings_preserved(self):
         """Strings without markers should pass through unchanged."""
@@ -326,7 +227,7 @@ class TestPipelineLoaderLazyResolution:
                 "description": "some text"
             }
         }
-        result = extract_lazy_params_text(params, {})
+        result = extract_lazy_params_text(params)
 
         assert result == params
 
@@ -358,7 +259,7 @@ class TestFullLazyFlow:
         }
 
         # Step 2: Pipeline loader converts markers to tuples
-        loader_result = extract_lazy_params_text(yaml_params, {})
+        loader_result = extract_lazy_params_text(yaml_params)
 
         # Verify intermediate state
         assert loader_result["data"][1]["value"] == (ns, "runtime_value")
@@ -400,7 +301,7 @@ class TestFullLazyFlow:
         }
 
         # Pipeline loader processes
-        loaded_params = extract_lazy_params_text(yaml_params, {})
+        loaded_params = extract_lazy_params_text(yaml_params)
 
         # LazyWrapper resolves at transform time
         resolved_params = extract_lazy_params(loaded_params)

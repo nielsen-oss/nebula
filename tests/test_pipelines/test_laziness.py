@@ -3,7 +3,7 @@
 import polars as pl
 
 from nebula import nebula_storage as ns
-from nebula.base import LazyWrapper, nlazy
+from nebula.base import LazyWrapper
 from nebula.pipelines.pipeline_loader import load_pipeline
 from nebula.pipelines.pipelines import TransformerPipeline
 from nebula.transformers import AddLiterals
@@ -25,16 +25,12 @@ def _get_expected_output() -> pl.DataFrame:
         _get_df_input().unique()
         .with_columns(
             pl.lit("lazy").alias("c3"),
-            pl.lit("lazy-func").alias("c4"),
-            pl.lit("lazy-ns").alias("c5"),
+            pl.lit("lazy-ns").alias("c4"),
         )
     )
     return df
 
 
-@nlazy
-def my_func() -> str:  # mock function
-    return "lazy-func"
 
 
 def test_laziness_py():
@@ -44,11 +40,10 @@ def test_laziness_py():
     list_trf = [
         Distinct(),
         LazyWrapper(AddLiterals, data=[{"alias": "c3", "value": "lazy"}]),
-        LazyWrapper(AddLiterals, data=[{"alias": "c4", "value": my_func}]),
-        LazyWrapper(AddLiterals, data=[{"alias": "c5", "value": (ns, "my_key")}]),
+        LazyWrapper(AddLiterals, data=[{"alias": "c4", "value": (ns, "my_key")}]),
     ]
     pipe = TransformerPipeline(list_trf)
-    pipe.show_pipeline(add_transformer_params=True)
+    pipe.show(add_params=True)
 
     try:
         ns.set("my_key", "lazy-ns")
@@ -65,10 +60,9 @@ def test_laziness_yaml():
     df_input: pl.DataFrame = _get_df_input()
     data = load_yaml("laziness.yml")
 
-    pipe_kws = dict(extra_functions={"my_func": my_func},
-                    extra_transformers=[ExtraTransformers])
+    pipe_kws = dict(extra_transformers=[ExtraTransformers])
     pipe = load_pipeline(data, **pipe_kws)
-    pipe.show_pipeline(add_transformer_params=True)
+    pipe.show(add_params=True)
 
     try:
         ns.set("my_key", "lazy-ns")

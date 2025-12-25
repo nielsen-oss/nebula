@@ -302,7 +302,7 @@ class TestSparkCoalesceRepartitionToOriginal:
         n_exp = df_input_spark.rdd.getNumPartitions()
 
         pipeline = load_pipeline(data)
-        pipeline.show_pipeline()
+        pipeline.show()
 
         df_out = pipeline.run(df_input_spark)
         n_chk = df_out.rdd.getNumPartitions()

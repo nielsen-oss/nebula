@@ -24,7 +24,7 @@ def test_replace_with_stored_df(source: str):
     else:
         pipe = load_pipeline({"pipeline": store_data})
 
-    pipe.show_pipeline()
+    pipe.show()
 
     try:
         ns.set("df2", df2)
@@ -49,7 +49,7 @@ def test_store(source: str):
         ]
         pipe = load_pipeline({"pipeline": pipe_text})
 
-    pipe.show_pipeline()
+    pipe.show()
 
     try:
         df_out = pipe.run(df_input)
@@ -76,7 +76,7 @@ def test_store_debug(debug_active: bool, source: str):
         ]
         pipe = load_pipeline({"pipeline": pipe_text})
 
-    pipe.show_pipeline()
+    pipe.show()
 
     try:
         df_out = pipe.run(df_input)

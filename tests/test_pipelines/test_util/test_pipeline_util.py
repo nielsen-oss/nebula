@@ -95,7 +95,7 @@ def test_get_transformer_name(add_params, max_len, wrap_text, as_list):
         "as_list": as_list,
     }
     if add_params and wrap_text and as_list:
-        with pytest.raises(AssertionError):
+        with pytest.raises(ValueError):
             get_transformer_name(t, **kwargs)
         return
 

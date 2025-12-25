@@ -296,8 +296,8 @@ def _add_transformer_description(el) -> str:
 
 def create_graph(
         dag: list[Node | dict],
-        add_transformer_params: bool = False,
-        add_transformer_description: bool = False,
+        add_params: bool = False,
+        add_description: bool = False,
 ) -> Digraph:
     """Create the graphviz plot from the pipeline dag."""
     dot = Digraph()
@@ -312,11 +312,11 @@ def create_graph(
         msg_func = _STYLES[enum_value].get("msg_func")
 
         if msg_func is not None:
-            if enum_value == NodeType.TRANSFORMER.value and add_transformer_params:
+            if enum_value == NodeType.TRANSFORMER.value and add_params:
                 full_msg = msg_func(el, True)
                 label: str = full_msg[0]
                 label = f"<B>{label}</B><br/>"  # <br ALIGN="LEFT"/>'
-                if add_transformer_description:
+                if add_description:
                     label += _add_transformer_description(el)
                 if len(full_msg) > 1:
                     # params = "<br/>".join(full_msg[1:])  # old implementation

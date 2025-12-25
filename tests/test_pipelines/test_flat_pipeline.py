@@ -79,7 +79,7 @@ def test_pipeline_flat_list_transformers(
         append_interleaved=append_interleaved,
         name=name,
     )
-    pipe.show_pipeline()
+    pipe.show()
     df_chk = pipe.run(df_input)
     pl_assert_equal(df_chk, df_exp)
 
@@ -93,6 +93,6 @@ def test_pipeline_single_split(df_input: pl.DataFrame, split_func):
         split_function=split_func,
         name="single split",
     )
-    pipe.show_pipeline()
+    pipe.show()
     df_chk = pipe.run(df_input)
     pl_assert_equal(df_chk, df_exp)
