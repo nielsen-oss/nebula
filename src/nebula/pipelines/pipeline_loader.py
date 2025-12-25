@@ -8,7 +8,7 @@ from nebula.auxiliaries import extract_kwarg_names
 from nebula.base import LazyWrapper, Transformer
 from nebula.pipelines.loop_expansion import expand_loops
 from nebula.pipelines.pipe_aux import create_dict_extra_functions, is_keyword_request
-from nebula.pipelines.pipelines import TransformerPipeline
+from nebula.pipelines.pipeline import TransformerPipeline
 from nebula.storage import nebula_storage as ns
 
 __all__ = ["load_pipeline"]

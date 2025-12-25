@@ -1,7 +1,7 @@
 """Main module."""
 
 from nebula.pipelines.pipeline_loader import load_pipeline
-from nebula.pipelines.pipelines import TransformerPipeline
+from nebula.pipelines.pipeline import TransformerPipeline
 from nebula.storage import nebula_storage
 
 __all__ = [

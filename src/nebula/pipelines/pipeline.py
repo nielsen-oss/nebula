@@ -132,33 +132,231 @@ class TransformerPipeline:
     ):
         """Create a transformer pipeline.
         
+        A pipeline can consist of transformers or, recursively, other
+        <TransformerPipeline>.
+
+        Public functionalities:
+        - Display succinctly the pipeline flow as a log
+        - Render graphically the pipeline with 'graphviz' & 'pyyaml'
+        - Run the pipeline
+
+        The type <PipeType> can be one of the following:
+        - Transformer
+        - list(Transformer)
+        - TransformerPipeline
+        - list(TransformerPipeline)
+
         Args:
-            data: Pipeline content. Can be:
-                - A single Transformer
-                - A list of Transformers and/or functions
-                - A dict mapping split names to transformer lists
-                - A nested TransformerPipeline
-            name: Optional pipeline name for display/logging.
-            df_input_name: Name for input DataFrame in visualizations.
-            df_output_name: Name for output DataFrame in visualizations.
-            interleaved: Debug transformers to insert between steps.
-            prepend_interleaved: Insert interleaved at start.
-            append_interleaved: Insert interleaved at end.
-            split_function: Function to split DataFrame for split pipelines.
-            split_order: Execution order for splits (default: alphabetical).
-            split_apply_after_splitting: Transformers to run after split.
-            split_apply_before_appending: Transformers to run before merge.
-            splits_no_merge: Split names to exclude from merge (dead-ends).
-            splits_skip_if_empty: Skip split if input is empty.
-            branch: Branch configuration dict.
-            apply_to_rows: Apply-to-rows configuration dict.
-            otherwise: Pipeline for non-matched rows.
-            allow_missing_columns: Allow column mismatches in merge.
-            cast_subsets_to_input_schema: Cast splits to input schema.
-            repartition_output_to_original: Spark: repartition after merge.
-            coalesce_output_to_original: Spark: coalesce after merge.
-            skip: If True, create empty pipeline.
-            perform: If False, create empty pipeline.
+            data (PipeType | dict(str, PipeType)):
+                Can be one of the following:
+                - Transformer:
+                - List of Transformer
+                - TransformerPipeline
+                - List of TransformerPipeline
+                - A dictionary <str> -> all the previous types.
+                    If it is a dictionary with len > 1, the split function must
+                    be provided to create sub-pipelines.
+                All the transformers must be initialized.
+            name (str | None):
+                Name of the pipeline that will appear in the log / dag.
+                Defaults to None.
+            description (str | None):
+                Description of the pipeline that will appear in the log / dag.
+                Defaults to None.
+            split_function (callable | None):
+                Function to create a split pipeline (used if 'data' is a
+                dictionary). It must return a dictionary with the same keys as
+                'data' where each value is a subset of the original dataframe.
+                Ignored if 'data' is a dictionary of length == 1.
+                Defaults to None.
+            split_order (list(str) | None):
+                When 'split_function' is provided and 'data' contains a
+                dictionary of split pipelines, the 'split_order' allows the
+                user to choose the split execution order.
+                If not provided, they run in alphabetical order.
+                If provided, 'split_order' must contain exactly the same keys
+                listed in 'data', otherwise it throws a 'KeyError'.
+                Defaults to None.
+            interleaved (Transformer | list(Transformer) | None)
+                If specified, you can provide a Transformer or a list of
+                pre-initialized Transformers. These transformers will be
+                inserted between each of the primary transformers.
+                It's important to note that this feature is intended for
+                development and debugging purposes only, as it can
+                potentially introduce ambiguities in complex pipelines.
+                Some common transformers used for debugging include
+                'Count()' and 'LogDataSkew()'.
+                Defaults to None.
+            prepend_interleaved (bool):
+                If True, prepend the 'interleaved' transformers at the
+                beginning of the pipeline. Ignored if no 'interleaved'
+                transformers are provided. Defaults to False.
+            append_interleaved (bool):
+                If True, append the 'interleaved' transformers at the end
+                of the pipeline. Ignored if no 'interleaved' transformers
+                are provided. Defaults to False.
+            split_apply_after_splitting (Transformer | list(Transformer) | None):
+                A pipeline to be applied after the split function, before
+                executing the single split pipeline.
+                Ignored when it is a linear pipeline.
+                Defaults to None.
+            split_apply_before_appending (Transformer | list(Transformer) | None)
+                A pipeline to be applied after each split, before re-merging
+                them back. Ignored when it is a linear pipeline.
+                Defaults to None.
+            splits_no_merge (str | list(str) | None):
+                Dead-end splits that will not be merged.
+                Defaults to None.
+            splits_skip_if_empty (str | Iterable(str) | None):
+                Specify whether to skip a split sub-pipeline if the input
+                subset DataFrame for the indicated splits is empty. This
+                requires an eager operation due to the use of the 'isEmpty'
+                method. Defaults to None.
+            cast_subsets_to_input_schema (bool):
+                Cast each split dataframe to the input schema before the
+                splitting occurs.
+                This parameter is used only for split pipelines or when the
+                'apply_to_rows' dictionary is provided.
+                Defaults to False.
+            repartition_output_to_original (bool):
+                When the pipeline generates sub-pipelines during splitting,
+                the resulting number of partitions will be equal to the
+                initial number of partitions multiplied by the number of
+                splits, potentially leading to data skew. If this parameter
+                is set to True, the final dataframe will be repartitioned
+                to match the initial number of partitions.
+                This parameter is used only for split pipelines or when the
+                'apply_to_rows' dictionary is provided.
+                Defaults to False.
+            coalesce_output_to_original (bool):
+                Similar to 'repartition_output_to_original,' this function
+                performs a 'coalesce' operation instead of a repartition.
+                While it is faster, it may be less effective because it does
+                not guarantee the elimination of empty or skewed partitions.
+                This parameter is used only for split pipelines or when the
+                'apply_to_rows' dictionary is provided.
+                Defaults to False.
+            allow_missing_columns (bool):
+                The set of column names in the dataframes to append can differ;
+                missing columns will be filled with null and cast to the
+                proper types.
+                This parameter is used only for split pipelines or when the
+                'apply_to_rows' / 'branch' dictionary is provided.
+                Defaults to False.
+            branch (dict(str, str) | None):
+                Used exclusively for flat pipelines.
+                If provided, it initiates a secondary pipeline, originating
+                either from the primary dataframe, if "storage" is not
+                specified, or from a dataframe fetched from the Nebula storage
+                using the specified "storage" key.
+                At the end of the pipeline, there are three possible
+                scenarios based on the 'end' value:
+                - branch={"storage": ..., "end": "dead-end"}:
+                    the dataframe will not be merged back.
+                - branch={"storage": ..., "end": "append"}:
+                    the dataframe will be appended to the main one.
+                    To allow the union if the set of column names differ, the
+                    user can set the "allow_missing_column" parameter to True.
+                - branch={
+                        "storage": ...,
+                        "end": "join",
+                        "on": ...,
+                        "right_on": ...,
+                        "left_on": ...,
+                        "how": ...,
+                        "suffix": ...,  (for polars / narwhals)
+                        "broadcast" (bool | None): for end="join" only with spark backend
+                    }:
+                    the dataframe will be joined to the primary one using the
+                    provided 'on' and 'how' parameters.
+                    The "broadcast" parameter is intended for spark optional,
+                    with other backends it is simply ignored. In Spark, if set to
+                    True, the right dataframe (the branched one) will be
+                    broadcast before joining.
+                    Other possible key / boolean values are "skip" and "perform".
+                    branch = {
+                        ...
+                        "skip" (bool | None): If provided, it cannot be
+                            contradictory with 'perform'.
+                        "perform" (bool | None): If provided, it cannot be
+                            contradictory with 'skip'.
+                    }
+                    If the boolean parameter "skip" is set to True, the
+                    branch will be skipped.
+                    If the branch is skipped (whether because skip=True, or
+                    perform=False), only the "otherwise" pipeline (if
+                    provided) will be executed.
+                Defaults to None.
+            apply_to_rows (dict(str, any) | None):
+                Used exclusively for flat pipelines.
+                If provided, the input dataframe is split in two subsets
+                according to the provided condition. The provided
+                transformers are then applied only to the row that matches
+                the condition. The other subset remains untouched.
+                At the end of the pipeline the subsets are appended by
+                field name.
+                This <dict> parameter takes the following keys:
+                - "input_col" (necessary - str):
+                    Specifies the input column to be utilized to match
+                    the condition.
+                - operator (necessary - str):
+                    - "eq":             equal
+                    - "le":             less equal
+                    - "lt":             less than
+                    - "ge":             greater equal
+                    - "gt":             greater than
+                    - "isin":           iterable of valid values
+                    - "array_contains": has at least one instance of <value> in an array column
+                    - "contains":       has at least one instance of <value> in a string column
+                    - "startswith":     The row value starts with <value> in a string column
+                    - "endswith":       The row value ends with <value> in a string column
+                    - "between":        is between 2 values, lower and upper bound inclusive
+                    - "like":           matches a SQL LIKE pattern
+                    - "rlike":          matches a regex pattern
+                    - "isNull"          *
+                    - "isNotNull"       *
+                    - "isNaN"           *
+                    - "isNotNaN"        *
+                    * Does not require the optional "value" argument
+                    "ne" (not equal) is not allowed
+                - value (any | None):
+                    Value used for the comparison.
+                - comparison_column (str | None):
+                    Name of column to be compared with `input_col`.
+                    It must be different from 'input_col'.
+                    If 'value' is provided, this parameter must not be set.
+                - dead-end (bool | None):
+                    If True, the rows that matched the condition are not
+                    merged back. Defaults to None.
+                - skip_if_empty (bool):
+                    If True and the subset of rows that match the condition is
+                    empty, skip this branched pipeline and its final append.
+                    Default to False.
+                - skip / perform (bool | None): like in 'branch'.
+            otherwise (PipeType | dict(str, PipeType) | None):
+                A pipeline operates on the dataframe or a subset of rows that
+                are unaffected by sub-pipelines originating from either
+                ‘branch’ or ‘apply_to_rows’. This functionality applies under
+                specific conditions:
+                - For ‘branch’, it must originate from the primary dataframe
+                    (without the ‘storage’ key) and have an ‘end’
+                    different from ‘dead-end’.
+                - For ‘apply_to_rows’, the ‘dead-end’ key should not be
+                    provided or set to ‘None’ / ‘False’.
+                In all other cases or when ‘branch’ / ‘apply_to_rows’ are not
+                specified, it throws an error. Default to None.
+            df_input_name (str):
+                Name of the dataframe displayed in the visualization.
+            df_output_name (str):
+                Name of the dataframe displayed in the visualization.
+            skip (bool | None):
+                If True, skip the pipeline and return an empty one.
+                If provided, it must not contradict 'perform'.
+                Defaults to None.
+            perform (bool):
+                If False, skip the pipeline and return an empty one.
+                If provided, it must not contradict 'skip'.
+                Defaults to None.
         """
         validate_skip_perform(skip, perform)
         ensure_no_branch_or_apply_to_rows_otherwise(branch, apply_to_rows, otherwise)
