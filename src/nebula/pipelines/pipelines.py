@@ -406,7 +406,7 @@ class TransformerPipeline:
         return count
 
 
-def _example_flat_pipeline():
+def _example_flat_pipeline():  # pragma: no cover
     from nebula.transformers import SelectColumns
     import polars as pl
 
@@ -419,8 +419,9 @@ def _example_flat_pipeline():
         [SelectColumns(columns=['a']), my_function],
         # name="my_pipeline",
     )
-    # show the pipeline without running it
+    # show the pipeline without running it ...
     pipeline.show(add_params=True)
+    # ... now run it
     example_df_output = pipeline.run(example_df_input)
     print(example_df_output)
 

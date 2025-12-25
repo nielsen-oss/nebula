@@ -1,7 +1,5 @@
 """Text pipeline loader."""
 
-# noinspection PyDoctest
-
 from dataclasses import dataclass
 from types import ModuleType
 from typing import Callable
@@ -9,7 +7,7 @@ from typing import Callable
 from nebula.auxiliaries import extract_kwarg_names
 from nebula.base import LazyWrapper, Transformer
 from nebula.pipelines.loop_expansion import expand_loops
-from nebula.pipelines.pipe_aux import parse_storage_request, create_dict_extra_functions
+from nebula.pipelines.pipe_aux import create_dict_extra_functions, is_keyword_request
 from nebula.pipelines.pipelines import TransformerPipeline
 from nebula.storage import nebula_storage as ns
 
@@ -199,7 +197,7 @@ def _load_generic(o, **kwargs) -> TransformerPipeline | Transformer | dict:
         return _load_transformer(o, **kwargs)
     elif "pipeline" in o:
         return _load_pipeline(o, **kwargs)
-    elif parse_storage_request(o):
+    elif is_keyword_request(o):
         return o
     else:  # pragma: no cover
         msg = "Not understood. At this stage the loader is looking "
@@ -287,7 +285,7 @@ def _load_pipeline(o, *, extra_funcs) -> TransformerPipeline:
     if isinstance(o_pipe, dict):
         if "transformer" in o_pipe:  # split w/ a single transformer
             input_pipe_data = _load_objects([o_pipe])
-        elif parse_storage_request(o_pipe).value > 0:
+        elif is_keyword_request(o_pipe):
             input_pipe_data = o_pipe
         else:  # split pipeline
             input_pipe_data = {}
