@@ -499,7 +499,8 @@ class TestSplitPipelineEdgeCases:
 
     def test_nested_pipeline_in_split(self, df_input: pl.DataFrame):
         """Test that a nested TransformerPipeline can be used within a split."""
-        nested_pipe = TransformerPipeline([Distinct()], name="nested")
+        # 1 flat and 1 nested -> [Distinct(), [Distinct()]]
+        nested_pipe = TransformerPipeline([Distinct(), [Distinct()]], name="nested")
 
         pipe = TransformerPipeline(
             {"low": [nested_pipe], "hi": []},

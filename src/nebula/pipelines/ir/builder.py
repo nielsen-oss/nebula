@@ -16,7 +16,7 @@ from __future__ import annotations
 from copy import deepcopy
 from typing import Any, Callable, TYPE_CHECKING
 
-from nebula.pipelines.pipe_aux import is_split_pipeline
+from nebula.pipelines.pipe_aux import is_split_pipeline, sanitize_steps
 from .node_id import assign_ids_to_tree
 from .nodes import (
     PipelineNode, SequenceNode, TransformerNode, FunctionNode,
@@ -308,8 +308,10 @@ class IRBuilder:
         if not data:
             return []
 
-        # Normalize input to list
-        if not isinstance(data, (list, tuple)):
+        # Sanitize input to list
+        if isinstance(data, (list, tuple)):
+            data = sanitize_steps(data)
+        else:
             data = [data]
 
         # If no interleaved, just create nodes

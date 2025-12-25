@@ -181,8 +181,6 @@ class TransformerPipeline:
 
             if split_order:
                 assert_split_order(data, split_order)
-            else:
-                split_order = sorted(data.keys())
 
             # Normalize splits_no_merge and splits_skip_if_empty to sets
             splits_no_merge = set_split_options(data, splits_no_merge, "splits_no_merge")

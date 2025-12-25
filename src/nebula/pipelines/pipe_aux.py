@@ -566,10 +566,14 @@ def sanitize_steps(data) -> list:
             # Recurse for nested lists/tuples
             result.extend(sanitize_steps(item))
         else:
-            raise TypeError(
-                f"Invalid step in pipeline. Expected Transformer, callable, "
-                f"keyword request, or nested list. Got {type(item)}: {item}"
-            )
+            # A pipeline is accepted
+            if getattr(type(item), "__name__", None) == "TransformerPipeline":
+                result.append(item)
+            else:
+                raise TypeError(
+                    f"Invalid step in pipeline. Expected Transformer, callable, "
+                    f"keyword request, or nested list. Got {type(item)}: {item}"
+                )
 
     return result
 
