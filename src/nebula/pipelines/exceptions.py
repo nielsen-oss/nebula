@@ -4,17 +4,7 @@ from typing import NoReturn
 
 from nebula.backend_util import HAS_SPARK
 
-# FIXME: reimplement
-
-__all__ = [
-    "PipelineError",
-    "raise_pipeline_error",
-]
-
-
-class PipelineError(Exception):
-    """Base exception for Nebula pipeline errors."""
-    pass
+__all__ = ["raise_pipeline_error"]
 
 
 def _try_enhance_spark_exception(e: Exception, msg: str) -> bool:

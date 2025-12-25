@@ -7,7 +7,7 @@ The TransformerPipeline class maintains backward compatibility with
 the existing API while using the new IR-based architecture internally.
 
 Example:
-    from nebula.pipelines import TransformerPipeline
+    from nebula import TransformerPipeline
     
     pipeline = TransformerPipeline(
         [

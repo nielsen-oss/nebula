@@ -30,6 +30,7 @@ from nebula.pipelines.pipe_aux import get_native_schema, split_df, to_schema
 from nebula.storage import nebula_storage as ns
 from .context import ExecutionContext
 from .hooks import NoOpHooks, PipelineHooks
+from ..exceptions import raise_pipeline_error
 from ..ir.nodes import (
     PipelineNode, SequenceNode, TransformerNode, FunctionNode,
     StorageNode, ForkNode, MergeNode, InputNode, OutputNode,
@@ -100,9 +101,6 @@ class PipelineExecutor:
         
         Returns:
             Transformed DataFrame.
-        
-        Raises:
-            PipelineError: If execution fails with cached DataFrames.
         """
         # Track if input was native (not narwhals)
         input_was_native = not isinstance(df, (nw.DataFrame, nw.LazyFrame))
@@ -124,7 +122,13 @@ class PipelineExecutor:
         except Exception as e:
             # Handle failure - store cached DFs if any
             if ctx.fail_cache:
+                keys = [f"'{k}'" for k in sorted(ctx.fail_cache.keys())]
+                keys = ", ".join(keys)
+                msg = ("Get the dataframe(s) before the failure in the nebula "
+                       f"storage with the key(s): [{keys}]\nOriginal Error:")
                 self._store_fail_cache(ctx)
+                raise_pipeline_error(e, msg)
+
             raise e
 
         # Notify hooks
@@ -248,6 +252,9 @@ class PipelineExecutor:
         ctx.start_node(node.id)
         self.hooks.on_node_start(node, {'df': ctx.df})
 
+        # Cache for failure recovery (e.g., if split_function fails)
+        ctx.cache_for_failure(f"fork:{node.fork_type}", ctx.df)
+
         if node.config.get("cast_subsets_to_input_schema"):
             node.config["input_schema"] = get_native_schema(ctx.df)
 
@@ -266,6 +273,7 @@ class PipelineExecutor:
         else:
             raise ValueError(f"Unknown fork type: {node.fork_type}")
 
+        ctx.clear_fail_cache()
         duration = ctx.end_node(node.id)
         self.hooks.on_node_end(node, duration, {'df': ctx.df})
 
@@ -401,6 +409,7 @@ class PipelineExecutor:
             ctx.df = otherwise_df if otherwise_df is not None else original_df
 
         elif node.merge_type == 'append':
+            names = []
             dfs_to_append = []
             # Collect all DataFrames to append
             splits_no_merge = fork_config.get("splits_no_merge", set())
@@ -408,14 +417,25 @@ class PipelineExecutor:
                 if name in splits_no_merge:
                     continue
                 if df is not None:
+                    names.append(name)
                     dfs_to_append.append(df)
 
             if dfs_to_append:
+
                 if node.config.get('cast_subsets_to_input_schema'):
+                    for name, df in zip(names, dfs_to_append):
+                        ctx.cache_for_failure(f"{name}-df-before-casting:{node.merge_type}", df)
                     input_schema = fork_config["input_schema"]
                     dfs_to_append = to_schema(dfs_to_append, input_schema)
+                    # cast, clear cache
+                    ctx.clear_fail_cache()
+
+                for name, df in zip(names, dfs_to_append):
+                    ctx.cache_for_failure(f"{name}-df-before-appending:{node.merge_type}", df)
                 allow_missing = node.config.get('allow_missing_columns', False)
                 ctx.df = append_dataframes(dfs_to_append, allow_missing_cols=allow_missing)
+                # appended, clear cache
+                ctx.clear_fail_cache()
 
         elif node.merge_type == 'join':
             # Join main result with original (or otherwise)
@@ -424,6 +444,8 @@ class PipelineExecutor:
             base_df = otherwise_df if otherwise_df is not None else ctx.metadata.get('original_df', ctx.df)
 
             if main_df is not None:
+                ctx.cache_for_failure(f"join-left-df:{node.merge_type}", base_df)
+                ctx.cache_for_failure(f"join-right-df:{node.merge_type}", main_df)
                 ctx.df = join_dataframes(
                     base_df,
                     main_df,
@@ -434,16 +456,22 @@ class PipelineExecutor:
                     suffix=node.config.get('suffix'),
                     broadcast=node.config.get('broadcast', False),
                 )
+                # joined, clear the fail_cache
+                ctx.clear_fail_cache()
             else:
                 ctx.df = base_df
 
         # Run forced interleaved if set
         if self.force_interleaved is not None:
+            ctx.cache_for_failure(f"last-interleaved:{node.merge_type}", ctx.df)
             ctx.df = self.force_interleaved.transform(ctx.df)
+            # executed, clear the fail_cache
+            ctx.clear_fail_cache()
 
         if node.merge_type != 'dead-end':
             n_part_orig = fork_config.get("spark_input_partitions")
             if n_part_orig:  # 0 if backed != spark
+                ctx.cache_for_failure(f"spark-partitions:{node.merge_type}", ctx.df)
                 ctx.df = _repartition_coalesce(ctx.df, fork_config, n_part_orig)
 
         # Clear branch metadata
@@ -451,6 +479,7 @@ class PipelineExecutor:
         ctx.metadata.pop('fork_config', None)
         ctx.metadata.pop('original_df', None)
 
+        ctx.clear_fail_cache()
         duration = ctx.end_node(node.id)
         self.hooks.on_node_end(node, duration, {'df': ctx.df})
 

@@ -441,7 +441,7 @@ class TestSplitPipelineMutuallyExclusive:
             )
 
 
-def test_invalid_single_split(self, df_input: pl.DataFrame):
+def test_invalid_single_split(df_input: pl.DataFrame):
     """Ensure that single-split pipelines are rejected."""
     with pytest.raises(ValueError):
         TransformerPipeline({"x": Distinct()}, split_function=lambda x: x)
