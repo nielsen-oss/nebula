@@ -8,7 +8,7 @@ Branch creates a secondary pipeline that:
 - Merges back via: append, join, or dead-end (no merge)
 """
 
-from nebula.pipelines.pipelines import TransformerPipeline
+from nebula import TransformerPipeline
 from nebula.transformers import DropColumns, AddLiterals
 
 __all__ = [

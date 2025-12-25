@@ -2,7 +2,7 @@
 
 import pytest
 
-from nebula.pipelines.pipelines import TransformerPipeline
+from nebula import TransformerPipeline
 from nebula.transformers import SelectColumns
 
 

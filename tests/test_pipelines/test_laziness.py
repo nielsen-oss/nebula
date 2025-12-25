@@ -5,7 +5,7 @@ import polars as pl
 from nebula import nebula_storage as ns
 from nebula.base import LazyWrapper
 from nebula.pipelines.pipeline_loader import load_pipeline
-from nebula.pipelines.pipelines import TransformerPipeline
+from nebula import TransformerPipeline
 from nebula.transformers import AddLiterals
 from .auxiliaries import *
 from ..auxiliaries import pl_assert_equal

@@ -20,7 +20,7 @@ from enum import Enum, auto
 from typing import Any, Callable, Literal, TYPE_CHECKING
 
 from nebula.auxiliaries import truncate_long_string
-from nebula.pipelines.util import get_transformer_name
+from nebula.pipelines.pipe_aux import get_transformer_name
 
 if TYPE_CHECKING:
     from nebula.base import Transformer, LazyWrapper

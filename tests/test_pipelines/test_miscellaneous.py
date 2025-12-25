@@ -4,7 +4,7 @@ import polars as pl
 import pytest
 
 from nebula import nebula_storage as ns
-from nebula.pipelines.pipelines import TransformerPipeline
+from nebula import TransformerPipeline
 from nebula.transformers import SelectColumns, AssertNotEmpty, DropNulls
 from .auxiliaries import NoParentClass, CallMe
 from ..auxiliaries import pl_assert_equal

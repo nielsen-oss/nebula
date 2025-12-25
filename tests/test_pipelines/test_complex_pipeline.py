@@ -7,7 +7,7 @@ import pytest
 from nebula.base import Transformer
 from nebula.nw_util import null_cond_to_false
 from nebula.pipelines.pipeline_loader import load_pipeline
-from nebula.pipelines.pipelines import TransformerPipeline
+from nebula import TransformerPipeline
 from nebula.storage import nebula_storage as ns
 from nebula.transformers import *
 from .auxiliaries import *

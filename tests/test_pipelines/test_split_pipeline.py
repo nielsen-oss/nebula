@@ -7,7 +7,7 @@ import pytest
 from pyspark.sql import functions as F
 from pyspark.sql.types import DoubleType, StringType, StructField, StructType
 
-from nebula.pipelines.pipelines import TransformerPipeline
+from nebula import TransformerPipeline
 from nebula.storage import nebula_storage as ns
 from nebula.transformers import AddLiterals, AssertNotEmpty, Cast
 from .auxiliaries import *

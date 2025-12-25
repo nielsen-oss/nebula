@@ -3,7 +3,7 @@
 Each function returns a configured TransformerPipeline ready to run.
 """
 
-from nebula.pipelines.pipelines import TransformerPipeline
+from nebula import TransformerPipeline
 from nebula.transformers import AddLiterals
 
 __all__ = [

@@ -15,8 +15,8 @@ from typing import TYPE_CHECKING, Iterable, Any
 
 import yaml
 
-from ..util import get_transformer_name
-from ...auxiliaries import split_string_in_chunks
+from nebula.auxiliaries import split_string_in_chunks
+from nebula.pipelines.pipe_aux import get_transformer_name
 
 try:
     from graphviz import Digraph

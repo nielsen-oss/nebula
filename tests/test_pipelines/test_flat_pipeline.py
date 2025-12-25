@@ -3,7 +3,7 @@
 import polars as pl
 import pytest
 
-from nebula.pipelines.pipelines import TransformerPipeline
+from nebula import TransformerPipeline
 from nebula.transformers import *
 from ..auxiliaries import pl_assert_equal
 

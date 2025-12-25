@@ -5,7 +5,7 @@ import polars as pl
 import pytest
 
 from nebula.pipelines.pipeline_loader import load_pipeline
-from nebula.pipelines.pipelines import TransformerPipeline
+from nebula import TransformerPipeline
 from nebula.storage import nebula_storage as ns
 from nebula.transformers import DropNulls
 from ..auxiliaries import pl_assert_equal

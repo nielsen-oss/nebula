@@ -26,7 +26,7 @@ from nebula.base import Transformer
 from nebula.df_types import GenericDataFrame, is_natively_spark
 from nebula.nw_util import append_dataframes, join_dataframes
 from nebula.nw_util import df_is_empty
-from nebula.pipelines.util import to_schema, get_native_schema, split_df
+from nebula.pipelines.pipe_aux import get_native_schema, split_df, to_schema
 from nebula.storage import nebula_storage as ns
 from .context import ExecutionContext
 from .hooks import NoOpHooks, PipelineHooks
