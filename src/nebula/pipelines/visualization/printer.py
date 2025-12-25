@@ -12,6 +12,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from ..pipe_cfg import PIPE_CFG
+
 if TYPE_CHECKING:
     from ..ir.nodes import (
         PipelineNode, SequenceNode, TransformerNode, FunctionNode,
@@ -178,7 +180,7 @@ class PipelinePrinter:
         line = f"{indent} - {name}"
 
         if add_params:
-            params = node.get_params_for_print(self.max_param_length)  # FIXME: cfg
+            params = node.get_params_for_print(self.max_param_length)
             if params:
                 line += f" -> PARAMS: {params}"
 
@@ -369,5 +371,6 @@ def print_pipeline(
         add_params: If True, include transformer parameters.
         indent_size: Number of spaces per indentation level.
     """
-    printer = PipelinePrinter(ir, max_param_length=80, indent_size=indent_size)
+    max_param_length = PIPE_CFG["max_param_length"]
+    printer = PipelinePrinter(ir, max_param_length=max_param_length, indent_size=indent_size)
     printer.print(add_params=add_params)

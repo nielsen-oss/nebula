@@ -20,10 +20,9 @@ Example:
 
 from __future__ import annotations
 
-from typing import Protocol, TYPE_CHECKING
+from typing import Protocol
 
-if TYPE_CHECKING:
-    from ..ir.nodes import PipelineNode
+from ..ir.nodes import PipelineNode, StorageNode, ForkNode, TransformerNode, FunctionNode
 
 __all__ = ["PipelineHooks", "NoOpHooks", "LoggingHooks"]
 
@@ -183,8 +182,6 @@ class LoggingHooks(NoOpHooks):
         self.logger.info(f"{pre} completed in {duration_sec:.1f}s")
 
     def on_node_start(self, node: "PipelineNode", context: dict) -> None:
-        from ..ir.nodes import TransformerNode, FunctionNode, StorageNode, ForkNode  # FIXME: here?
-
         if isinstance(node, TransformerNode):
             name = f"'{node.transformer_name}'"
             if self.show_params:
@@ -207,8 +204,6 @@ class LoggingHooks(NoOpHooks):
             self.logger.info(msg)
 
     def on_node_end(self, node: "PipelineNode", duration_ms: float, context: dict) -> None:
-        from ..ir.nodes import TransformerNode, FunctionNode  # FIXME: here?
-
         if isinstance(node, (TransformerNode, FunctionNode)):
             name = node.transformer_name if isinstance(node, TransformerNode) else node.func_name
             duration_sec = duration_ms / 1000

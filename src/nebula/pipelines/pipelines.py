@@ -358,7 +358,7 @@ class TransformerPipeline:
             dot.render('pipeline', format='png')
             dot  # Display in Jupyter
         """
-        from .visualization import GraphvizRenderer, HAS_GRAPHVIZ  # FIXME: here?
+        from .visualization import GraphvizRenderer, HAS_GRAPHVIZ
 
         if not HAS_GRAPHVIZ:
             raise ImportError(
@@ -399,8 +399,6 @@ class TransformerPipeline:
         Returns:
             Count of transformer and function nodes.
         """
-        # from .ir.nodes import TransformerNode, FunctionNode  # FIXME: delete
-
         count = 0
         for node in self._ir.walk():
             if isinstance(node, (TransformerNode, FunctionNode)):

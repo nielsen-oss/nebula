@@ -30,7 +30,6 @@ from nebula.pipelines.pipe_aux import get_native_schema, split_df, to_schema
 from nebula.storage import nebula_storage as ns
 from .context import ExecutionContext
 from .hooks import NoOpHooks, PipelineHooks
-# if TYPE_CHECKING:  # FIXME: delete
 from ..ir.nodes import (
     PipelineNode, SequenceNode, TransformerNode, FunctionNode,
     StorageNode, ForkNode, MergeNode, InputNode, OutputNode,
@@ -41,10 +40,9 @@ __all__ = ["PipelineExecutor", "execute_pipeline"]
 
 def _get_n_partitions(df: "GenericDataFrame") -> int:
     """Get the number of partitions if the DF is a spark one and if requested."""
-    n = 0
     if is_natively_spark(df):
-        n = df.rdd.getNumPartitions()
-    return n
+        return df.rdd.getNumPartitions()
+    return 0
 
 
 def _repartition_coalesce(df, cfg: dict, n: int) -> "GenericDataFrame":
@@ -141,11 +139,6 @@ class PipelineExecutor:
 
     def _execute_node(self, node: "PipelineNode", ctx: ExecutionContext) -> ExecutionContext:
         """Execute a single node, dispatching to type-specific handler."""
-        # from ..ir.nodes import (  # FIXME: delete
-        #     SequenceNode, TransformerNode, FunctionNode,
-        #     StorageNode, ForkNode, MergeNode, InputNode, OutputNode,
-        # )
-
         # Check if we should skip (resume logic)
         should_skip, reason = ctx.should_skip_node(node.id)
         if should_skip:
@@ -490,7 +483,7 @@ def execute_pipeline(
         hooks: PipelineHooks | None = None,
         resume_from: str | None = None,
         **kwargs,
-) -> "GenericDataFrame":
+) -> "GenericDataFrame":  # pragma: no cover
     """Convenience function to execute a pipeline IR.
     
     Args:

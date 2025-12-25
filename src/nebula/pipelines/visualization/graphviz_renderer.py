@@ -283,7 +283,7 @@ class GraphvizRenderer:
             parent_gv_name: str | None = None,
     ) -> str | None:
         """Render a node and return its graphviz node name."""
-        from ..ir.nodes import (  # FIXME: delete?
+        from ..ir.nodes import (
             SequenceNode, TransformerNode, FunctionNode,
             StorageNode, ForkNode, MergeNode, InputNode, OutputNode)
 

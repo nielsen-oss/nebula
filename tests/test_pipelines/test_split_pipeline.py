@@ -441,19 +441,10 @@ class TestSplitPipelineMutuallyExclusive:
             )
 
 
-class TestSplitPipelineSingleSplitDictionary:
-    """Test single-split dictionary behavior."""
-
-    def test_single_split_becomes_linear(self, df_input: pl.DataFrame):
-        """Test that a single-split dictionary becomes a linear pipeline."""
-        # FIXME: wrong docstring -> changed behavior
-        # When dict has only one key, it should be treated as linear pipeline
-        # and split_function should be ignored
-        with pytest.raises(ValueError):
-            TransformerPipeline(
-                {"only": [Distinct()]},
-                split_function=None,  # Can be None for single-split
-            )
+def test_invalid_single_split(self, df_input: pl.DataFrame):
+    """Ensure that single-split pipelines are rejected."""
+    with pytest.raises(ValueError):
+        TransformerPipeline({"x": Distinct()}, split_function=lambda x: x)
 
 
 class TestSplitFunctionKeyMismatch:
