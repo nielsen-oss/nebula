@@ -160,9 +160,6 @@ class TransformerPipeline:
             name (str | None):
                 Name of the pipeline that will appear in the log / dag.
                 Defaults to None.
-            description (str | None):
-                Description of the pipeline that will appear in the log / dag.
-                Defaults to None.
             split_function (callable | None):
                 Function to create a split pipeline (used if 'data' is a
                 dictionary). It must return a dictionary with the same keys as

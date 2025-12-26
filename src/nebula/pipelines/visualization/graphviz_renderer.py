@@ -476,6 +476,11 @@ class GraphvizRenderer:
             if last_gv_name:
                 branch_end_names.append(last_gv_name)
 
+        elif node.fork_type in ('branch', 'apply_to_rows'):
+            # No otherwise branch - add direct fork-to-merge edge
+            # This shows the "pass-through" path for the original dataframe
+            branch_end_names.append(fork_gv_name)
+
         # Store branch ends in metadata for merge node connection
         node.metadata['_branch_end_names'] = branch_end_names
 
@@ -606,12 +611,12 @@ def render_pipeline(
         add_description: bool = False,
 ) -> "Digraph":
     """Convenience function to render a pipeline IR.
-    
+
     Args:
         ir: The pipeline IR root node.
         add_params: If True, include transformer parameters.
         add_description: If True, include transformer descriptions.
-    
+
     Returns:
         Graphviz Digraph object.
     """

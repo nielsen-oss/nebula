@@ -34,7 +34,8 @@ def assert_apply_to_rows_inputs(o: dict[str, str | bool | None]) -> None:
         "apply_to_rows",
         o,
         mandatory={"input_col", "operator"},
-        optional={"value", "comparison_column", "dead-end", "skip_if_empty"}
+        optional={"value", "comparison_column", "dead-end",
+                  "skip_if_empty", "skip", "perform"}
     )
 
     value = o.get("value")
