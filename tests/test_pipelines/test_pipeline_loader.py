@@ -55,12 +55,14 @@ def test_pipeline_loader_list_tuple():
     pd.testing.assert_frame_equal(df_input, pipe_tuple.run(df_input))
 
 
-def test_extra_transformers():
+@pytest.mark.parametrize("extra_transformers",
+                         [ExtraTransformers, DICT_EXTRA_TRANSFORMERS])
+def test_extra_transformers(extra_transformers):
     df = pl.DataFrame({"a": [1, 1, 2]})
 
     pipe = load_pipeline(
         [{"transformer": "Distinct"}],
-        extra_transformers=[ExtraTransformers]
+        extra_transformers=[extra_transformers]
     )
     df_chk = pipe.run(df)
     df_exp = df.unique()

@@ -40,11 +40,11 @@ _NOT_ALLOWED_SPLIT_NAMES.update(_kws_pipeline)
 _allowed_kws_pipeline = {"pipeline", "data"}.union(_kws_pipeline)
 
 _MSG_ERR_EXTRA_TRANSFORMER = """
-If "extra_transformers" is provided it must be a <list> | <tuple> of python
-modules or dataclasses where each attribute match the corresponding
-transformer name.
+If "extra_transformers" is provided it must be a <dict<str, Transformer>>
+ or a <list/tuple<ModuleType | DataClass>> where each
+attribute match the corresponding transformer name.
 
-E.g.:
+E.g. with ModuleType and DataClass:
 ********************************************************************************
 from dataclasses import dataclass
 from my_libray import my_transformer_module
@@ -62,14 +62,41 @@ load_pipeline(..., extra_transformers=[my_transformer_module, ExtraTransformers]
 ********************************************************************************
 """
 
-_cache = {}
+_native_transformers: dict[str, type] = {}
+_full_transformers: dict[str, type] = {}
 
 
-def _cache_transformer_packages(ext_transformers: list | None):
-    """Create a list of transformer packages w/ the right priority."""
-    from nebula import transformers as nebula_transformers
+def _cache_transformers(container) -> dict[str, type]:
+    from nebula.pipelines.transformer_type_util import is_transformer
+    ret = {}
+    for name in dir(container):
+        obj = getattr(container, name)
+        if is_transformer(obj):
+            ret[name] = obj
+    return ret
 
-    _cache["transformer_packages"] = (ext_transformers or []) + [nebula_transformers]
+
+def __load_native():
+    if not _native_transformers:
+        from nebula import transformers as nebula_transformers
+        _native_transformers.update(_cache_transformers(nebula_transformers))
+
+
+def _cache_transformer_packages(ext_transformers: list | dict | None):
+    """Load the transformers with the right priority."""
+    __load_native()
+    _full_transformers.clear()
+    _full_transformers.update(_native_transformers)
+
+    if not ext_transformers:
+        return
+
+    if isinstance(ext_transformers, dict):
+        _full_transformers.update(ext_transformers)
+        return
+
+    for container in ext_transformers[::-1]:  # reverse for priority
+        _full_transformers.update(_cache_transformers(container))
 
 
 def _resolve_lazy_string_marker(obj):
@@ -156,7 +183,7 @@ def extract_lazy_params(input_params: dict) -> dict:
     return _resolve_lazy_string_marker(input_params)
 
 
-def _load_transformer(d: dict, **kwargs) -> Transformer | None:
+def _load_transformer(d: dict) -> Transformer | None:
     if d.get("skip") or (d.get("perform") is False):
         return None
     name: str = d["transformer"]
@@ -168,12 +195,9 @@ def _load_transformer(d: dict, **kwargs) -> Transformer | None:
         params = {}
 
     # Iterate through the packages and stop as soon as the transformer is found.
-    for pkg in _cache["transformer_packages"]:
-        if hasattr(pkg, name):
-            t = getattr(pkg, name)
-            break
-    else:
-        searched = [pkg.__name__ for pkg in _cache["transformer_packages"]]
+    t = _full_transformers.get(name)
+    if t is None:
+        searched = sorted(_full_transformers)
         raise NameError(f'Unknown transformer "{name}". Searched: {searched}')
 
     try:
@@ -194,7 +218,7 @@ def _load_transformer(d: dict, **kwargs) -> Transformer | None:
 
 def _load_generic(o, **kwargs) -> TransformerPipeline | Transformer | dict:
     if "transformer" in o:
-        return _load_transformer(o, **kwargs)
+        return _load_transformer(o)
     elif "pipeline" in o:
         return _load_pipeline(o, **kwargs)
     elif is_keyword_request(o):
@@ -346,7 +370,7 @@ def load_pipeline(
         o: dict | list | tuple,
         *,
         extra_functions: Callable | list[Callable] | dict[str, Callable] | None = None,
-        extra_transformers: list[ModuleType] | list[dataclass] | None = None,
+        extra_transformers: list[ModuleType] | list[dataclass] | dict | None = None,
         evaluate_loops: bool = True,
 ) -> TransformerPipeline:
     """Load a Nebula pipeline object starting from a dictionary.
@@ -362,9 +386,10 @@ def load_pipeline(
             Alternatively, use a dictionary format (e.g.,
             {"split_1": func_1, "split_2": func_2}), where keys must match
             the split pipeline names.
-        extra_transformers (list(python module) | None):
-            User modules containing transformers, ordered from highest to
-            lowest priority.
+        extra_transformers (list(python module) | list(dataclass) | dict(str, T) | None):
+            Custom transformers, if passed al list of module | dataclasses,
+            they must be ordered from highest to lowest priority in case
+            duplicated name.
         evaluate_loops (bool):
             If `True`, the parser will search for and evaluate for-loops within
             the pipelines. This is the safest option, and if no loops are present,
@@ -407,7 +432,7 @@ def load_pipeline(
 
     # Check & load the external transformer packages if needed.
     if extra_transformers is not None:
-        if not isinstance(extra_transformers, (list, tuple)):
+        if not isinstance(extra_transformers, (list, tuple, dict)):
             raise TypeError(_MSG_ERR_EXTRA_TRANSFORMER)
 
     _cache_transformer_packages(extra_transformers)

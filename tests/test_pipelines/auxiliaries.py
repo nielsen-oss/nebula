@@ -19,6 +19,7 @@ __all__ = [
     "RoundValues",
     "ThisTransformerIsBroken",
     "ExtraTransformers",  # DataClass
+    "DICT_EXTRA_TRANSFORMERS",  # dictionary
 ]
 
 _this_path = Path(os.path.dirname(os.path.realpath(__file__)))
@@ -96,6 +97,15 @@ class ExtraTransformers:
     Distinct = Distinct
     RoundValues = RoundValues
     ThisTransformerIsBroken = ThisTransformerIsBroken
+
+
+DICT_EXTRA_TRANSFORMERS: dict[str, type] = {
+    "AddOne": AddOne,
+    "CallMe": CallMe,
+    "Distinct": Distinct,
+    "RoundValues": RoundValues,
+    "ThisTransformerIsBroken": ThisTransformerIsBroken,
+}
 
 
 def load_yaml(path) -> dict:
