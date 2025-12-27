@@ -40,8 +40,7 @@ jobs:
       - name: Install dependencies (no Spark)
         run: |
           pip install --upgrade pip
-          pip install pandas polars pytest pytest-cov
-          pip install -e .
+          pip install -e ".[dev]"
 
       - name: Run tests (pandas & polars only)
         env:
