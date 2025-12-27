@@ -16,18 +16,14 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Install linting tools
-        run: |
-          pip install black ruff
+      - name: Install pre-commit
+        run: pip install pre-commit
 
-      - name: Check formatting
-        run: black . --check
+      - name: Run pre-commit hooks
+        run: pre-commit run --all-files
 
-      - name: Lint with ruff
-        run: ruff check .
-
-  test-quick:
-    name: Core Tests (Python ${{ matrix.python-version }})
+  test:
+    name: Test (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -41,17 +37,20 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Install dependencies (no Spark)
+      - name: Install Java (for Spark)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '11'
+
+      - name: Install dependencies
         run: |
           pip install --upgrade pip
           pip install -e ".[dev]"
 
-      - name: Run tests without Spark
-        env:
-          TESTS_NO_SPARK: "true"
+      - name: Run all tests
         run: |
-          pytest tests/ \
-            --ignore=tests/*spark* \
+          pytest -v \
             --cov=nebula \
             --cov-report=xml \
             --cov-report=term
@@ -61,44 +60,5 @@ jobs:
         with:
           file: ./coverage.xml
           flags: python-${{ matrix.python-version }}
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-
-  test-spark:
-    name: Spark Tests
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.10'
-
-      - name: Install Java (for Spark)
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '11'
-
-      - name: Install dependencies with Spark
-        run: |
-          pip install --upgrade pip
-          pip install pyspark==3.5.6
-          pip install -e ".[dev]"
-
-      - name: Run Spark tests
-        run: |
-          pytest tests/ -k spark -v \
-            --cov=nebula \
-            --cov-report=xml \
-            --cov-report=term
-
-      - name: Upload Spark coverage
-        uses: codecov/codecov-action@v4
-        with:
-          file: ./coverage.xml
-          flags: spark
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
