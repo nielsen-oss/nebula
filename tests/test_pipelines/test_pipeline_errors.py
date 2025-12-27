@@ -196,3 +196,17 @@ class TestCacheToNebulaStorage:
             dict_df_exp["hi"].drop("c3")
         )
         ns.clear()
+
+    def test_interleaved(self, df_input):
+        ns.clear()
+        pipe = TransformerPipeline(
+            [CallMe(), SelectColumns(glob="*"), CallMe()],
+            interleaved=[ThisTransformerIsBroken()]
+        )
+        with pytest.raises(ValueError):
+            pipe.run(df_input)
+
+        assert ns.get("_call_me_") == 1
+        df_cached = ns.get("FAIL_DF_transformer:ThisTransformerIsBroken")
+        pl_assert_equal(df_input, df_cached)
+        ns.clear()

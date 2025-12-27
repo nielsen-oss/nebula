@@ -3,10 +3,10 @@
 import polars as pl
 import pytest
 
-from nebula import nebula_storage as ns
 from nebula import TransformerPipeline
+from nebula import nebula_storage as ns
 from nebula.transformers import SelectColumns, AssertNotEmpty, DropNulls
-from .auxiliaries import NoParentClass, CallMe
+from .auxiliaries import NoParentClass, CallMe, ThisTransformerIsBroken
 from ..auxiliaries import pl_assert_equal
 
 
@@ -47,3 +47,13 @@ def test_forced_transformer(df_input):
     ns.clear()
 
     pl_assert_equal(df_chk, df_input)
+
+
+def test_skip_pipeline(df_input):
+    """Ensure the skipped pipeline is not executed."""
+    pipe_1 = TransformerPipeline(SelectColumns(glob="c*"))
+    pipe_2 = TransformerPipeline(ThisTransformerIsBroken, skip=True)
+    pipe = TransformerPipeline([pipe_1, pipe_2])
+    pipe.show(add_params=True)
+    df_chk = pipe.run(df_input, force_interleaved_transformer=CallMe())
+    pl_assert_equal(df_chk, df_input.drop("idx"))

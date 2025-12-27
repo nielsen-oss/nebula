@@ -168,7 +168,7 @@ class PipelineExecutor:
             return self._execute_input(node, ctx)
         elif isinstance(node, OutputNode):
             return self._execute_output(node, ctx)
-        else:
+        else:  # pragma: no cover
             raise TypeError(f"Unknown node type: {type(node)}")
 
     def _execute_sequence(self, node: "SequenceNode", ctx: ExecutionContext) -> ExecutionContext:
@@ -272,7 +272,7 @@ class PipelineExecutor:
             ctx = self._execute_branch_fork(node, ctx)
         elif node.fork_type == 'apply_to_rows':
             ctx = self._execute_apply_to_rows_fork(node, ctx)
-        else:
+        else:  # pragma: no cover
             raise ValueError(f"Unknown fork type: {node.fork_type}")
 
         ctx.clear_fail_cache()
@@ -445,23 +445,20 @@ class PipelineExecutor:
             otherwise_df = branch_results.get('otherwise')
             base_df = otherwise_df if otherwise_df is not None else ctx.metadata.get('original_df', ctx.df)
 
-            if main_df is not None:
-                ctx.cache_for_failure(f"join-left-df:{node.merge_type}", base_df)
-                ctx.cache_for_failure(f"join-right-df:{node.merge_type}", main_df)
-                ctx.df = join_dataframes(
-                    base_df,
-                    main_df,
-                    how=node.config.get('how', 'inner'),
-                    on=node.config.get('on'),
-                    left_on=node.config.get('left_on'),
-                    right_on=node.config.get('right_on'),
-                    suffix=node.config.get('suffix'),
-                    broadcast=node.config.get('broadcast', False),
-                )
-                # joined, clear the fail_cache
-                ctx.clear_fail_cache()
-            else:
-                ctx.df = base_df
+            ctx.cache_for_failure(f"join-left-df:{node.merge_type}", base_df)
+            ctx.cache_for_failure(f"join-right-df:{node.merge_type}", main_df)
+            ctx.df = join_dataframes(
+                base_df,
+                main_df,
+                how=node.config.get('how', 'inner'),
+                on=node.config.get('on'),
+                left_on=node.config.get('left_on'),
+                right_on=node.config.get('right_on'),
+                suffix=node.config.get('suffix'),
+                broadcast=node.config.get('broadcast', False),
+            )
+            # joined, clear the fail_cache
+            ctx.clear_fail_cache()
 
         # Run forced interleaved if set
         if self.force_interleaved is not None:

@@ -8,6 +8,7 @@ Tests the apply_to_rows feature which:
 """
 import os
 
+import narwhals as nw
 import numpy as np
 import polars as pl
 import pytest
@@ -15,6 +16,7 @@ import pytest
 from nebula import load_pipeline
 from nebula.storage import nebula_storage as ns
 from .apply_to_rows_configs import *
+from .auxiliaries import CallMe
 from ..auxiliaries import pl_assert_equal
 
 
@@ -42,7 +44,9 @@ class TestApplyToRowsBasic:
     def test_transforms_matching_rows_only(self, df_input):
         """Rows where idx > 5 get modified, others pass through unchanged."""
         pipe = pipe_apply_to_rows_basic()
-        df_out = pipe.run(df_input)
+        df_out = pipe.run(df_input, show_params=True, force_interleaved_transformer=CallMe())
+
+        assert ns.get("_call_me_") == 2
 
         # Matching rows (idx > 5) should have c1 = "modified"
         df_matched = df_out.filter(pl.col("idx") > 5)
@@ -166,8 +170,9 @@ class TestSparkCoalesceRepartitionToOriginal:
         data = np.arange(100).reshape(-1, 1).tolist()
         return spark.createDataFrame(data, schema=StructType(fields)).coalesce(2)
 
+    @pytest.mark.parametrize("to_nw", (True, False))
     @pytest.mark.parametrize("repartition, coalesce", ([True, False], [False, True]))
-    def test(self, df_input_spark, repartition: bool, coalesce: bool):
+    def test(self, df_input_spark, to_nw: bool, repartition: bool, coalesce: bool):
         ns.clear()
         data = {
             "pipeline": [
@@ -193,7 +198,7 @@ class TestSparkCoalesceRepartitionToOriginal:
         pipeline = load_pipeline(data)
         pipeline.show(add_params=True)
 
-        df_out = pipeline.run(df_input_spark)
+        df_out = pipeline.run(nw.from_native(df_input_spark) if to_nw else df_input_spark)
         n_chk = df_out.rdd.getNumPartitions()
         assert n_chk == n_exp
 

@@ -36,7 +36,7 @@ def _check_backend(module_name: str, min_version: str) -> BackendInfo:
         version = mod.__version__
         meets_min = _parse_version(version) >= _parse_version(min_version)
         return BackendInfo(available=True, version=version, meets_minimum=meets_min)
-    except ImportError:
+    except ImportError:  # pragma: no cover
         return BackendInfo(available=False, version=None, meets_minimum=False)
 
 
