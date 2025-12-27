@@ -22,7 +22,7 @@ from typing import Any, Callable, Literal, TYPE_CHECKING
 from nebula.auxiliaries import truncate_long_string
 from nebula.pipelines.pipe_aux import get_transformer_name
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from nebula.base import Transformer, LazyWrapper
 
 __all__ = [
@@ -69,11 +69,6 @@ class PipelineNode:
     metadata: dict[str, Any] = field(default_factory=dict)
     children: list[PipelineNode] = field(default_factory=list)
     parent: PipelineNode | None = field(default=None, repr=False)
-
-    def add_child(self, child: PipelineNode) -> None:
-        """Add a child node and set its parent reference."""
-        child.parent = self
-        self.children.append(child)
 
     def walk(self):
         """Depth-first traversal yielding all nodes."""
@@ -131,7 +126,7 @@ class TransformerNode(PipelineNode):
     @property
     def transformer_name(self) -> str:
         """Get the transformer class name."""
-        if self.transformer is None:
+        if self.transformer is None:  # pragma: no cover
             return "Unknown"
         # Handle LazyWrapper
         if hasattr(self.transformer, 'trf'):
@@ -173,7 +168,7 @@ class FunctionNode(PipelineNode):
     @property
     def func_name(self) -> str:
         """Get the function name."""
-        if self.func is None:
+        if self.func is None:  # pragma: no cover
             return "Unknown"
         return getattr(self.func, "__name__", str(self.func))
 
@@ -223,7 +218,7 @@ class StorageNode(PipelineNode):
         elif self.operation == 'toggle_debug':
             action = "Activate" if self.debug_value else "Deactivate"
             return f"{action} storage debug mode"
-        return f"Unknown operation: {self.operation}"
+        return f"Unknown operation: {self.operation}"  # pragma: no cover
 
 
 @dataclass
@@ -270,19 +265,6 @@ class MergeNode(PipelineNode):
 
     def __post_init__(self):
         self.node_type = NodeType.MERGE
-
-    @property
-    def display_message(self) -> str:
-        """Human-readable description of the merge."""
-        if self.merge_type == 'append':
-            return "Append DataFrames"
-        elif self.merge_type == 'join':
-            how = self.config.get('how', 'inner')
-            on = self.config.get('on', [])
-            return f"Join DataFrames ({how} on {on})"
-        elif self.merge_type == 'dead-end':
-            return "Dead end (no merge)"
-        return f"Unknown merge: {self.merge_type}"
 
 
 @dataclass

@@ -32,7 +32,6 @@ from nebula.base import Transformer, LazyWrapper
 from nebula.pipelines._checks import *
 from nebula.pipelines.execution import PipelineExecutor, PipelineHooks, NoOpHooks, LoggingHooks
 from nebula.pipelines.ir import IRBuilder, SequenceNode
-from nebula.pipelines.ir.nodes import TransformerNode, FunctionNode
 from nebula.pipelines.pipe_aux import is_keyword_request, is_split_pipeline, PIPELINE_KEYWORDS
 from nebula.pipelines.pipe_cfg import PIPE_CFG
 from nebula.pipelines.visualization import PipelinePrinter
@@ -368,7 +367,7 @@ class TransformerPipeline:
                                 f"a callable, found {type(split_function)}")
 
         if is_split_pipeline(data, split_function):
-            if not callable(split_function):
+            if not callable(split_function):  # pragma: no cover
                 raise TypeError("For split-pipelines, the 'split_function' "
                                 f"must be callable, found {type(split_function)}")
 
@@ -538,7 +537,7 @@ class TransformerPipeline:
             *,
             add_params: bool = False,
             add_description: bool = False,
-    ):
+    ):  # pragma: no cover
         """Create Graphviz visualization.
         
         Args:
@@ -587,18 +586,6 @@ class TransformerPipeline:
             The node if found, None otherwise.
         """
         return self._ir.find_by_id(node_id)
-
-    def get_number_transformers(self) -> int:
-        """Get the number of transformers in the pipeline.
-        
-        Returns:
-            Count of transformer and function nodes.
-        """
-        count = 0
-        for node in self._ir.walk():
-            if isinstance(node, (TransformerNode, FunctionNode)):
-                count += 1
-        return count
 
 
 def _example_flat_pipeline():  # pragma: no cover

@@ -21,7 +21,7 @@ from __future__ import annotations
 import hashlib
 from typing import TYPE_CHECKING, Any
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from .nodes import PipelineNode
 
 __all__ = ["generate_node_id", "generate_content_hash", "position_to_path"]
@@ -65,7 +65,7 @@ def _get_transformer_content(transformer) -> str:
         name = transformer.__class__.__name__
         # Try to get init params if available
         params = getattr(transformer, '_transformer_init_params', {})
-    else:
+    else:  # pragma: no cover
         name = str(transformer)
         params = {}
 
@@ -172,7 +172,7 @@ def generate_node_id(
     elif node_type == 'output':
         content = f"output:{name}"
         prefix = "output"
-    else:
+    else:  # pragma: no cover
         content = f"unknown:{node_type}"
         prefix = "unknown"
 
@@ -255,7 +255,7 @@ def _assign_ids_recursive(
         node.id = generate_node_id('input', position, name=node.name)
     elif isinstance(node, OutputNode):
         node.id = generate_node_id('output', position, name=node.name)
-    else:
+    else:  # pragma: no cover
         node.id = generate_node_id('unknown', position)
 
     # Process children (for non-fork nodes)

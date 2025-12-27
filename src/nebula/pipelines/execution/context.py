@@ -12,10 +12,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from time import perf_counter_ns
-from typing import Any, TYPE_CHECKING
-
-if TYPE_CHECKING:
-    pass
+from typing import Any
 
 __all__ = ["ExecutionContext"]
 

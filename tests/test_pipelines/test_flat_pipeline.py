@@ -119,6 +119,7 @@ def test_pipeline_nested_list_transformers(df_input: pl.DataFrame):
         [(AssertNotEmpty(), "Ensure the DF is not empty"), AssertNotEmpty(), {"store": "this_key"}]
     ])
     pipe.show(add_params=True)
+    pipe.to_string(add_params=True)
     df_chk = pipe.run(df_input, show_params=True)
     pl_assert_equal(df_chk, df_exp, sort=["idx"])
     pl_assert_equal(ns.get("this_key"), df_exp, sort=["idx"])

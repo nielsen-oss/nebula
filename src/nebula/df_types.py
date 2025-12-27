@@ -110,12 +110,12 @@ def get_dataframe_type(df) -> str:
     )
 
 
-def is_natively_spark(df) -> bool:
+def is_natively_spark(df) -> tuple[bool, "GenericDataFrame"]:
     if HAS_SPARK:
         if isinstance(df, (nw.DataFrame, nw.LazyFrame)):
             df_native = nw.to_native(df)
         else:
             df_native = df
 
-        return get_dataframe_type(df_native) == "spark"
-    return False  # pragma: no cover
+        return get_dataframe_type(df_native) == "spark", df_native
+    return False, df  # pragma: no cover

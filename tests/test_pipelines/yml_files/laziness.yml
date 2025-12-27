@@ -14,3 +14,4 @@ pipeline:
     params:
       data:
         - { "value": "__ns__my_key", "alias": "c4" }
+        - { "value": "__ns__my_key2", "alias": "c5" }

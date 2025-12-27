@@ -41,7 +41,8 @@ __all__ = ["PipelineExecutor", "execute_pipeline"]
 
 def _get_n_partitions(df: "GenericDataFrame") -> int:
     """Get the number of partitions if the DF is a spark one and if requested."""
-    if is_natively_spark(df):
+    is_spark, df = is_natively_spark(df)
+    if is_spark:
         return df.rdd.getNumPartitions()
     return 0
 

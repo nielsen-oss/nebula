@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING
 
 from ..pipe_cfg import PIPE_CFG
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from ..ir.nodes import (
         PipelineNode, SequenceNode, TransformerNode, FunctionNode,
         StorageNode, ForkNode, MergeNode,

@@ -10,10 +10,13 @@ __all__ = [
     "pipe_apply_to_rows_basic",
     "pipe_apply_to_rows_dead_end",
     "pipe_apply_to_rows_otherwise",
+    "pipe_apply_to_rows_skip",
     "pipe_apply_to_rows_skip_if_empty",
     "pipe_apply_to_rows_comparison_column",
     "pipe_apply_to_rows_missing_cols_error",
 ]
+
+from tests.test_pipelines.auxiliaries import ThisTransformerIsBroken
 
 
 def pipe_apply_to_rows_basic() -> TransformerPipeline:
@@ -63,6 +66,23 @@ def pipe_apply_to_rows_otherwise() -> TransformerPipeline:
             "value": 5,
         },
         otherwise=AddLiterals(data=[{"value": "not_matched", "alias": "c1"}]),
+    )
+
+
+def pipe_apply_to_rows_skip() -> TransformerPipeline:
+    """Skip the branch entirely.
+
+    Uses idx > -100 which matches everything and an invalid transformer, so
+    the pipeline is skipped and the output equals the input unchanged.
+    """
+    return TransformerPipeline(
+        [ThisTransformerIsBroken()],
+        apply_to_rows={
+            "skip": True,
+            "input_col": "idx",
+            "operator": "gt",
+            "value": -100,
+        },
     )
 
 

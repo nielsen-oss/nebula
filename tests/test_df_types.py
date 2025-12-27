@@ -42,10 +42,10 @@ class TestIsNativelySpark:
     @pytest.mark.skipif(os.environ.get("TESTS_NO_SPARK") == "true", reason="no spark")
     def test_is_spark(self, df_input, to_nw):
         df_input = nw.from_native(df_input) if to_nw else df_input
-        assert is_natively_spark(df_input)
+        assert is_natively_spark(df_input)[0]
 
     @staticmethod
     def test_is_not_spark(to_nw):
         df_input = pd.DataFrame({"a": [1], "b": [2.0]})
         df_input = nw.from_native(df_input) if to_nw else df_input
-        assert not is_natively_spark(df_input)
+        assert not is_natively_spark(df_input)[0]

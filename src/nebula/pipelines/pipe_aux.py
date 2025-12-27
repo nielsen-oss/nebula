@@ -1,6 +1,5 @@
 """Auxiliaries module for pipelines."""
 
-from types import FunctionType
 from typing import Callable
 
 import narwhals as nw
@@ -233,9 +232,6 @@ def replace_params_references(obj):
     # Check for ns lazy request FIRST (before generic list/tuple handling)
     if is_ns_lazy_request(obj):
         return f'ns.get("{obj[1]}")'
-
-    if isinstance(obj, FunctionType):
-        return obj.__name__
 
     # Recurse into dictionaries
     if isinstance(obj, dict):

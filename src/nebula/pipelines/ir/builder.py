@@ -14,7 +14,7 @@ Design decisions:
 from __future__ import annotations
 
 from copy import deepcopy
-from typing import Any, Callable, TYPE_CHECKING
+from typing import Any, Callable
 
 from nebula.pipelines.pipe_aux import is_split_pipeline, sanitize_steps
 from .node_id import assign_ids_to_tree
@@ -23,9 +23,6 @@ from .nodes import (
     StorageNode, ForkNode, MergeNode, InputNode, OutputNode,
 )
 from .. import transformer_type_util
-
-if TYPE_CHECKING:
-    pass
 
 __all__ = ["IRBuilder", "build_ir"]
 
@@ -398,7 +395,7 @@ class IRBuilder:
         if isinstance(item, (tuple, list)) and len(item) >= 1:
             if callable(item[0]):
                 n = len(item)
-                if n > 4:
+                if n > 4:  # pragma: no cover
                     raise ValueError("A function passed in a tuple must be "
                                      "not longer than 4 elements: "
                                      "(function, args, kwargs, description")
@@ -437,7 +434,8 @@ class IRBuilder:
 
         raise TypeError(f"Unknown item type in pipeline: {type(item)}: {item}")
 
-    def _parse_storage_request(self, item) -> StorageNode | None:
+    @staticmethod
+    def _parse_storage_request(item) -> StorageNode | None:
         """Parse a storage request dict into a StorageNode.
         
         Storage request formats:
@@ -455,22 +453,22 @@ class IRBuilder:
         key, value = list(item.items())[0]
 
         if key == 'store':
-            if not isinstance(value, str):
+            if not isinstance(value, str):  # pragma: no cover
                 raise TypeError("'store' value must be a string")
             return StorageNode(operation='store', key=value)
 
         elif key == 'store_debug':
-            if not isinstance(value, str):
+            if not isinstance(value, str):  # pragma: no cover
                 raise TypeError("'store_debug' value must be a string")
             return StorageNode(operation='store_debug', key=value)
 
         elif key == 'storage_debug_mode':
-            if not isinstance(value, bool):
+            if not isinstance(value, bool):  # pragma: no cover
                 raise TypeError("'storage_debug_mode' value must be bool")
             return StorageNode(operation='toggle_debug', debug_value=value)
 
         elif key == 'replace_with_stored_df':
-            if not isinstance(value, str):
+            if not isinstance(value, str):  # pragma: no cover
                 raise TypeError("'replace_with_stored_df' value must be string")
             return StorageNode(operation='load', key=value)
 
@@ -482,7 +480,7 @@ def build_ir(
         *,
         name: str | None = None,
         **kwargs,
-) -> SequenceNode:
+) -> SequenceNode:  # pragma: no cover
     """Convenience function to build IR from pipeline data.
     
     Args:

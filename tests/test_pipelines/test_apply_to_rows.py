@@ -117,6 +117,20 @@ class TestApplyToRowsOtherwise:
         pl_assert_equal(df_out, df_exp, sort=["idx"])
 
 
+class TestApplyToRowsSkip:
+    """Tests for skip behavior."""
+
+    def test_skip(self, df_input):
+        """Test when skip = True."""
+        pipe = pipe_apply_to_rows_skip()
+        pipe.show(add_params=True)
+        df_out = pipe.run(df_input, show_params=True)
+        pl_assert_equal(df_out, df_input)
+
+        # Should be identical to input
+        assert df_out.sort("idx").equals(df_input.sort("idx"))
+
+
 class TestApplyToRowsSkipIfEmpty:
     """Tests for skip_if_empty behavior."""
 
