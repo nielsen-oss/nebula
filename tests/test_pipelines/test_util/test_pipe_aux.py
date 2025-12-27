@@ -313,6 +313,47 @@ def test_create_dict_extra_functions_error(o):
         create_dict_extra_functions(o)
 
 
+@pytest.mark.parametrize("to_nw", [True, False])
+class TestGetNativeSchema:
+
+    def test_pandas(self, to_nw: bool):
+        df = pd.DataFrame({"a": [1, 2], "b": ["x", "y"]})
+        if to_nw:
+            df = nw.from_native(df)
+
+        sch = get_native_schema(df)
+
+        assert isinstance(sch, dict)
+        assert set(sch.keys()) == {"a", "b"}
+        assert "int" in str(sch["a"]).lower()
+
+    def test_polars(self, to_nw: bool):
+        df = pl.DataFrame({"a": [1, 2], "b": ["x", "y"]})
+        if to_nw:
+            df = nw.from_native(df)
+
+        sch = get_native_schema(df)
+
+        assert isinstance(sch, dict)
+        assert set(sch.keys()) == {"a", "b"}
+        assert sch["a"] == pl.Int64
+        assert sch["b"] == pl.String
+
+    @pytest.mark.skipif(os.environ.get("TESTS_NO_SPARK") == "true", reason="no spark")
+    def test_spark(self, spark, to_nw: bool):
+        df = spark.createDataFrame([("a", "x"), ("b", "y")], ["a", "b"])
+        if to_nw:
+            df = nw.from_native(df)
+
+        sch = get_native_schema(df)
+
+        assert hasattr(sch, "fields")
+        field_names = [f.name for f in sch.fields]
+        assert set(field_names) == {"a", "b"}
+        assert isinstance(sch["a"].dataType, StringType)
+        assert isinstance(sch["b"].dataType, StringType)
+
+
 class TestSplitDf:
     """Test the split_df function with Polars."""
 

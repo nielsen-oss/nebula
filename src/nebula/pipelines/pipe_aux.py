@@ -110,7 +110,7 @@ def create_dict_extra_functions(
     )
 
 
-def get_native_schema(df):
+def get_native_schema(df: "GenericDataFrame"):
     if isinstance(df, (nw.DataFrame, nw.LazyFrame)):
         df = nw.to_native(df)
 
