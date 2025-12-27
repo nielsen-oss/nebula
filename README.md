@@ -181,7 +181,7 @@ class MyCustomTransformer(Transformer):
 
 ### 📚 Example Notebooks
 
-Check out the [`examples/`](example_notebooks/) directory for comprehensive tutorials:
+Check out the [`example_notebooks/`](example_notebooks/) directory for comprehensive tutorials:
 
 1. **[Flat Pipelines](example_notebooks/01_flat_pipeline.ipynb)** - Basic linear transformations
 2. **[Split Pipelines](example_notebooks/02_split_pipeline.ipynb)** - Processing different data subsets
