@@ -1,16 +1,24 @@
 """Functions to check the user input."""
 
-from typing import Any
+from typing import Any, Callable
 
 from nebula.auxiliaries import validate_keys
 
 __all__ = [
-    "assert_branch_inputs",
     "assert_apply_to_rows_inputs",
+    "assert_branch_inputs",
+    "assert_split_order",
     "ensure_no_branch_or_apply_to_rows_in_split_pipeline",
     "ensure_no_branch_or_apply_to_rows_otherwise",
-    "should_skip_operation",
+    "set_split_options",
+    "validate_skip_perform",
+    "to_list_of_transformations",
 ]
+
+from nebula.base import Transformer
+from nebula.nw_util import assert_join_params
+
+from nebula.pipelines.transformer_type_util import is_transformer
 
 
 def _assert_is_dict(name: str, o):
@@ -26,7 +34,14 @@ def assert_apply_to_rows_inputs(o: dict[str, str | bool | None]) -> None:
         "apply_to_rows",
         o,
         mandatory={"input_col", "operator"},
-        optional={"value", "comparison_column", "dead-end", "skip_if_empty"}
+        optional={
+            "value",
+            "comparison_column",
+            "dead-end",
+            "skip_if_empty",
+            "skip",
+            "perform",
+        },
     )
 
     value = o.get("value")
@@ -38,7 +53,9 @@ def assert_apply_to_rows_inputs(o: dict[str, str | bool | None]) -> None:
 
     input_col = o["input_col"]
     if input_col == comparison_column:
-        raise ValueError("'input_col' and 'comparison_column' cannot have the same value")
+        raise ValueError(
+            "'input_col' and 'comparison_column' cannot have the same value"
+        )
 
     skip_if_empty = o.get("skip_if_empty", False)
     if skip_if_empty not in [True, False]:
@@ -53,7 +70,17 @@ def assert_branch_inputs(o: dict) -> None:
         "branch",
         o,
         mandatory={"end"},
-        optional={"storage", "on", "how", "broadcast", "skip", "perform"}
+        optional={
+            "storage",
+            "on",
+            "left_on",
+            "right_on",
+            "suffix",
+            "how",
+            "broadcast",
+            "skip",
+            "perform",
+        },
     )
 
     end_value = o["end"]
@@ -67,24 +94,36 @@ def assert_branch_inputs(o: dict) -> None:
         validate_keys(
             f"branch[end='{end_value}']",
             keys,
-            mandatory={"on", "how"},
-            optional={"broadcast", "skip", "perform"}
+            mandatory={"how"},
+            optional={
+                "on",
+                "left_on",
+                "right_on",
+                "suffix",
+                "broadcast",
+                "skip",
+                "perform",
+            },
         )
+        assert_join_params(
+            o.get("how"), o.get("on"), o.get("left_on"), o.get("right_on")
+        )
+
     elif end_value in {"dead-end", "append"}:
         validate_keys(
             f"branch[end='{end_value}']",
             keys,
             mandatory=set(),
-            optional={"skip", "perform"}
+            optional={"skip", "perform"},
         )
 
-    should_skip_operation(o.get("skip"), o.get("perform"))
+    validate_skip_perform(o.get("skip"), o.get("perform"))
 
 
 def ensure_no_branch_or_apply_to_rows_otherwise(
-        branch: dict[str, str | bool] | None,
-        apply_to_rows: dict[str, str | bool] | None,
-        otherwise: dict[str, Any] | None,
+    branch: dict[str, str | bool] | None,
+    apply_to_rows: dict[str, str | bool] | None,
+    otherwise: dict[str, Any] | None,
 ) -> None:
     """Ensure that 'branch', 'apply_to_rows' and 'otherwise' are valid.
 
@@ -124,7 +163,7 @@ def ensure_no_branch_or_apply_to_rows_otherwise(
 
 
 def ensure_no_branch_or_apply_to_rows_in_split_pipeline(
-        branch: dict[str, Any] | None, apply_to_rows: dict[str, Any] | None
+    branch: dict[str, Any] | None, apply_to_rows: dict[str, Any] | None
 ) -> None:
     """Ensure that 'branch' and 'apply_to_rows' are not passed in split-pipelines.
 
@@ -144,7 +183,37 @@ def ensure_no_branch_or_apply_to_rows_in_split_pipeline(
         raise ValueError(msg)
 
 
-def should_skip_operation(skip: bool | None, perform: bool | None) -> bool:
+def set_split_options(main_data, split_options, name: str) -> set[str]:
+    if not split_options:
+        return set()
+
+    if isinstance(split_options, str):
+        if split_options not in main_data:
+            raise KeyError(
+                f'{name} "{split_options}" not found '
+                f"in the split-pipeline: {set(main_data)}"
+            )
+        return {split_options}
+
+    ret = set(split_options)
+    diff: set[str] = ret.difference(main_data)
+    if diff:
+        diff_str = ", ".join(sorted(diff))
+        raise KeyError(f'"{name}" has unmatched splits: {diff_str}')
+    return ret
+
+
+def assert_split_order(data, split_order):
+    if not all(isinstance(i, str) for i in split_order):
+        raise TypeError(f'"split_order" must be <list<str>>: {split_order}')
+    diff = set(split_order).symmetric_difference(data)
+    if diff:
+        msg = "'split_order' and 'data', must contain the same "
+        msg += f"keys are not in common: {diff}"
+        raise KeyError(msg)
+
+
+def validate_skip_perform(skip: bool | None, perform: bool | None) -> None:
     """Return True if operation should be skipped."""
     if isinstance(skip, bool) and isinstance(perform, bool):
         if skip == perform:  # Both True or both False = contradiction
@@ -152,7 +221,18 @@ def should_skip_operation(skip: bool | None, perform: bool | None) -> bool:
                 "'skip' and 'perform' cannot both be True or both be False"
             )
 
-    if perform is False:
-        return True
 
-    return bool(skip)
+def to_list_of_transformations(data, name: str) -> list[Transformer | Callable] | None:
+    if not data:
+        return None
+    if is_transformer(data) or callable(data):
+        return [data]
+    if isinstance(data, list):
+        return data
+    if isinstance(data, tuple):
+        return list(data)
+    raise TypeError(
+        f"{name} must be a callable | "
+        "transformer | iterable[callable | "
+        f"transformer], found ({type(data)})"
+    )

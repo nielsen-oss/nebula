@@ -16,7 +16,6 @@ Input: Native DF (pandas/polars/spark)
 
 from copy import deepcopy
 from functools import partial
-from types import FunctionType
 from typing import Any, Callable, Iterable
 
 import narwhals as nw
@@ -26,25 +25,7 @@ from nebula.df_types import get_dataframe_type
 from nebula.metaclasses import InitParamsStorage
 from nebula.storage import nebula_storage as ns
 
-__all__ = ["LazyWrapper", "Transformer", "nlazy"]
-
-
-def nlazy(func: FunctionType) -> FunctionType:
-    """A decorator to mark a function as 'lazy'.
-
-    Use this decorator to mark functions that should be evaluated
-    at transform time rather than at pipeline definition time.
-
-    Example:
-        >>> @nlazy
-        ... def get_current_date():
-        ...     return datetime.now().strftime("%Y-%m-%d")
-        >>>
-        >>> # The function won't be called until transform() is invoked
-        >>> lazy_trf = LazyWrapper(AddLiterals, data=[{"alias": "date", "value": get_current_date}])
-    """
-    func._n_lazy = True
-    return func
+__all__ = ["LazyWrapper", "Transformer"]
 
 
 class Transformer(metaclass=InitParamsStorage):
@@ -57,14 +38,14 @@ class Transformer(metaclass=InitParamsStorage):
         self._desc: str | None = None
 
     def _set_columns_selections(
-            self,
-            *,
-            columns: str | Iterable[str] | None = None,
-            regex: str | None = None,
-            glob: str | None = None,
-            startswith: str | Iterable[str] | None = None,
-            endswith: str | Iterable[str] | None = None,
-            allow_excess_columns: bool = False,
+        self,
+        *,
+        columns: str | Iterable[str] | None = None,
+        regex: str | None = None,
+        glob: str | None = None,
+        startswith: str | Iterable[str] | None = None,
+        endswith: str | Iterable[str] | None = None,
+        allow_excess_columns: bool = False,
     ) -> None:
         """Prepare the input for the function 'auxiliaries.select_columns'."""
         self.__columns_selector = partial(
@@ -98,7 +79,7 @@ class Transformer(metaclass=InitParamsStorage):
         """Public transform method."""
         if isinstance(df, (nw.DataFrame, nw.LazyFrame)):
             # narwhals in -> narwhals out
-            if hasattr(self, '_transform_nw'):  # it's nw compatible
+            if hasattr(self, "_transform_nw"):  # it's nw compatible
                 return self._transform_nw(df)
             else:  # it requires separated logic
                 df_native = nw.to_native(df)
@@ -106,7 +87,7 @@ class Transformer(metaclass=InitParamsStorage):
                 return nw.from_native(df_out)
 
         # native df in -> native df out
-        if hasattr(self, '_transform_nw'):  # it's nw compatible
+        if hasattr(self, "_transform_nw"):  # it's nw compatible
             df_nw = nw.from_native(df)
             df_out = self._transform_nw(df_nw)
             return nw.to_native(df_out)
@@ -124,13 +105,6 @@ class Transformer(metaclass=InitParamsStorage):
             return self._transform_spark(df)
         else:  # pragma: no cover
             raise ValueError(f"Unknown dataframe type {name}")
-
-
-def is_lazy_function(o) -> bool:
-    """Determine whether a function is lazy (decorated with @nlazy)."""
-    if not isinstance(o, FunctionType):
-        return False
-    return getattr(o, "_n_lazy", False)
 
 
 def is_ns_lazy_request(o) -> bool:
@@ -188,24 +162,20 @@ def _resolve_lazy_value(obj):
             "nested_list": [{"deep": 42}]
         }
     """
-    # Priority 1: Check for @nlazy decorated function
-    if is_lazy_function(obj):
-        return obj()
-
-    # Priority 2: Check for nebula storage reference (ns, "key")
+    # Priority 1: Check for nebula storage reference (ns, "key")
     # IMPORTANT: This must come BEFORE generic tuple handling
     if is_ns_lazy_request(obj):
         return obj[0].get(obj[1])
 
-    # Priority 3: Recurse into dictionaries
+    # Priority 2: Recurse into dictionaries
     if isinstance(obj, dict):
         return {k: _resolve_lazy_value(v) for k, v in obj.items()}
 
-    # Priority 4: Recurse into lists
+    # Priority 3: Recurse into lists
     if isinstance(obj, list):
         return [_resolve_lazy_value(item) for item in obj]
 
-    # Priority 5: Recurse into tuples (but NOT ns references - handled above)
+    # Priority 4: Recurse into tuples (but NOT ns references - handled above)
     if isinstance(obj, tuple):
         return tuple(_resolve_lazy_value(item) for item in obj)
 
@@ -229,12 +199,8 @@ def extract_lazy_params(kwargs: dict) -> dict:
 
     Example:
         >>> ns.set("threshold", 0.5)
-        >>> @nlazy
-        ... def get_columns():
-        ...     return ["a", "b", "c"]
-        >>>
+        ...
         >>> params = {
-        ...     "columns": get_columns,
         ...     "config": {
         ...         "threshold": (ns, "threshold"),
         ...         "static": True
@@ -242,7 +208,6 @@ def extract_lazy_params(kwargs: dict) -> dict:
         ... }
         >>> extract_lazy_params(params)
         {
-            "columns": ["a", "b", "c"],
             "config": {
                 "threshold": 0.5,
                 "static": True

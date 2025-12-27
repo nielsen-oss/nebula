@@ -4,15 +4,7 @@ from typing import NoReturn
 
 from nebula.backend_util import HAS_SPARK
 
-__all__ = [
-    "PipelineError",
-    "raise_pipeline_error",
-]
-
-
-class PipelineError(Exception):
-    """Base exception for Nebula pipeline errors."""
-    pass
+__all__ = ["raise_pipeline_error"]
 
 
 def _try_enhance_spark_exception(e: Exception, msg: str) -> bool:
@@ -26,7 +18,8 @@ def _try_enhance_spark_exception(e: Exception, msg: str) -> bool:
     # Import lazily to avoid issues if Spark internals change
     try:
         from py4j.protocol import Py4JJavaError
-        if isinstance(e, Py4JJavaError) and hasattr(e, 'errmsg'):
+
+        if isinstance(e, Py4JJavaError) and hasattr(e, "errmsg"):
             e.errmsg = f"{msg}\n{e.errmsg}"
             return True
     except (ImportError, AttributeError):  # pragma: no cover
@@ -34,7 +27,8 @@ def _try_enhance_spark_exception(e: Exception, msg: str) -> bool:
 
     try:
         from pyspark.sql.utils import CapturedException
-        if isinstance(e, CapturedException) and hasattr(e, 'desc'):
+
+        if isinstance(e, CapturedException) and hasattr(e, "desc"):
             e.desc = f"{msg}\n{e.desc}"
             return True
     except (ImportError, AttributeError):  # pragma: no cover

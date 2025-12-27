@@ -45,10 +45,7 @@ class TestMathOperator:
             # Both constant and column at the same time (invalid)
             {
                 "new_column_name": "col3",
-                "strategy": [
-                    {"constant": 30, "column": "col1"},
-                    {"column": "col2"}
-                ],
+                "strategy": [{"constant": 30, "column": "col1"}, {"column": "col2"}],
                 "operations": ["sub"],
             },
             # Both constant and column in second operand
@@ -74,7 +71,7 @@ class TestMathOperator:
                     "new_column_name": "col3",
                     "strategy": [
                         {"constant": 30, "cast": "integer"},
-                        {"column": "col1"}
+                        {"column": "col1"},
                     ],
                     "operations": ["not_found"],
                 }
@@ -98,7 +95,7 @@ class TestMathOperator:
             "new_column_name": "result",
             "strategy": [
                 {"column": "col1", "cast": "unknown_type"},
-                {"column": "col2"}
+                {"column": "col2"},
             ],
             "operations": ["add"],
         }
@@ -109,9 +106,7 @@ class TestMathOperator:
     @pytest.mark.parametrize("col_or_const", ["column", "constant"])
     @pytest.mark.parametrize("cast", [None, "float32"])
     @pytest.mark.parametrize("operation", ["add", "sub", "mul", "div", "pow"])
-    def test_single_operation(
-            self, df_input, operation: str, col_or_const: str, cast
-    ):
+    def test_single_operation(self, df_input, operation: str, col_or_const: str, cast):
         """Test MathOperator with single operation using column or constant."""
         second = (
             {"column": "col2"}
@@ -132,20 +127,15 @@ class TestMathOperator:
         # Build expected dataframe
         expected_col = f"{operation}_{col_or_const}"
         df_expected = df_input.select(
-            "col1",
-            "col2",
-            pl.col(expected_col).alias("result")
+            "col1", "col2", pl.col(expected_col).alias("result")
         )
         if cast:
-            df_expected = df_expected.with_columns(
-                pl.col("result").cast(pl.Float32)
-            )
+            df_expected = df_expected.with_columns(pl.col("result").cast(pl.Float32))
 
         pl.testing.assert_frame_equal(df_result, df_expected)
 
     @pytest.mark.parametrize(
-        "operations",
-        [["add", "div"], ["mul", "div"], ["pow", "sub"]]
+        "operations", [["add", "div"], ["mul", "div"], ["pow", "sub"]]
     )
     def test_double_operation(self, df_input, operations: list[str]):
         """Test MathOperator with two sequential operations."""
@@ -177,9 +167,7 @@ class TestMathOperator:
         expr_0 = op_0(pl.col("col1").cast(pl.Float64), pl.lit(self._CONST))
         expr_1 = op_1(expr_0, pl.col("col2"))
 
-        df_expected = df_input.select("col1", "col2").with_columns(
-            expr_1.alias("chk")
-        )
+        df_expected = df_input.select("col1", "col2").with_columns(expr_1.alias("chk"))
 
         pl.testing.assert_frame_equal(df_result, df_expected)
 
@@ -211,7 +199,7 @@ class TestMathOperator:
 
         pl.testing.assert_frame_equal(
             df_result.select("sum_cols", "product_cols"),
-            df_expected.select("sum_cols", "product_cols")
+            df_expected.select("sum_cols", "product_cols"),
         )
 
     def test_chained_columns(self, df_input):
@@ -235,13 +223,10 @@ class TestMathOperator:
         df_result = t2.transform(df_temp)
 
         # doubled = col1 * 2, tripled = doubled * 1.5 = col1 * 3
-        df_expected = df_input.with_columns(
-            tripled=(pl.col("col1") * 3.0)
-        )
+        df_expected = df_input.with_columns(tripled=(pl.col("col1") * 3.0))
 
         pl.testing.assert_frame_equal(
-            df_result.select("tripled"),
-            df_expected.select("tripled")
+            df_result.select("tripled"), df_expected.select("tripled")
         )
 
     def test_complex_expression(self, df_input):
@@ -263,9 +248,9 @@ class TestMathOperator:
 
         # Build expected
         df_expected = df_input.with_columns(
-            complex_result=(
-                    ((pl.col("col1") + 10) * pl.col("col2")) / 3
-            ).cast(pl.Float64)
+            complex_result=(((pl.col("col1") + 10) * pl.col("col2")) / 3).cast(
+                pl.Float64
+            )
         ).select("complex_result")
 
         pl.testing.assert_frame_equal(df_result, df_expected)
@@ -338,9 +323,24 @@ class TestMathOperator:
     def test_case_insensitive_types(self, df_input):
         """Test that type names are case-insensitive."""
         strategies = [
-            {"new_column_name": "r1", "cast": "INT64", "strategy": [{"column": "col1"}], "operations": []},
-            {"new_column_name": "r2", "cast": "Float", "strategy": [{"column": "col1"}], "operations": []},
-            {"new_column_name": "r3", "cast": "STRING", "strategy": [{"column": "col1"}], "operations": []},
+            {
+                "new_column_name": "r1",
+                "cast": "INT64",
+                "strategy": [{"column": "col1"}],
+                "operations": [],
+            },
+            {
+                "new_column_name": "r2",
+                "cast": "Float",
+                "strategy": [{"column": "col1"}],
+                "operations": [],
+            },
+            {
+                "new_column_name": "r3",
+                "cast": "STRING",
+                "strategy": [{"column": "col1"}],
+                "operations": [],
+            },
         ]
 
         for strategy in strategies:
@@ -372,7 +372,12 @@ class TestWhen:
             When(
                 output_col="result",
                 conditions=[
-                    {"input_col": "value", "operator": "gt", "value": 5, "output_constant": "big"},
+                    {
+                        "input_col": "value",
+                        "operator": "gt",
+                        "value": 5,
+                        "output_constant": "big",
+                    },
                 ],
                 # Missing otherwise
             )
@@ -383,7 +388,12 @@ class TestWhen:
             When(
                 output_col="result",
                 conditions=[
-                    {"input_col": "value", "operator": "invalid_op", "value": 5, "output_constant": "x"},
+                    {
+                        "input_col": "value",
+                        "operator": "invalid_op",
+                        "value": 5,
+                        "output_constant": "x",
+                    },
                 ],
                 otherwise_constant="default",
             )
@@ -393,13 +403,15 @@ class TestWhen:
     @pytest.fixture(scope="class")
     def df_basic(self):
         return nw.from_native(
-            pl.DataFrame({
-                "value": [1, 2, None, 4, 5],
-                "name": ["a", "b", "c", "d", "e"],
-                "flag": [True, False, True, False, False],
-                "col_a": [10, 20, 30, 40, 50],
-                "col_b": [100, 200, 300, 400, 500],
-            })
+            pl.DataFrame(
+                {
+                    "value": [1, 2, None, 4, 5],
+                    "name": ["a", "b", "c", "d", "e"],
+                    "flag": [True, False, True, False, False],
+                    "col_a": [10, 20, 30, 40, 50],
+                    "col_b": [100, 200, 300, 400, 500],
+                }
+            )
         )
 
     def test_first_match_wins(self, df_basic):
@@ -407,8 +419,18 @@ class TestWhen:
         t = When(
             output_col="result",
             conditions=[
-                {"input_col": "value", "operator": "lt", "value": 3, "output_constant": "low"},
-                {"input_col": "value", "operator": "lt", "value": 5, "output_constant": "medium"},
+                {
+                    "input_col": "value",
+                    "operator": "lt",
+                    "value": 3,
+                    "output_constant": "low",
+                },
+                {
+                    "input_col": "value",
+                    "operator": "lt",
+                    "value": 5,
+                    "output_constant": "medium",
+                },
             ],
             otherwise_constant="high",
         )
@@ -424,7 +446,12 @@ class TestWhen:
         t = When(
             output_col="result",
             conditions=[
-                {"input_col": "value", "operator": "eq", "value": 999, "output_constant": "found"},
+                {
+                    "input_col": "value",
+                    "operator": "eq",
+                    "value": 999,
+                    "output_constant": "found",
+                },
             ],
             otherwise_constant="not_found",
         )
@@ -438,7 +465,12 @@ class TestWhen:
         t = When(
             output_col="result",
             conditions=[
-                {"input_col": "value", "operator": "gt", "value": 10, "output_constant": "big"},
+                {
+                    "input_col": "value",
+                    "operator": "gt",
+                    "value": 10,
+                    "output_constant": "big",
+                },
             ],
             otherwise_col="name",
         )
@@ -452,7 +484,12 @@ class TestWhen:
         t = When(
             output_col="result",
             conditions=[
-                {"input_col": "flag", "operator": "eq", "value": True, "output_constant": 1},
+                {
+                    "input_col": "flag",
+                    "operator": "eq",
+                    "value": True,
+                    "output_constant": 1,
+                },
             ],
             otherwise_constant=0,
         )
@@ -466,7 +503,12 @@ class TestWhen:
         t = When(
             output_col="result",
             conditions=[
-                {"input_col": "flag", "operator": "eq", "value": True, "output_col": "col_a"},
+                {
+                    "input_col": "flag",
+                    "operator": "eq",
+                    "value": True,
+                    "output_col": "col_a",
+                },
             ],
             otherwise_col="col_b",
         )
@@ -482,7 +524,12 @@ class TestWhen:
         t = When(
             output_col="result",
             conditions=[
-                {"input_col": "value", "operator": "gt", "value": 2, "output_constant": "big"},
+                {
+                    "input_col": "value",
+                    "operator": "gt",
+                    "value": 2,
+                    "output_constant": "big",
+                },
             ],
             otherwise_constant="small_or_null",
         )
@@ -507,8 +554,17 @@ class TestWhen:
         t = When(
             output_col="result",
             conditions=[
-                {"input_col": "value", "operator": "is_null", "output_constant": "missing"},
-                {"input_col": "value", "operator": "gt", "value": 2, "output_constant": "big"},
+                {
+                    "input_col": "value",
+                    "operator": "is_null",
+                    "output_constant": "missing",
+                },
+                {
+                    "input_col": "value",
+                    "operator": "gt",
+                    "value": 2,
+                    "output_constant": "big",
+                },
             ],
             otherwise_constant="small",
         )
@@ -516,7 +572,13 @@ class TestWhen:
 
         result_native = nw.to_native(result)
         # Null is explicitly caught by first condition
-        assert list(result_native["result"]) == ["small", "small", "missing", "big", "big"]
+        assert list(result_native["result"]) == [
+            "small",
+            "small",
+            "missing",
+            "big",
+            "big",
+        ]
 
     # ------------- test cast -------------
 
@@ -525,8 +587,18 @@ class TestWhen:
         t = When(
             output_col="result",
             conditions=[
-                {"input_col": "value", "operator": "eq", "value": 1, "output_constant": 100},
-                {"input_col": "value", "operator": "eq", "value": 2, "output_col": "value"},
+                {
+                    "input_col": "value",
+                    "operator": "eq",
+                    "value": 1,
+                    "output_constant": 100,
+                },
+                {
+                    "input_col": "value",
+                    "operator": "eq",
+                    "value": 2,
+                    "output_col": "value",
+                },
             ],
             otherwise_constant=999,
             cast_output="string",
@@ -541,7 +613,12 @@ class TestWhen:
         t = When(
             output_col="result",
             conditions=[
-                {"input_col": "value", "operator": "lt", "value": 2, "output_constant": 10},
+                {
+                    "input_col": "value",
+                    "operator": "lt",
+                    "value": 2,
+                    "output_constant": 10,
+                },
             ],
             otherwise_col="value",
             cast_output="Int64",
@@ -556,10 +633,12 @@ class TestWhen:
     def test_risk_scoring(self):
         """Test a realistic risk scoring scenario."""
         df = nw.from_native(
-            pl.DataFrame({
-                "amount": [100, 5000, 15000, 500, None],
-                "user_type": ["new", "verified", "verified", "new", "verified"],
-            })
+            pl.DataFrame(
+                {
+                    "amount": [100, 5000, 15000, 500, None],
+                    "user_type": ["new", "verified", "verified", "new", "verified"],
+                }
+            )
         )
 
         t = When(
@@ -597,10 +676,12 @@ class TestWhen:
     def test_column_comparison(self):
         """Test when using column-to-column comparisons."""
         df = nw.from_native(
-            pd.DataFrame({
-                "actual": [100, 80, 120, None],
-                "expected": [100, 100, 100, 100],
-            })
+            pd.DataFrame(
+                {
+                    "actual": [100, 80, 120, None],
+                    "expected": [100, 100, 100, 100],
+                }
+            )
         )
 
         t = When(

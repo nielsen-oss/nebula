@@ -6,7 +6,7 @@ import polars as pl
 import pytest
 
 from nebula.pipelines.pipeline_loader import load_pipeline
-from nebula.pipelines.pipelines import TransformerPipeline
+from nebula import TransformerPipeline
 from nebula.transformers import AddLiterals
 from ..auxiliaries import pl_assert_equal
 
@@ -14,7 +14,10 @@ from ..auxiliaries import pl_assert_equal
 @pytest.mark.parametrize("skip, perform", ([True, None], [None, False]))
 class TestSkipPipeline:
     trf_py = AddLiterals(data=[{"value": "x", "alias": "c2"}])
-    trf_text = {"transformer": "AddLiterals", "params": {"data": {"value": "x", "alias": "c2"}}}
+    trf_text = {
+        "transformer": "AddLiterals",
+        "params": {"data": {"value": "x", "alias": "c2"}},
+    }
     df_input = pl.DataFrame({"c1": [1, 2]})
 
     def test_py_flat_pipeline(self, skip, perform):
@@ -42,7 +45,9 @@ class TestSkipPipeline:
         df_chk = load_pipeline({"pipeline": data}).run(self.df_input)
         pl_assert_equal(self.df_input, df_chk)
 
-    @pytest.mark.parametrize("data", [{"transformer": "invalid"}, {"wrong_key": "invalid"}])
+    @pytest.mark.parametrize(
+        "data", [{"transformer": "invalid"}, {"wrong_key": "invalid"}]
+    )
     def test_text_invalid_arguments(self, data, skip, perform):
         """Ensures that a skipped pipeline does not attempt to parse its arguments.
 
@@ -57,7 +62,10 @@ class TestSkipPipeline:
 @pytest.mark.parametrize("skip, perform", ([True, None], [None, False]))
 def test_skip_transformer(skip, perform):
     """Test 'skip' / 'perform' transformer functionality."""
-    data = {"transformer": "AddLiterals", "params": {"data": {"value": "x", "alias": "c2"}}}
+    data = {
+        "transformer": "AddLiterals",
+        "params": {"data": {"value": "x", "alias": "c2"}},
+    }
     if skip is not None:
         data["skip"] = skip
     if perform is not None:

@@ -19,13 +19,13 @@ __all__ = [
     "RoundValues",
     "ThisTransformerIsBroken",
     "ExtraTransformers",  # DataClass
+    "DICT_EXTRA_TRANSFORMERS",  # dictionary
 ]
 
 _this_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
 
 class AddOne(Transformer):
-
     def __init__(self, column: str):
         super().__init__()
         self._col: str = column
@@ -40,7 +40,6 @@ class AddOne(Transformer):
 
 
 class CallMe(Transformer):
-
     def __init__(self):
         super().__init__()
 
@@ -55,7 +54,6 @@ class CallMe(Transformer):
 
 
 class Distinct(Transformer):
-
     def __init__(self):
         super().__init__()
 
@@ -71,14 +69,12 @@ class NoParentClass:
 
 
 class RoundValues(Transformer):
-
     def __init__(self, *, column: str, precision: int):
         super().__init__()
         self._col = column
         self._precision = precision
 
     def _transform_nw(self, df):
-        import narwhals as nw
         return df.with_columns(
             nw.col(self._col).round(self._precision).alias(self._col)
         )
@@ -97,6 +93,15 @@ class ExtraTransformers:
     Distinct = Distinct
     RoundValues = RoundValues
     ThisTransformerIsBroken = ThisTransformerIsBroken
+
+
+DICT_EXTRA_TRANSFORMERS: dict[str, type] = {
+    "AddOne": AddOne,
+    "CallMe": CallMe,
+    "Distinct": Distinct,
+    "RoundValues": RoundValues,
+    "ThisTransformerIsBroken": ThisTransformerIsBroken,
+}
 
 
 def load_yaml(path) -> dict:

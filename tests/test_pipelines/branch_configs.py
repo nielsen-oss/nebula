@@ -8,7 +8,7 @@ Branch creates a secondary pipeline that:
 - Merges back via: append, join, or dead-end (no merge)
 """
 
-from nebula.pipelines.pipelines import TransformerPipeline
+from nebula import TransformerPipeline
 from nebula.transformers import DropColumns, AddLiterals
 
 __all__ = [
@@ -36,6 +36,7 @@ __all__ = [
 # ============================================================================
 # Dead-end: branch runs but result is discarded
 # ============================================================================
+
 
 def pipe_branch_dead_end() -> TransformerPipeline:
     """Branch that stores result but doesn't merge back.
@@ -73,6 +74,7 @@ def pipe_branch_dead_end_from_storage() -> TransformerPipeline:
 # ============================================================================
 # Append: branch result is appended (union) to main DataFrame
 # ============================================================================
+
 
 def pipe_branch_append() -> TransformerPipeline:
     """Branch result is appended to main DataFrame.
@@ -124,6 +126,7 @@ def pipe_branch_append_from_storage() -> TransformerPipeline:
 # Join: branch result is joined to main DataFrame
 # ============================================================================
 
+
 def pipe_branch_join() -> TransformerPipeline:
     """Branch result is joined to main DataFrame on 'idx'.
 
@@ -133,7 +136,7 @@ def pipe_branch_join() -> TransformerPipeline:
     return TransformerPipeline(
         [
             DropColumns(columns=["c1", "c2"]),
-            [AddLiterals(data=[{"value": "joined", "alias": "new_col"}])],
+            AddLiterals(data=[{"value": "joined", "alias": "new_col"}]),
         ],
         branch={
             "end": "join",
@@ -165,6 +168,7 @@ def pipe_branch_join_from_storage() -> TransformerPipeline:
 # ============================================================================
 # Otherwise: separate transform for main DataFrame
 # ============================================================================
+
 
 def pipe_branch_append_otherwise() -> TransformerPipeline:
     """Branch appends, but main DataFrame also gets transformed.
@@ -204,6 +208,7 @@ def pipe_branch_join_otherwise() -> TransformerPipeline:
 # ============================================================================
 # Skip/Perform: conditionally disable the branch
 # ============================================================================
+
 
 def pipe_branch_skip() -> TransformerPipeline:
     """Branch is skipped entirely, main DataFrame passes through.

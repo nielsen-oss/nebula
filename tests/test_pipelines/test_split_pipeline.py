@@ -7,7 +7,7 @@ import pytest
 from pyspark.sql import functions as F
 from pyspark.sql.types import DoubleType, StringType, StructField, StructType
 
-from nebula.pipelines.pipelines import TransformerPipeline
+from nebula import TransformerPipeline
 from nebula.storage import nebula_storage as ns
 from nebula.transformers import AddLiterals, AssertNotEmpty, Cast
 from .auxiliaries import *
@@ -113,9 +113,9 @@ class TestSplitPipeline:
 
     @pytest.mark.parametrize("name", [None, "name_01"])
     def test_basic(
-            self,
-            df_input: pl.DataFrame,
-            name: str | None,
+        self,
+        df_input: pl.DataFrame,
+        name: str | None,
     ):
         """Test with various configurations."""
         dict_splits = {"low": _trf_low, "hi": _trf_hi}
@@ -127,7 +127,7 @@ class TestSplitPipeline:
             name=name,
         )
 
-        pipe.show_pipeline()
+        pipe.show(add_params=True)
         df_chk = pipe.run(df_input)
 
         # Create the expected DF
@@ -146,7 +146,7 @@ class TestSplitPipeline:
 
         pl_assert_equal(df_chk.sort(df_chk.columns), df_exp.sort(df_exp.columns))
 
-    def test_cast_subset_to_input_schema(self, df_input):
+    def test_cast_subsets_to_input_schema(self, df_input):
         """Test with various configurations."""
         # cast c1 to float32 ...
         dict_splits = {"low": [], "hi": [Cast(cast={"c1": "float32"})], "null": []}
@@ -154,10 +154,10 @@ class TestSplitPipeline:
         pipe = TransformerPipeline(
             dict_splits,
             split_function=_split_function_with_null,
-            cast_subset_to_input_schema=True,
+            cast_subsets_to_input_schema=True,
         )
 
-        pipe.show_pipeline()
+        pipe.show(add_params=True)
         df_chk = pipe.run(df_input)
         # ... and ensure it is converted back to float64 at the end
         assert df_chk["c1"].dtype == pl.Float64
@@ -232,10 +232,12 @@ class TestSplitPipeline:
             allow_missing_columns=True,
         )
 
-        pipe.show_pipeline()
+        pipe.show(add_params=True)
         df_chk = pipe.run(df_input)
 
-        df_exp = df_input.filter(pl.col("c1").is_not_null() & pl.col("c1").is_not_nan()).unique()
+        df_exp = df_input.filter(
+            pl.col("c1").is_not_null() & pl.col("c1").is_not_nan()
+        ).unique()
 
         if interleaved:
             n_chk = ns.get("_call_me_")
@@ -273,19 +275,18 @@ class TestSplitPipelineApplyTransformerBeforeAndAfter:
         pipe = TransformerPipeline(
             dict_transformers,
             split_function=_split_function,
-            cast_subset_to_input_schema=True,
-            **{where: transformer}
+            cast_subsets_to_input_schema=True,
+            **{where: transformer},
         )
 
-        pipe.show_pipeline()
+        pipe.show(add_params=True)
 
         df_chk = pipe.run(df_input)
 
         # The expected result is distinct rows from the splits
         split_dfs = _split_function(df_input)
         df_exp = pl.concat(
-            [split_dfs["low"].unique(), split_dfs["hi"].unique()],
-            how="diagonal"
+            [split_dfs["low"].unique(), split_dfs["hi"].unique()], how="diagonal"
         )
         pl_assert_equal(df_chk.sort(df_chk.columns), df_exp.sort(df_exp.columns))
 
@@ -299,11 +300,11 @@ class TestSplitPipelineApplyTransformerBeforeAndAfter:
     def test_error_pipeline_instead_of_transformer(self, where: str):
         """Pass a TransformerPipeline instead of a transformer - should raise."""
         dict_transformers = {"low": AssertNotEmpty(), "hi": AssertNotEmpty()}
-        with pytest.raises(ValueError):
+        with pytest.raises(TypeError):
             TransformerPipeline(
                 dict_transformers,
                 split_function=_split_function,
-                **{where: TransformerPipeline([AssertNotEmpty()])}
+                **{where: TransformerPipeline([AssertNotEmpty()])},
             )
 
 
@@ -321,9 +322,9 @@ class TestSplitPipelineDeadEnd:
             )
 
     @pytest.mark.parametrize("splits_no_merge", ["hi", ["hi"], ("hi",), {"hi"}])
-    def test_dead_end_different_types(self, splits_no_merge):
+    def test_splits_no_merge(self, df_input, splits_no_merge):
         """Test with different 'splits_no_merge' types."""
-        dict_transformers = {"low": [], "hi": []}
+        dict_transformers = {"low": [], "hi": [], "null": []}
 
         pipe = TransformerPipeline(
             dict_transformers,
@@ -331,8 +332,12 @@ class TestSplitPipelineDeadEnd:
             splits_no_merge=splits_no_merge,
         )
 
-        assert pipe.splits_no_merge == {"hi"}
-        pipe.show_pipeline()
+        pipe.show(add_params=True)
+        df_chk = pipe.run(df_input)
+        df_exp = df_input.filter(
+            (pl.col("c1") < 10) | pl.col("c1").is_null() | pl.col("c1").is_nan()
+        )
+        pl_assert_equal(df_chk, df_exp, ["c1"])
 
     @pytest.mark.parametrize(
         "splits_no_merge", [["hi"], ["hi", "null"], ["low", "hi", "null"]]
@@ -361,7 +366,7 @@ class TestSplitPipelineDeadEnd:
             splits_no_merge=splits_no_merge,
         )
 
-        pipe.show_pipeline()
+        pipe.show(add_params=True)
         df_out = pipe.run(df_input)
 
         # Check the df output
@@ -369,7 +374,9 @@ class TestSplitPipelineDeadEnd:
         li_exp_df = [full_splits[k] for k in list_splits_to_merge]
         if li_exp_df:
             df_out_exp = pl.concat(li_exp_df, how="diagonal")
-            pl_assert_equal(df_out.sort(df_out.columns), df_out_exp.sort(df_out_exp.columns))
+            pl_assert_equal(
+                df_out.sort(df_out.columns), df_out_exp.sort(df_out_exp.columns)
+            )
 
         # Check the dead-end splits that are stored in nebula storage.
         for dead_end_split in splits_no_merge:
@@ -410,7 +417,7 @@ class TestSplitPipelineSplitOrder:
             split_order=split_order,
         )
 
-        pipe.show_pipeline()
+        pipe.show(add_params=True)
         df_chk = pipe.run(df_input)
         splits = _split_function(df_input)
         df_hi = splits["hi"]
@@ -429,32 +436,20 @@ class TestSplitPipelineMutuallyExclusive:
     """Test mutually exclusive parameters."""
 
     def test_cast_and_allow_missing_mutually_exclusive(self):
-        """Test that cast_subset_to_input_schema and allow_missing_columns are mutually exclusive."""
+        """Test that cast_subsets_to_input_schema and allow_missing_columns are mutually exclusive."""
         with pytest.raises(AssertionError):
             TransformerPipeline(
                 {"a": [], "b": []},
                 split_function=lambda df: {"a": df, "b": df},
-                cast_subset_to_input_schema=True,
+                cast_subsets_to_input_schema=True,
                 allow_missing_columns=True,
             )
 
 
-class TestSplitPipelineSingleSplitDictionary:
-    """Test single-split dictionary behavior."""
-
-    def test_single_split_becomes_linear(self, df_input: pl.DataFrame):
-        """Test that a single-split dictionary becomes a linear pipeline."""
-        # When dict has only one key, it should be treated as linear pipeline
-        # and split_function should be ignored
-        pipe = TransformerPipeline(
-            {"only": [Distinct()]},
-            split_function=None,  # Can be None for single-split
-        )
-
-        df_chk = pipe.run(df_input)
-        df_exp = df_input.unique()
-
-        pl_assert_equal(df_chk.sort(df_chk.columns), df_exp.sort(df_exp.columns))
+def test_invalid_single_split(df_input: pl.DataFrame):
+    """Ensure that single-split pipelines are rejected."""
+    with pytest.raises(ValueError):
+        TransformerPipeline({"x": Distinct()}, split_function=lambda x: x)
 
 
 class TestSplitFunctionKeyMismatch:
@@ -500,7 +495,8 @@ class TestSplitPipelineEdgeCases:
 
     def test_nested_pipeline_in_split(self, df_input: pl.DataFrame):
         """Test that a nested TransformerPipeline can be used within a split."""
-        nested_pipe = TransformerPipeline([Distinct()], name="nested")
+        # 1 flat and 1 nested -> [Distinct(), [Distinct()]]
+        nested_pipe = TransformerPipeline([Distinct(), [Distinct()]], name="nested")
 
         pipe = TransformerPipeline(
             {"low": [nested_pipe], "hi": []},
@@ -511,17 +507,13 @@ class TestSplitPipelineEdgeCases:
 
         # Expected: low split is distinct, hi split unchanged
         split_dfs = _split_function(df_input)
-        df_exp = pl.concat(
-            [split_dfs["low"].unique(), split_dfs["hi"]],
-            how="diagonal"
-        )
+        df_exp = pl.concat([split_dfs["low"].unique(), split_dfs["hi"]], how="diagonal")
 
         pl_assert_equal(df_chk.sort(df_chk.columns), df_exp.sort(df_exp.columns))
 
 
 @pytest.mark.skipif(os.environ.get("TESTS_NO_SPARK") == "true", reason="no spark")
 class TestSpark:
-
     @staticmethod
     @pytest.fixture(scope="class")
     def df_input_spark(spark):

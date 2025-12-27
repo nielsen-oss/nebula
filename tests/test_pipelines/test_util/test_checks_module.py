@@ -1,7 +1,5 @@
 """Unit-testing for pipeline checks.py module."""
 
-from typing import Optional
-
 import pytest
 
 from nebula.pipelines._checks import *
@@ -178,21 +176,4 @@ class TestShouldSkipOperation:
     def test_invalid(skip, perform):
         """Should raise AssertionError."""
         with pytest.raises(ValueError):
-            should_skip_operation(skip, perform)
-
-    @staticmethod
-    @pytest.mark.parametrize(
-        "skip, perform, expected",
-        [
-            [True, False, True],  # skipped
-            [False, True, False],
-            [True, None, True],  # skipped
-            [False, None, False],
-            [None, True, False],
-            [None, False, True],  # skipped
-            [None, None, False],
-        ],
-    )
-    def test_valid(skip: Optional[bool], perform: Optional[bool], expected: bool):
-        """Assert expected combinations."""
-        assert should_skip_operation(skip, perform) is expected
+            validate_skip_perform(skip, perform)

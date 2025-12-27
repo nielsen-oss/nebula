@@ -13,10 +13,8 @@ class TestPrintSchema:
     def test(self, to_nw: bool, backend: str):
         """Test PrintSchema transformer."""
         df_pd = pd.DataFrame(
-            [
-                [1, {"1": "a", "2": "b"}, [10, 11]],
-                [3, {"3": "c"}, [12, 13]]
-            ], columns=["a", "b", "c"]
+            [[1, {"1": "a", "2": "b"}, [10, 11]], [3, {"3": "c"}, [12, 13]]],
+            columns=["a", "b", "c"],
         )
 
         df = from_pandas(df_pd, backend, to_nw)

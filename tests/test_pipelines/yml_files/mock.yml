@@ -6,7 +6,7 @@ pipeline_1:
     - name: CLEANING-STEP
       pipeline:
         - transformer: Cast
-          msg: "Cast column 'col_2' to float"
+          description: "Cast column 'col_2' to float"
           params:
             cast:
               col_2: "float"

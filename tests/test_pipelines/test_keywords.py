@@ -5,7 +5,7 @@ import polars as pl
 import pytest
 
 from nebula.pipelines.pipeline_loader import load_pipeline
-from nebula.pipelines.pipelines import TransformerPipeline
+from nebula import TransformerPipeline
 from nebula.storage import nebula_storage as ns
 from nebula.transformers import DropNulls
 from ..auxiliaries import pl_assert_equal
@@ -24,7 +24,7 @@ def test_replace_with_stored_df(source: str):
     else:
         pipe = load_pipeline({"pipeline": store_data})
 
-    pipe.show_pipeline()
+    pipe.show()
 
     try:
         ns.set("df2", df2)
@@ -45,11 +45,11 @@ def test_store(source: str):
     else:
         pipe_text = [
             {"transformer": "DropNulls", "params": {"glob": "*"}},
-            {"store": "df_no_null"}
+            {"store": "df_no_null"},
         ]
         pipe = load_pipeline({"pipeline": pipe_text})
 
-    pipe.show_pipeline()
+    pipe.show()
 
     try:
         df_out = pipe.run(df_input)
@@ -72,11 +72,11 @@ def test_store_debug(debug_active: bool, source: str):
     else:
         pipe_text = [
             {"transformer": "DropNulls", "params": {"glob": "*"}},
-            {"store_debug": "df_no_null"}
+            {"store_debug": "df_no_null"},
         ]
         pipe = load_pipeline({"pipeline": pipe_text})
 
-    pipe.show_pipeline()
+    pipe.show()
 
     try:
         df_out = pipe.run(df_input)

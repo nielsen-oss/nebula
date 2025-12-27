@@ -34,8 +34,8 @@ _psql = pyspark.sql  # keep it for linting
 
 
 def cast_to_schema(
-        df: "pyspark.sql.DataFrame",
-        schema: StructType,
+    df: "pyspark.sql.DataFrame",
+    schema: StructType,
 ) -> "pyspark.sql.DataFrame":
     """Cast the columns of a DataFrame to a given schema.
 
@@ -61,7 +61,7 @@ def cast_to_schema(
         exp_cols = schema.names
         diff = compare_lists_of_string(cols, exp_cols, names=names)
         print("\n".join(diff))
-        msg = "'cast_subset_to_input_schema' -> Different number of columns"
+        msg = "'cast_subsets_to_input_schema' -> Different number of columns"
         raise AssertionError(msg)
 
     exp_columns: list[str] = [i.name for i in schema]
@@ -83,12 +83,12 @@ def cast_to_schema(
 
 
 def compare_dfs(
-        df1: "pyspark.sql.DataFrame",
-        df2: "pyspark.sql.DataFrame",
-        *,
-        columns: list[str] = None,
-        raise_if_row_number_mismatch: bool = True,
-        return_mismatched_rows: bool = False,
+    df1: "pyspark.sql.DataFrame",
+    df2: "pyspark.sql.DataFrame",
+    *,
+    columns: list[str] = None,
+    raise_if_row_number_mismatch: bool = True,
+    return_mismatched_rows: bool = False,
 ) -> tuple[pyspark.sql.DataFrame | None, pyspark.sql.DataFrame | None]:
     """Compare two DFs for equality based on schema, row count, and content.
 
@@ -195,9 +195,7 @@ def compare_dfs(
     n_diff_1 = len(set_diff_1)
     n_diff_2 = len(set_diff_2)
 
-    msg = (
-        f"Dataframes mismatch: {n_diff_1} rows in 1st " f"df, {n_diff_2} rows in 2nd df"
-    )
+    msg = f"Dataframes mismatch: {n_diff_1} rows in 1st df, {n_diff_2} rows in 2nd df"
 
     if not return_mismatched_rows:
         raise AssertionError(msg)
@@ -214,9 +212,9 @@ def compare_dfs(
 
 
 def drop_duplicates_no_randomness(
-        df: "pyspark.sql.DataFrame",
-        subset: str | list[str],
-        agg_func: str = "max",
+    df: "pyspark.sql.DataFrame",
+    subset: str | list[str],
+    agg_func: str = "max",
 ) -> "pyspark.sql.DataFrame":
     """Drop duplicated rows considering a subset of columns and remove the randomness when possible.
 
@@ -299,12 +297,12 @@ def get_default_spark_partitions(df: "pyspark.sql.DataFrame") -> int:
 
 
 def hash_dataframe(
-        df: "pyspark.sql.DataFrame",
-        hash_name: str = "md5",
-        *,
-        new_col: str | None = None,
-        num_bits: int = 256,
-        return_func: bool = False,
+    df: "pyspark.sql.DataFrame",
+    hash_name: str = "md5",
+    *,
+    new_col: str | None = None,
+    num_bits: int = 256,
+    return_func: bool = False,
 ) -> Union["pyspark.sql.DataFrame", "F.col"]:
     """Hash each dataframe row.
 

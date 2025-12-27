@@ -58,11 +58,11 @@ class DataFrameMethod(Transformer):
     """
 
     def __init__(
-            self,
-            *,
-            method: str,
-            args: list[Any] | None = None,
-            kwargs: dict[str, Any] | None = None,
+        self,
+        *,
+        method: str,
+        args: list[Any] | None = None,
+        kwargs: dict[str, Any] | None = None,
     ):
         """Initialize DataFrameMethod transformer.
 
@@ -118,17 +118,17 @@ class DataFrameMethod(Transformer):
 
 class HorizontalFunction(Transformer):
     def __init__(
-            self,
-            *,
-            output_col: str,
-            function: str,
-            columns: list[str] | None = None,
-            regex: str | None = None,
-            glob: str | None = None,
-            startswith: str | Iterable[str] | None = None,
-            endswith: str | Iterable[str] | None = None,
-            args: list[Any] | None = None,
-            kwargs: dict[str, Any] | None = None,
+        self,
+        *,
+        output_col: str,
+        function: str,
+        columns: list[str] | None = None,
+        regex: str | None = None,
+        glob: str | None = None,
+        startswith: str | Iterable[str] | None = None,
+        endswith: str | Iterable[str] | None = None,
+        args: list[Any] | None = None,
+        kwargs: dict[str, Any] | None = None,
     ):
         """Apply a Narwhals top-level function across columns.
 
@@ -180,10 +180,14 @@ class HorizontalFunction(Transformer):
 
         # Validate function exists
         _HORIZONTAL_FUNCTIONS = {
-            "coalesce", "concat_str",
-            "max_horizontal", "min_horizontal",
-            "mean_horizontal", "sum_horizontal",
-            "all_horizontal", "any_horizontal",
+            "coalesce",
+            "concat_str",
+            "max_horizontal",
+            "min_horizontal",
+            "mean_horizontal",
+            "sum_horizontal",
+            "all_horizontal",
+            "any_horizontal",
             "format",
         }
         assert_allowed(function, _HORIZONTAL_FUNCTIONS, "horizontal-function")
@@ -215,19 +219,19 @@ class HorizontalFunction(Transformer):
 
 class WithColumns(Transformer):
     def __init__(
-            self,
-            *,
-            columns: str | list[str] | None = None,
-            regex: str | None = None,
-            glob: str | None = None,
-            startswith: str | Iterable[str] | None = None,
-            endswith: str | Iterable[str] | None = None,
-            method: str,
-            alias: str | None = None,
-            args: list[Any] | None = None,
-            kwargs: dict[str, Any] | None = None,
-            prefix: str | None = None,
-            suffix: str | None = None,
+        self,
+        *,
+        columns: str | list[str] | None = None,
+        regex: str | None = None,
+        glob: str | None = None,
+        startswith: str | Iterable[str] | None = None,
+        endswith: str | Iterable[str] | None = None,
+        method: str,
+        alias: str | None = None,
+        args: list[Any] | None = None,
+        kwargs: dict[str, Any] | None = None,
+        prefix: str | None = None,
+        suffix: str | None = None,
     ):
         """Apply a Narwhals method to multiple columns.
 
@@ -262,7 +266,9 @@ class WithColumns(Transformer):
         """
         if alias:
             if (prefix is not None) or (suffix is not None):
-                raise AssertionError("'prefix'/'suffix' cannot be provided with 'alias'")
+                raise AssertionError(
+                    "'prefix'/'suffix' cannot be provided with 'alias'"
+                )
 
         super().__init__()
         self._set_columns_selections(

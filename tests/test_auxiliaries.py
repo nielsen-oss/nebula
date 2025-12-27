@@ -347,10 +347,10 @@ class TestSelectColumns:
     @pytest.mark.parametrize("regex", (None, "c[034]"))
     @pytest.mark.parametrize("glob", (None, "*", "d*"))
     def test_columns_regex_glob(
-            self,
-            columns: list[str] | None,
-            regex: str | None,
-            glob: str | None,
+        self,
+        columns: list[str] | None,
+        regex: str | None,
+        glob: str | None,
     ):
         """Test 'select_columns' with the parameters 'columns', 'regex' and 'glob'."""
         input_cols = [f"{x}{y}" for x, y in itertools.product("cd", range(5))]

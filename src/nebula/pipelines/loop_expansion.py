@@ -297,9 +297,10 @@ def expand_loops(o: dict) -> dict:
     else:
         for item in pipe:
             processed, is_expanded = _expand_loops(item)
-            if is_expanded and isinstance(processed, list):
-                ret["pipeline"].extend(processed)
-            else:
-                ret["pipeline"].append(processed)
+            if processed:  # if loop is skipped it return an empty dict
+                if is_expanded and isinstance(processed, list):
+                    ret["pipeline"].extend(processed)
+                else:
+                    ret["pipeline"].append(processed)
 
     return ret

@@ -195,7 +195,9 @@ class TestAppendDataframes:
         df1_pd = pd.DataFrame({"a": [1, 2]}, index=[10, 20])
         df2_pd = pd.DataFrame({"a": [3, 4]}, index=[30, 40])
 
-        result = append_dataframes([df1_pd, df2_pd], allow_missing_cols=False, ignore_index=ignore_index)
+        result = append_dataframes(
+            [df1_pd, df2_pd], allow_missing_cols=False, ignore_index=ignore_index
+        )
 
         if ignore_index:
             # Index should be reset to 0, 1, 2, 3
@@ -237,7 +239,6 @@ class TestAppendDataframes:
 
 
 class TestDfIsEmpty:
-
     @pytest.mark.parametrize("data", ([1, 2], []))
     @pytest.mark.parametrize("backend", TEST_BACKENDS)
     @pytest.mark.parametrize("to_nw", [True, False])
@@ -268,13 +269,17 @@ class TestGetCondition:
     @pytest.fixture(scope="class")
     def sample_df(self):
         """Create a sample dataframe for testing."""
-        return nw.from_native(pd.DataFrame({
-            "age": [15, 25, 35, None],
-            "score": [50, 75, 85, 90],
-            "name": ["Alice", "Bob", "Charlie", "Dave"],
-            "status": ["active", "pending", "active", "inactive"],
-            "salary": [30000.0, 50000.0, float('nan'), 70000.0]
-        }))
+        return nw.from_native(
+            pd.DataFrame(
+                {
+                    "age": [15, 25, 35, None],
+                    "score": [50, 75, 85, 90],
+                    "name": ["Alice", "Bob", "Charlie", "Dave"],
+                    "status": ["active", "pending", "active", "inactive"],
+                    "salary": [30000.0, 50000.0, float("nan"), 70000.0],
+                }
+            )
+        )
 
     # --- Comparison Operators ---
 
@@ -329,10 +334,7 @@ class TestGetCondition:
 
     def test_eq_with_compare_col(self):
         """Test equality comparison between two columns."""
-        df = nw.from_native(pd.DataFrame({
-            "a": [1, 2, 3, 4],
-            "b": [1, 3, 3, 5]
-        }))
+        df = nw.from_native(pd.DataFrame({"a": [1, 2, 3, 4], "b": [1, 3, 3, 5]}))
 
         cond = get_condition("a", "eq", compare_col="b")
         result = df.filter(cond)
@@ -340,10 +342,9 @@ class TestGetCondition:
 
     def test_gt_with_compare_col(self):
         """Test greater-than comparison between two columns."""
-        df = nw.from_native(pd.DataFrame({
-            "sales": [100, 200, 300],
-            "target": [150, 150, 150]
-        }))
+        df = nw.from_native(
+            pd.DataFrame({"sales": [100, 200, 300], "target": [150, 150, 150]})
+        )
 
         cond = get_condition("sales", "gt", compare_col="target")
         result = df.filter(cond)
@@ -377,9 +378,7 @@ class TestGetCondition:
 
     def test_is_nan_vs_is_null_distinction(self):
         """Test that is_nan and is_null are distinct."""
-        df = nw.from_native(pl.DataFrame({
-            "value": [1.0, float('nan'), None, 4.0]
-        }))
+        df = nw.from_native(pl.DataFrame({"value": [1.0, float("nan"), None, 4.0]}))
 
         # is_nan finds NaN but not None
         nan_result = df.filter(get_condition("value", "is_nan"))
@@ -425,9 +424,9 @@ class TestGetCondition:
 
     def test_is_not_in_with_nulls(self):
         """Test that is_not_in treats nulls as True."""
-        df = nw.from_native(pd.DataFrame({
-            "status": ["active", "pending", None, "inactive"]
-        }))
+        df = nw.from_native(
+            pd.DataFrame({"status": ["active", "pending", None, "inactive"]})
+        )
 
         cond = get_condition("status", "is_not_in", value=["active"])
         result = df.filter(cond)
@@ -446,9 +445,7 @@ class TestGetCondition:
 
     def test_is_between_inclusive(self):
         """Test that is_between is inclusive on both ends."""
-        df = nw.from_native(pd.DataFrame({
-            "value": [5, 10, 15, 20, 25]
-        }))
+        df = nw.from_native(pd.DataFrame({"value": [5, 10, 15, 20, 25]}))
 
         cond = get_condition("value", "is_between", value=[10, 20])
         result = df.filter(cond)
@@ -458,9 +455,7 @@ class TestGetCondition:
 
     def test_comparison_with_null_propagates(self):
         """Test that comparisons with null values propagate null."""
-        df = nw.from_native(pd.DataFrame({
-            "a": [1, 2, None, 4]
-        }))
+        df = nw.from_native(pd.DataFrame({"a": [1, 2, None, 4]}))
 
         cond = get_condition("a", "gt", value=2)
         result = df.filter(cond)
@@ -477,9 +472,7 @@ class TestGetCondition:
 
     def test_case_sensitive_string_matching(self):
         """Test that string matching is case-sensitive."""
-        df = nw.from_native(pd.DataFrame({
-            "name": ["Alice", "alice", "ALICE"]
-        }))
+        df = nw.from_native(pd.DataFrame({"name": ["Alice", "alice", "ALICE"]}))
 
         cond = get_condition("name", "starts_with", value="A")
         result = df.filter(cond)
@@ -494,9 +487,11 @@ class TestGetCondition:
 
     def test_comparison_with_dates(self):
         """Test with date/datetime columns."""
-        df = nw.from_native(pd.DataFrame({
-            "date": pd.to_datetime(["2023-01-01", "2023-06-01", "2023-12-01"])
-        }))
+        df = nw.from_native(
+            pd.DataFrame(
+                {"date": pd.to_datetime(["2023-01-01", "2023-06-01", "2023-12-01"])}
+            )
+        )
         cond = get_condition("date", "gt", value=pd.Timestamp("2023-05-01"))
         result = df.filter(cond)
         assert len(result) == 2
@@ -507,10 +502,14 @@ class TestGetConditionIntegration:
 
     def test_combining_conditions_with_and(self):
         """Test combining multiple conditions with AND logic."""
-        df = nw.from_native(pd.DataFrame({
-            "age": [15, 25, 35, 45],
-            "status": ["active", "active", "inactive", "active"]
-        }))
+        df = nw.from_native(
+            pd.DataFrame(
+                {
+                    "age": [15, 25, 35, 45],
+                    "status": ["active", "active", "inactive", "active"],
+                }
+            )
+        )
 
         cond1 = get_condition("age", "ge", value=25)
         cond2 = get_condition("status", "eq", value="active")
@@ -520,10 +519,14 @@ class TestGetConditionIntegration:
 
     def test_combining_conditions_with_or(self):
         """Test combining multiple conditions with OR logic."""
-        df = nw.from_native(pd.DataFrame({
-            "age": [15, 25, 35, 45],
-            "status": ["pending", "active", "inactive", "active"]
-        }))
+        df = nw.from_native(
+            pd.DataFrame(
+                {
+                    "age": [15, 25, 35, 45],
+                    "status": ["pending", "active", "inactive", "active"],
+                }
+            )
+        )
 
         cond1 = get_condition("age", "lt", value=20)
         cond2 = get_condition("status", "eq", value="active")
@@ -534,9 +537,7 @@ class TestGetConditionIntegration:
 
     def test_negating_condition(self):
         """Test negating a condition."""
-        df = nw.from_native(pd.DataFrame({
-            "status": ["active", "inactive", "pending"]
-        }))
+        df = nw.from_native(pd.DataFrame({"status": ["active", "inactive", "pending"]}))
 
         cond = get_condition("status", "eq", value="active")
         result = df.filter(~cond)
@@ -544,12 +545,22 @@ class TestGetConditionIntegration:
 
     def test_complex_filtering_scenario(self):
         """Test a realistic complex filtering scenario."""
-        df = nw.from_native(pd.DataFrame({
-            "name": ["Alice", "Bob", "Charlie", "Dave", "Eve"],
-            "age": [25, 35, 45, None, 55],
-            "department": ["Sales", "Engineering", "Sales", "HR", "Engineering"],
-            "salary": [50000, 80000, 60000, 55000, 90000]
-        }))
+        df = nw.from_native(
+            pd.DataFrame(
+                {
+                    "name": ["Alice", "Bob", "Charlie", "Dave", "Eve"],
+                    "age": [25, 35, 45, None, 55],
+                    "department": [
+                        "Sales",
+                        "Engineering",
+                        "Sales",
+                        "HR",
+                        "Engineering",
+                    ],
+                    "salary": [50000, 80000, 60000, 55000, 90000],
+                }
+            )
+        )
 
         # Find: Engineering department, age >= 30, salary > 70000
         cond_dept = get_condition("department", "eq", value="Engineering")
@@ -571,16 +582,20 @@ class TestJoinDataframes:
     @pytest.mark.parametrize("to_nw", [True, False])
     def test_basic(self, backend: str, to_nw: bool, how: str):
         """Test basic join on single column."""
-        df_left_pd = pd.DataFrame({
-            "user_id": [1, 2, 3, 4],
-            "name": ["Alice", "Bob", "Charlie", "David"],
-            "age": [25, 30, 35, 40]
-        })
-        df_right_pd = pd.DataFrame({
-            "user_id": [2, 3, 4, 5],
-            "city": ["NYC", "LA", "Chicago", "Boston"],
-            "country": ["USA", "USA", "USA", "USA"]
-        })
+        df_left_pd = pd.DataFrame(
+            {
+                "user_id": [1, 2, 3, 4],
+                "name": ["Alice", "Bob", "Charlie", "David"],
+                "age": [25, 30, 35, 40],
+            }
+        )
+        df_right_pd = pd.DataFrame(
+            {
+                "user_id": [2, 3, 4, 5],
+                "city": ["NYC", "LA", "Chicago", "Boston"],
+                "country": ["USA", "USA", "USA", "USA"],
+            }
+        )
 
         df_left = from_pandas(df_left_pd, backend, to_nw=to_nw)
         df_right = from_pandas(df_right_pd, backend, to_nw=to_nw)
@@ -612,13 +627,15 @@ class TestJoinDataframes:
             nw.from_native(df_right),
             how="full",
             on="id",
-            coalesce_keys=coalesce_keys
+            coalesce_keys=coalesce_keys,
         )
         df_chk = nw.to_native(result)
         df_exp = df_left.join(df_right, on="id", how="full")
 
         if coalesce_keys:
-            df_exp = df_exp.with_columns(pl.coalesce("id", "id_right").alias("id")).drop("id_right")
+            df_exp = df_exp.with_columns(
+                pl.coalesce("id", "id_right").alias("id")
+            ).drop("id_right")
         pl.testing.assert_frame_equal(df_chk, df_exp)
 
     def test_cross_join(self):
@@ -637,24 +654,14 @@ class TestJoinDataframes:
     @pytest.mark.parametrize("to_nw", [True, False])
     def test_right_join_with_different_keys(self, spark, backend: str, to_nw: bool):
         """Test right join with left_on/right_on swaps correctly."""
-        df_left_pd = pd.DataFrame({
-            "left_id": [1, 2, 3],
-            "value": ["a", "b", "c"]
-        })
-        df_right_pd = pd.DataFrame({
-            "right_id": [2, 3, 4],
-            "data": ["x", "y", "z"]
-        })
+        df_left_pd = pd.DataFrame({"left_id": [1, 2, 3], "value": ["a", "b", "c"]})
+        df_right_pd = pd.DataFrame({"right_id": [2, 3, 4], "data": ["x", "y", "z"]})
 
         df_left = from_pandas(df_left_pd, backend, to_nw=to_nw, spark=spark)
         df_right = from_pandas(df_right_pd, backend, to_nw=to_nw, spark=spark)
 
         result = join_dataframes(
-            df_left,
-            df_right,
-            how="right",
-            left_on="left_id",
-            right_on="right_id"
+            df_left, df_right, how="right", left_on="left_id", right_on="right_id"
         )
         result_pd = to_pandas(result).reset_index(drop=True)
 
@@ -665,16 +672,16 @@ class TestJoinDataframes:
     @pytest.mark.parametrize("suffix", [None, "_b"])
     def test_suffix_default(self, suffix):
         """Test default suffix is applied to overlapping columns."""
-        df_left = pd.DataFrame({
-            "id": [1, 2],
-            "value": [10, 20],
-            "status": ["active", "inactive"]
-        })
-        df_right = pd.DataFrame({
-            "id": [1, 2],
-            "value": [100, 200],  # Overlapping column
-            "category": ["A", "B"]
-        })
+        df_left = pd.DataFrame(
+            {"id": [1, 2], "value": [10, 20], "status": ["active", "inactive"]}
+        )
+        df_right = pd.DataFrame(
+            {
+                "id": [1, 2],
+                "value": [100, 200],  # Overlapping column
+                "category": ["A", "B"],
+            }
+        )
 
         kws = {"how": "inner", "on": "id"} | ({"suffix": suffix} if suffix else {})
         result = join_dataframes(df_left, nw.from_native(df_right), **kws)
@@ -692,25 +699,13 @@ class TestJoinDataframes:
     @pytest.mark.parametrize("to_nw", [True, False])
     def test_suffix_custom(self, spark, backend: str, to_nw: bool):
         """Test custom suffix is applied correctly."""
-        df_left_pd = pd.DataFrame({
-            "id": [1, 2],
-            "value": [10, 20]
-        })
-        df_right_pd = pd.DataFrame({
-            "id": [1, 2],
-            "value": [100, 200]
-        })
+        df_left_pd = pd.DataFrame({"id": [1, 2], "value": [10, 20]})
+        df_right_pd = pd.DataFrame({"id": [1, 2], "value": [100, 200]})
 
         df_left = from_pandas(df_left_pd, backend, to_nw=to_nw, spark=spark)
         df_right = from_pandas(df_right_pd, backend, to_nw=to_nw, spark=spark)
 
-        result = join_dataframes(
-            df_left,
-            df_right,
-            how="inner",
-            on="id",
-            suffix="_b"
-        )
+        result = join_dataframes(df_left, df_right, how="inner", on="id", suffix="_b")
         result_pd = to_pandas(result).reset_index(drop=True)
 
         assert "value" in result_pd.columns
@@ -728,11 +723,7 @@ class TestJoinDataframes:
 
         # Should not error with broadcast=True
         result = join_dataframes(
-            df_left,
-            df_right,
-            how="inner",
-            on="id",
-            broadcast=True
+            df_left, df_right, how="inner", on="id", broadcast=True
         )
         df_chk = to_pandas(result).sort_values("id").reset_index(drop=True)
         df_exp = df_left_pd.merge(df_right_pd, on="id", how="inner")
@@ -744,10 +735,7 @@ class TestNullCondToFalse:
 
     def test_null_becomes_false(self):
         """Test that null values in condition become False."""
-        df = nw.from_native(pl.DataFrame({
-            "a": [1, 2, None, 4],
-            "b": [10, 20, 30, 40]
-        }))
+        df = nw.from_native(pl.DataFrame({"a": [1, 2, None, 4], "b": [10, 20, 30, 40]}))
 
         # Without null_cond_to_false: nulls propagate
         cond = nw.col("a") > 2
@@ -766,15 +754,11 @@ class TestNullCondToFalse:
         cond = null_cond_to_false(nw.col("a"))
         result = df.with_columns(cond.alias("result"))
 
-        expected = pd.DataFrame({
-            "a": [True, False, None],
-            "result": [True, False, False]
-        })
-
-        pd.testing.assert_frame_equal(
-            nw.to_native(result),
-            expected
+        expected = pd.DataFrame(
+            {"a": [True, False, None], "result": [True, False, False]}
         )
+
+        pd.testing.assert_frame_equal(nw.to_native(result), expected)
 
 
 class TestToNativeDataframes:
@@ -883,9 +867,7 @@ class TestValidateOperation:
         with pytest.raises((ValueError, TypeError)):
             validate_operation("is_between", value=value)
 
-    @pytest.mark.parametrize(
-        "op", ["contains", "starts_with", "ends_with"]
-    )
+    @pytest.mark.parametrize("op", ["contains", "starts_with", "ends_with"])
     def test_invalid_string_operator_values(self, op: str):
         """Test with not allowed value for string operators."""
         with pytest.raises(TypeError):

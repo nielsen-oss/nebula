@@ -46,7 +46,7 @@ def test_load_pipeline_mock_dry_run(pipeline_key: str):
 
     pipe = load_pipeline(data, extra_functions=exposed_functions)
 
-    pipe.show_pipeline(add_transformer_params=True)
+    pipe.show(add_params=True)
 
 
 def test_load_pipeline_wrong_keyword():
@@ -120,11 +120,9 @@ class TestExtractFunction:
     def test_valid(self):
         """Test valid list of functions."""
 
-        def f1():
-            ...
+        def f1(): ...
 
-        def f2():
-            ...
+        def f2(): ...
 
         chk = _extract_function([f1, f2], "f1")
         assert chk == f1
@@ -132,58 +130,45 @@ class TestExtractFunction:
     def test_invalid(self):
         """Test duplicated list of functions."""
 
-        def f1():
-            ...
+        def f1(): ...
 
         with pytest.raises(AssertionError):
             _extract_function([f1, f1], "f1")
 
 
 class TestExtractLazyParams:
-    extra_funcs = {"func": lambda: "lambda"}
-    regular_params = {"p1": "param_1", "p2": 2, "p3": [1], "p4": {"a": 1, "b": 2}, "p5": (5,)}
+    regular_params = {
+        "p1": "param_1",
+        "p2": 2,
+        "p3": [1],
+        "p4": {"a": 1, "b": 2},
+        "p5": (5,),
+    }
 
     def test_no_lazy_params(self):
         """Tests input with no lazy parameters."""
-        chk = extract_lazy_params(self.regular_params, self.extra_funcs)
-        assert chk == self.regular_params
-
-    def test_with_fn_param(self):
-        """Tests input with a '__fn__' parameter."""
-        params = {**{"func": "__fn__func"}, **self.regular_params}
-        chk = extract_lazy_params(params, self.extra_funcs)
-        chk_lazy = chk.pop("func")
-        assert chk_lazy is self.extra_funcs["func"]
+        chk = extract_lazy_params(self.regular_params)
         assert chk == self.regular_params
 
     def test_with_ns_param(self):
         """Tests input with a '__ns__' parameter."""
         params = {**{"ns": "__ns__my_key"}, **self.regular_params}
-        chk = extract_lazy_params(params, self.extra_funcs)
+        chk = extract_lazy_params(params)
         chk_lazy = chk.pop("ns")
         assert chk_lazy == (ns, "my_key")
         assert chk == self.regular_params
 
     def test_with_mixed_params(self):
-        """Tests a mix of regular, __fn__, and __ns__ parameters."""
+        """Tests a mix of regular and __ns__ parameters."""
         params = {
-            **{"func": "__fn__func"},
             **{"ns": "__ns__my_key"},
             **self.regular_params,
         }
-        chk = extract_lazy_params(params, self.extra_funcs)
+        chk = extract_lazy_params(params)
         chk_lazy_ns = chk.pop("ns")
-        chk_lazy_func = chk.pop("func")
         assert chk_lazy_ns == (ns, "my_key")
-        assert chk_lazy_func is self.extra_funcs["func"]
         assert chk == self.regular_params
 
     def test_empty_input(self):
         """Tests an empty input dictionary."""
-        assert extract_lazy_params({}, self.extra_funcs) == {}
-
-    def test_fn_not_found(self):
-        """Tests that a KeyError is raised for a non-existent function."""
-        params = {"func": "__fn__non_existent_func"}
-        with pytest.raises(KeyError):
-            extract_lazy_params(params, self.extra_funcs)
+        assert extract_lazy_params({}) == {}

@@ -592,8 +592,8 @@ class TestExpandLoopsInPipeline:
         result = expand_loops(pipe)
         assert result["pipeline"][0]["nested"] is not pipe["pipeline"][0]["nested"]
         assert (
-                result["pipeline"][0]["nested"]["deep"]
-                is not pipe["pipeline"][0]["nested"]["deep"]
+            result["pipeline"][0]["nested"]["deep"]
+            is not pipe["pipeline"][0]["nested"]["deep"]
         )
 
     @staticmethod
@@ -767,7 +767,7 @@ class TestExpandLoopsInPipeline:
         chk = expand_loops(pipe)
         assert chk == exp
         loaded = load_pipeline(chk)
-        loaded.show_pipeline(add_transformer_params=True)
+        loaded.show(add_params=True)
 
     @staticmethod
     def test_hardcoded_split_pipeline():
@@ -798,7 +798,9 @@ class TestExpandLoopsInPipeline:
                                         "transformer": "AddLiterals",
                                         # This must become: "name_a", "name_b"
                                         "params": {
-                                            "data": [{"value": 2, "alias": "<<names>>"}],
+                                            "data": [
+                                                {"value": 2, "alias": "<<names>>"}
+                                            ],
                                         },
                                     },
                                     {
@@ -918,7 +920,7 @@ class TestExpandLoopsInPipeline:
         assert chk == exp
         extra_functions = {"outer_func": lambda x: x}
         loaded = load_pipeline(chk, extra_functions=extra_functions)
-        loaded.show_pipeline(add_transformer_params=True)
+        loaded.show(add_params=True)
 
     @staticmethod
     def test_nested_templating():
@@ -935,7 +937,10 @@ class TestExpandLoopsInPipeline:
                                 },
                                 "transformer": "RenameColumns",
                                 "params": {
-                                    "mapping": {"no": "change", "<<names>>": "pre_<<names>>"},
+                                    "mapping": {
+                                        "no": "change",
+                                        "<<names>>": "pre_<<names>>",
+                                    },
                                 },
                             }
                         }
@@ -967,4 +972,4 @@ class TestExpandLoopsInPipeline:
         chk = expand_loops(pipe)
         assert chk == exp
         loaded = load_pipeline(chk)
-        loaded.show_pipeline(add_transformer_params=True)
+        loaded.show(add_params=True)

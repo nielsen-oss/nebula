@@ -7,12 +7,17 @@ Tests the apply_to_rows feature which:
 4. Merges results back (unless dead-end)
 """
 
+import os
+
+import narwhals as nw
 import numpy as np
 import polars as pl
 import pytest
 
+from nebula import load_pipeline
 from nebula.storage import nebula_storage as ns
 from .apply_to_rows_configs import *
+from .auxiliaries import CallMe
 from ..auxiliaries import pl_assert_equal
 
 
@@ -27,11 +32,13 @@ def df_input() -> pl.DataFrame:
 
     Null positions in c1: idx 7, 12
     """
-    return pl.DataFrame({
-        "idx": list(range(13)),
-        "c1": ["a", "a", "a", "a", "a", "", "", None, " ", "", "a", "a", None],
-        "c2": ["b", "b", "b", "b", "b", "", "", None, None, None, None, "", "b"],
-    })
+    return pl.DataFrame(
+        {
+            "idx": list(range(13)),
+            "c1": ["a", "a", "a", "a", "a", "", "", None, " ", "", "a", "a", None],
+            "c2": ["b", "b", "b", "b", "b", "", "", None, None, None, None, "", "b"],
+        }
+    )
 
 
 class TestApplyToRowsBasic:
@@ -40,7 +47,12 @@ class TestApplyToRowsBasic:
     def test_transforms_matching_rows_only(self, df_input):
         """Rows where idx > 5 get modified, others pass through unchanged."""
         pipe = pipe_apply_to_rows_basic()
-        df_out = pipe.run(df_input)
+        pipe.show(add_params=True)
+        df_out = pipe.run(
+            df_input, show_params=True, force_interleaved_transformer=CallMe()
+        )
+
+        assert ns.get("_call_me_") == 2
 
         # Matching rows (idx > 5) should have c1 = "modified"
         df_matched = df_out.filter(pl.col("idx") > 5)
@@ -74,7 +86,8 @@ class TestApplyToRowsDeadEnd:
         ns.clear()
 
         pipe = pipe_apply_to_rows_dead_end()
-        pipe.run(df_input)
+        pipe.show(add_params=True)
+        pipe.run(df_input, show_params=True)
 
         # Stored DataFrame should have the new column
         df_stored = ns.get("df_null_rows")
@@ -95,7 +108,8 @@ class TestApplyToRowsOtherwise:
         """Both branches apply their respective transforms."""
         n_rows = df_input.shape[0]
         pipe = pipe_apply_to_rows_otherwise()
-        df_out = pipe.run(df_input)
+        pipe.show(add_params=True)
+        df_out = pipe.run(df_input, show_params=True)
 
         index = np.arange(n_rows)
         ar_exp = np.where(index > 5, "matched", "not_matched")
@@ -105,7 +119,21 @@ class TestApplyToRowsOtherwise:
             .select(df_input.columns)
         )
 
-        pl_assert_equal(df_out, df_exp)
+        pl_assert_equal(df_out, df_exp, sort=["idx"])
+
+
+class TestApplyToRowsSkip:
+    """Tests for skip behavior."""
+
+    def test_skip(self, df_input):
+        """Test when skip = True."""
+        pipe = pipe_apply_to_rows_skip()
+        pipe.show(add_params=True)
+        df_out = pipe.run(df_input, show_params=True)
+        pl_assert_equal(df_out, df_input)
+
+        # Should be identical to input
+        assert df_out.sort("idx").equals(df_input.sort("idx"))
 
 
 class TestApplyToRowsSkipIfEmpty:
@@ -114,7 +142,8 @@ class TestApplyToRowsSkipIfEmpty:
     def test_skip_when_no_rows_match(self, df_input):
         """When no rows match and skip_if_empty=True, output equals input."""
         pipe = pipe_apply_to_rows_skip_if_empty()
-        df_out = pipe.run(df_input)
+        pipe.show(add_params=True)
+        df_out = pipe.run(df_input, show_params=True)
         pl_assert_equal(df_out, df_input)
 
         # Should be identical to input
@@ -130,7 +159,8 @@ class TestApplyToRowsComparisonColumn:
     def test_compare_two_columns(self, df_input):
         """Rows where c1 > c2 get the new column."""
         pipe = pipe_apply_to_rows_comparison_column()
-        df_out = pipe.run(df_input)
+        pipe.show(add_params=True)
+        df_out = pipe.run(df_input, show_params=True)
 
         # New column should exist
         assert "result" in df_out.columns
@@ -150,3 +180,51 @@ class TestApplyToRowsErrors:
 
         with pytest.raises(ValueError):
             pipe.run(df_input)
+
+
+@pytest.mark.skipif(os.environ.get("TESTS_NO_SPARK") == "true", reason="no spark")
+class TestSparkCoalesceRepartitionToOriginal:
+    """Test 'coalesce' and 'repartition' options for spark."""
+
+    @staticmethod
+    @pytest.fixture(scope="class", name="df_input_spark")
+    def _get_df_spark(spark):
+        from pyspark.sql.types import IntegerType, StructField, StructType
+
+        fields = [StructField("idx", IntegerType(), True)]
+        data = np.arange(100).reshape(-1, 1).tolist()
+        return spark.createDataFrame(data, schema=StructType(fields)).coalesce(2)
+
+    @pytest.mark.parametrize("to_nw", (True, False))
+    @pytest.mark.parametrize("repartition, coalesce", ([True, False], [False, True]))
+    def test(self, df_input_spark, to_nw: bool, repartition: bool, coalesce: bool):
+        ns.clear()
+        data = {
+            "pipeline": [
+                {
+                    "apply_to_rows": {
+                        "input_col": "idx",
+                        "operator": "gt",
+                        "value": 5,
+                    },
+                    "repartition_output_to_original": repartition,
+                    "coalesce_output_to_original": coalesce,
+                    "pipeline": [
+                        {"transformer": "Repartition", "params": {"num_partitions": 10}}
+                    ],
+                }
+            ]
+        }
+        n_exp = df_input_spark.rdd.getNumPartitions()
+
+        pipeline = load_pipeline(data)
+        pipeline.show(add_params=True)
+
+        df_out = pipeline.run(
+            nw.from_native(df_input_spark) if to_nw else df_input_spark,
+            show_params=True,
+        )
+        n_chk = df_out.rdd.getNumPartitions()
+        assert n_chk == n_exp
+
+        ns.clear()

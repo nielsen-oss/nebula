@@ -87,7 +87,7 @@ def assert_only_one_non_none(**kws):
 
 
 def compare_lists_of_string(
-        *lists: list[str], names: list[str] | None = None
+    *lists: list[str], names: list[str] | None = None
 ) -> list[str]:
     """Compare lists of strings and represent the differences in a tabular format.
 
@@ -316,14 +316,14 @@ def is_list_uniform(o: Iterable, t: type) -> bool:
 
 
 def select_columns(
-        input_columns: list[str] | None,
-        *,
-        columns: list[str] | None = None,
-        regex: str | None = None,
-        glob: str | None = None,
-        startswith: str | Iterable[str] | None = None,
-        endswith: str | Iterable[str] | None = None,
-        allow_excess_columns: bool = False,
+    input_columns: list[str] | None,
+    *,
+    columns: list[str] | None = None,
+    regex: str | None = None,
+    glob: str | None = None,
+    startswith: str | Iterable[str] | None = None,
+    endswith: str | Iterable[str] | None = None,
+    allow_excess_columns: bool = False,
 ) -> list[str]:
     """Select a subset of columns given certain conditions.
 
@@ -386,7 +386,7 @@ def select_columns(
             regex=regex,
             glob=glob,
             startswith=startswith,
-            endswith=endswith
+            endswith=endswith,
         )
         if startswith:
             start: tuple[str] = tuple(ensure_list(startswith))
@@ -434,7 +434,7 @@ def split_string_in_chunks(long_string: str, limit: int = 30) -> list[str]:
         if len(split) <= limit:
             short_splits.append(split)
         else:
-            substrings = [split[i: i + limit] for i in range(0, len(split), limit)]
+            substrings = [split[i : i + limit] for i in range(0, len(split), limit)]
             short_splits.extend(substrings)
 
     tot = 0
@@ -476,21 +476,20 @@ def truncate_long_string(s: str, w: int) -> str:
     >>> truncate_long_string("This is a long string", 10)
     'Th ... ng'
     """
-    half_w = w // 2 - 3
-
     if len(s) > w:
+        half_w = w // 2 - 3
         return s[:half_w] + " ... " + s[-half_w:]
     else:
         return s
 
 
 def validate_aggregations(
-        o: list[dict[str, str]],
-        allowed_agg: set[str],
-        *,
-        exact_keys: set[str] = None,
-        required_keys: set[str] = None,
-        allowed_keys: set[str] = None,
+    o: list[dict[str, str]],
+    allowed_agg: set[str],
+    *,
+    exact_keys: set[str] = None,
+    required_keys: set[str] = None,
+    allowed_keys: set[str] = None,
 ) -> None:
     """Validate the list of aggregations for groupBy and window functions."""
     for d in o:
@@ -513,11 +512,11 @@ def validate_aggregations(
 
 
 def validate_keys(
-        name: str,
-        data: dict | set,
-        *,
-        mandatory: set[str] | None = None,
-        optional: set[str] | None = None,
+    name: str,
+    data: dict | set,
+    *,
+    mandatory: set[str] | None = None,
+    optional: set[str] | None = None,
 ) -> None:
     """Validate that a dictionary has required keys and no unexpected ones.
 
@@ -546,15 +545,13 @@ def validate_keys(
     if not keys.issubset(all_keys):
         excess = keys - all_keys
         raise KeyError(
-            f"'{name}' keys must be a subset of {all_keys}. "
-            f"Unknown key(s): {excess}"
+            f"'{name}' keys must be a subset of {all_keys}. Unknown key(s): {excess}"
         )
 
     if not mandatory.issubset(keys):
         missing = mandatory - keys
         raise KeyError(
-            f"'{name}' must contain the key(s): {mandatory}. "
-            f"Missing: {missing}"
+            f"'{name}' must contain the key(s): {mandatory}. Missing: {missing}"
         )
 
 

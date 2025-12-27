@@ -57,11 +57,13 @@ class TestDropNulls:
 
     def test_polars_any_all_columns(self):
         """Test dropping rows with any null/NaN across all columns."""
-        df = pl.DataFrame({
-            "user_id": [1, 2, 3, 4, 5],
-            "age": [25.0, 30.0, 35.0, float('nan'), 45.0],
-            "score": [100.0, 200.0, None, 400.0, 500.0],
-        })
+        df = pl.DataFrame(
+            {
+                "user_id": [1, 2, 3, 4, 5],
+                "age": [25.0, 30.0, 35.0, float("nan"), 45.0],
+                "score": [100.0, 200.0, None, 400.0, 500.0],
+            }
+        )
 
         t = DropNulls(how="any", drop_na=True)
         result = t.transform(df)
@@ -72,11 +74,13 @@ class TestDropNulls:
 
     def test_polars_all_requires_all_missing(self):
         """Test dropping rows only when ALL values are null/NaN."""
-        df = pl.DataFrame({
-            "col_a": [1.0, None, None, 4.0],
-            "col_b": [10.0, 20.0, None, 40.0],
-            "col_c": [100.0, 200.0, None, 400.0],
-        })
+        df = pl.DataFrame(
+            {
+                "col_a": [1.0, None, None, 4.0],
+                "col_b": [10.0, 20.0, None, 40.0],
+                "col_c": [100.0, 200.0, None, 400.0],
+            }
+        )
 
         t = DropNulls(how="all", drop_na=True)
         result = t.transform(df)
@@ -89,12 +93,14 @@ class TestDropNulls:
 
     def test_polars_subset_columns(self):
         """Test dropping rows based on nulls in specific columns only."""
-        df = pl.DataFrame({
-            "user_id": [1, 2, 3, 4],
-            "score_primary": [50.0, 100.0, 150.0, None],
-            "score_secondary": [100.0, None, 300.0, None],
-            "note": [None, "good", None, "excellent"],
-        })
+        df = pl.DataFrame(
+            {
+                "user_id": [1, 2, 3, 4],
+                "score_primary": [50.0, 100.0, 150.0, None],
+                "score_secondary": [100.0, None, 300.0, None],
+                "note": [None, "good", None, "excellent"],
+            }
+        )
 
         # Only check score columns - ignore note nulls
         t = DropNulls(how="any", columns=["score_primary", "score_secondary"])
@@ -107,12 +113,14 @@ class TestDropNulls:
 
     def test_polars_with_pattern_and_nan_handling(self):
         """Test dropping rows with NaN vs. null distinction."""
-        df = pl.DataFrame({
-            "user_id": [1, 2, 3, 4],
-            "revenue_q1": [100.0, float('nan'), 300.0, 400.0],
-            "revenue_q2": [200.0, 250.0, None, 450.0],
-            "cost_q1": [50.0, 60.0, 70.0, None],
-        })
+        df = pl.DataFrame(
+            {
+                "user_id": [1, 2, 3, 4],
+                "revenue_q1": [100.0, float("nan"), 300.0, 400.0],
+                "revenue_q2": [200.0, 250.0, None, 450.0],
+                "cost_q1": [50.0, 60.0, 70.0, None],
+            }
+        )
 
         # Check revenue columns, including NaN
         t = DropNulls(how="any", glob="revenue_*", drop_na=True)
@@ -124,10 +132,12 @@ class TestDropNulls:
 
     def test_polars_ignore_nan(self):
         """Test ignoring NaN when drop_null=False."""
-        df = pl.DataFrame({
-            "user_id": [1, 2, 3],
-            "value": [100.0, float('nan'), None],
-        })
+        df = pl.DataFrame(
+            {
+                "user_id": [1, 2, 3],
+                "value": [100.0, float("nan"), None],
+            }
+        )
 
         # Only drop actual nulls, not NaN
         t = DropNulls(how="any", drop_na=False)
@@ -143,11 +153,13 @@ class TestDropNulls:
     @pytest.mark.parametrize("columns", [None, "age"])
     def test_pandas_how(self, how: str, columns):
         """Test 'how' parameter in pandas."""
-        df = pd.DataFrame({
-            "user_id": [1, 2, 3, 4, 5],
-            "age": [25.0, float('nan'), float('nan'), float('nan'), 45.0],
-            "score": [100.0, 200.0, float('nan'), 400.0, 500.0],
-        })
+        df = pd.DataFrame(
+            {
+                "user_id": [1, 2, 3, 4, 5],
+                "age": [25.0, float("nan"), float("nan"), float("nan"), 45.0],
+                "score": [100.0, 200.0, float("nan"), 400.0, 500.0],
+            }
+        )
         t = DropNulls(how=how, columns=columns)
         df_chk = t.transform(df)
         df_exp = df.dropna(how=how, subset=columns)
@@ -156,11 +168,13 @@ class TestDropNulls:
     @pytest.mark.parametrize("thresh", [1, 2])
     def test_pandas_thresh(self, thresh: int):
         """Test 'thresh' parameter in pandas."""
-        df = pd.DataFrame({
-            "user_id": [1, 2, 3, 4, 5],
-            "age": [25.0, float('nan'), float('nan'), float('nan'), 45.0],
-            "score": [100.0, 200.0, None, 400.0, 500.0],
-        })
+        df = pd.DataFrame(
+            {
+                "user_id": [1, 2, 3, 4, 5],
+                "age": [25.0, float("nan"), float("nan"), float("nan"), 45.0],
+                "score": [100.0, 200.0, None, 400.0, 500.0],
+            }
+        )
         t = DropNulls(thresh=thresh)
         df_chk = t.transform(df)
         df_exp = df.dropna(thresh=thresh)
@@ -218,12 +232,14 @@ class TestFilter:
     def df(self):
         """Create a DataFrame with nulls and NaNs for testing."""
         return nw.from_native(
-            pd.DataFrame({
-                "age": [15, 25, 35, None],
-                "score": [50.0, 75.0, float("nan"), 90.0],
-                "name": ["Alice", "Bob", "Charlie", "Dave"],
-                "status": ["active", "pending", "active", None],
-            })
+            pd.DataFrame(
+                {
+                    "age": [15, 25, 35, None],
+                    "score": [50.0, 75.0, float("nan"), 90.0],
+                    "name": ["Alice", "Bob", "Charlie", "Dave"],
+                    "status": ["active", "pending", "active", None],
+                }
+            )
         )
 
     def test_keep_with_eq(self, df):
@@ -399,10 +415,12 @@ class TestFilter:
     def df_null_nan(self):
         """Create a DataFrame that clearly separates null and NaN."""
         return nw.from_native(
-            pl.DataFrame({
-                "value": [1.0, None, float("nan"), 4.0],
-                "label": ["one", "null", "nan", "four"],
-            })
+            pl.DataFrame(
+                {
+                    "value": [1.0, None, float("nan"), 4.0],
+                    "label": ["one", "null", "nan", "four"],
+                }
+            )
         )
 
     def test_is_null_finds_only_null(self, df_null_nan):
@@ -448,11 +466,13 @@ class TestFilter:
     def df_compare_col(self):
         """Create a DataFrame for column comparison tests."""
         return nw.from_native(
-            pd.DataFrame({
-                "sales": [100, 200, None, 400],
-                "target": [150, 150, 150, 150],
-                "name": ["Alice", "Bob", "Charlie", "Dave"],
-            })
+            pd.DataFrame(
+                {
+                    "sales": [100, 200, None, 400],
+                    "target": [150, 150, 150, 150],
+                    "name": ["Alice", "Bob", "Charlie", "Dave"],
+                }
+            )
         )
 
     def test_keep_with_column_comparison(self, df_compare_col):
@@ -493,15 +513,17 @@ class TestFilter:
     def df_strings(self):
         """Create a DataFrame with strings and nulls."""
         return nw.from_native(
-            pd.DataFrame({
-                "email": [
-                    "alice@company.com",
-                    "bob@external.org",
-                    None,
-                    "charlie@company.com",
-                ],
-                "name": ["Alice", "Bob", "Charlie", "Dave"],
-            })
+            pd.DataFrame(
+                {
+                    "email": [
+                        "alice@company.com",
+                        "bob@external.org",
+                        None,
+                        "charlie@company.com",
+                    ],
+                    "name": ["Alice", "Bob", "Charlie", "Dave"],
+                }
+            )
         )
 
     def test_keep_contains(self, df_strings):

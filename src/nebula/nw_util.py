@@ -13,6 +13,7 @@ from nebula.df_types import get_dataframe_type
 
 __all__ = [
     "append_dataframes",
+    "assert_join_params",
     "df_is_empty",
     "get_condition",
     "join_dataframes",
@@ -26,18 +27,12 @@ NULL_OPERATORS = {"is_null", "is_not_null", "is_nan", "is_not_nan"}
 STRING_OPERATORS = {"contains", "starts_with", "ends_with"}
 MEMBERSHIP_OPERATORS = {"is_between", "is_in", "is_not_in"}
 _allowed_operators = (
-        COMPARISON_OPERATORS
-        | NULL_OPERATORS
-        | STRING_OPERATORS
-        | MEMBERSHIP_OPERATORS
+    COMPARISON_OPERATORS | NULL_OPERATORS | STRING_OPERATORS | MEMBERSHIP_OPERATORS
 )
 
 
 def assert_join_params(
-        how: str,
-        on: str | None,
-        left_on: str | None,
-        right_on: str | None
+    how: str, on: str | None, left_on: str | None, right_on: str | None
 ) -> None:
     allowed_how = {
         "inner",
@@ -81,6 +76,7 @@ def _is_nw_df(df) -> bool:
 def broadcast_spark(df):
     """Broadcast a spark dataframe."""
     from pyspark.sql.functions import broadcast
+
     df = nw.to_native(df) if _is_nw_df(df) else df
     ret = broadcast(df)
     return nw.from_native(ret)
@@ -131,12 +127,12 @@ def to_native_dataframes(dataframes) -> tuple[list, str, bool]:
 
 
 def append_dataframes(
-        dataframes,
-        *,
-        allow_missing_cols: bool,
-        relax: bool = False,
-        rechunk: bool = False,
-        ignore_index: bool = False,
+    dataframes,
+    *,
+    allow_missing_cols: bool,
+    relax: bool = False,
+    rechunk: bool = False,
+    ignore_index: bool = False,
 ):
     """Append (concatenate vertically) a list of dataframes.
 
@@ -236,6 +232,7 @@ def append_dataframes(
         ...     rechunk=True
         ... )
     """
+    allow_missing_cols = bool(allow_missing_cols)  # None will throw an error
     native_dataframes, native_backend, nw_found = to_native_dataframes(dataframes)
     to_native: bool = not nw_found
 
@@ -265,16 +262,16 @@ def append_dataframes(
             if missing_right:
                 msg.append(f"missing in df({i}): {sorted(missing_right)}")
 
-        raise ValueError(
-            "Column mismatch between dataframes -> " + ", ".join(msg)
-        )
+        raise ValueError("Column mismatch between dataframes -> " + ", ".join(msg))
 
     if native_backend == "pandas":
         import pandas as pd
+
         ret = pd.concat(native_dataframes, axis=0, ignore_index=ignore_index)
 
     elif native_backend == "polars":
         import polars as pl
+
         if allow_missing_cols:
             how = "diagonal"
         else:
@@ -286,6 +283,7 @@ def append_dataframes(
 
     elif native_backend == "spark":
         from pyspark.sql import DataFrame
+
         func = partial(DataFrame.unionByName, allowMissingColumns=allow_missing_cols)
         ret = reduce(func, native_dataframes)
 
@@ -306,6 +304,7 @@ def df_is_empty(df_input) -> bool:
         return df.empty
     elif df_type_name == "polars":
         import polars as pl
+
         if isinstance(df, pl.LazyFrame):
             return df.limit(1).collect().is_empty()
         return df.is_empty()
@@ -331,16 +330,16 @@ def null_cond_to_false(cond: nw.Expr) -> nw.Expr:
 
 
 def join_dataframes(
-        df,
-        df_to_join,
-        *,
-        how: str,
-        on: list[str] | str | None = None,
-        left_on: str | list[str] | None = None,
-        right_on: str | list[str] | None = None,
-        suffix: str | None = None,
-        broadcast: bool = False,
-        coalesce_keys: bool = True,
+    df,
+    df_to_join,
+    *,
+    how: str,
+    on: list[str] | str | None = None,
+    left_on: str | list[str] | None = None,
+    right_on: str | list[str] | None = None,
+    suffix: str | None = None,
+    broadcast: bool = False,
+    coalesce_keys: bool = True,
 ):
     """Join two dataframes using Narwhals with cross-backend support.
 
@@ -414,7 +413,9 @@ def join_dataframes(
     """
     assert_join_params(how, on, left_on, right_on)
 
-    (df_native, df_to_join_native), backend, nw_found = to_native_dataframes([df, df_to_join])
+    (df_native, df_to_join_native), backend, nw_found = to_native_dataframes(
+        [df, df_to_join]
+    )
 
     if broadcast and (backend == "spark"):
         df_to_join = broadcast_spark(df_to_join_native)
@@ -474,9 +475,9 @@ def join_dataframes(
 
 
 def validate_operation(
-        operator: str,
-        value=None,
-        compare_col: str | None = None,
+    operator: str,
+    value=None,
+    compare_col: str | None = None,
 ) -> None:
     """Validate the input parameters for a filter condition.
 
@@ -513,9 +514,7 @@ def validate_operation(
 
     # All other operators need exactly one of value/compare_col
     if (value is not None) and (compare_col is not None):
-        raise ValueError(
-            "Exactly one of 'value' or 'compare_col' must be provided"
-        )
+        raise ValueError("Exactly one of 'value' or 'compare_col' must be provided")
 
     if (value is None) and (compare_col is None):
         raise ValueError(
@@ -528,9 +527,7 @@ def validate_operation(
 
     # Some operators don't support column comparison
     if operator in {"is_between"} and compare_col is not None:
-        raise ValueError(
-            f"Operator '{operator}' does not support column comparison"
-        )
+        raise ValueError(f"Operator '{operator}' does not support column comparison")
 
     if operator in {"is_in", "is_not_in"}:
         if isinstance(value, str):
@@ -559,17 +556,15 @@ def validate_operation(
 
     elif operator in STRING_OPERATORS:
         if not isinstance(value, str):
-            raise TypeError(
-                f"Operator '{operator}' requires a string value"
-            )
+            raise TypeError(f"Operator '{operator}' requires a string value")
 
 
 def get_condition(
-        col_name: str,
-        operator: str,
-        *,
-        value=None,
-        compare_col: str | None = None,
+    col_name: str,
+    operator: str,
+    *,
+    value=None,
+    compare_col: str | None = None,
 ) -> nw.Expr:
     """Build a Narwhals boolean expression for filtering.
 

@@ -15,7 +15,7 @@ def is_transformer(o) -> bool:
 
 
 def _check_multiple_args(
-        param_names: list[str], params: Mapping[str, Parameter]
+    param_names: list[str], params: Mapping[str, Parameter]
 ) -> bool:
     """Check if additional parameters (after 'df') have default values.
 

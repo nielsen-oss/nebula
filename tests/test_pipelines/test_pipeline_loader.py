@@ -36,7 +36,7 @@ def test_mock_pipelines_empty_splits(pipeline_key: str):
     }
 
     pipe = load_pipeline(data, extra_functions=dict_split_functions)
-    pipe.show_pipeline(add_transformer_params=True)
+    pipe.show(add_params=True)
     df_chk = pipe.run(df_input).sort_index()
     pd.testing.assert_frame_equal(df_input, df_chk)
 
@@ -55,12 +55,14 @@ def test_pipeline_loader_list_tuple():
     pd.testing.assert_frame_equal(df_input, pipe_tuple.run(df_input))
 
 
-def test_extra_transformers():
+@pytest.mark.parametrize(
+    "extra_transformers", [[ExtraTransformers], DICT_EXTRA_TRANSFORMERS]
+)
+def test_extra_transformers(extra_transformers):
     df = pl.DataFrame({"a": [1, 1, 2]})
 
     pipe = load_pipeline(
-        [{"transformer": "Distinct"}],
-        extra_transformers=[ExtraTransformers]
+        [{"transformer": "Distinct"}], extra_transformers=extra_transformers
     )
     df_chk = pipe.run(df)
     df_exp = df.unique()
@@ -71,10 +73,12 @@ def test_apply_to_rows_otherwise():
     index = np.arange(10)
     df = pl.DataFrame({"idx": index})
 
-    main_pipe = [{
-        "transformer": "AddLiterals",
-        "params": {"data": [{"value": "matched", "alias": "c1"}]},
-    }]
+    main_pipe = [
+        {
+            "transformer": "AddLiterals",
+            "params": {"data": [{"value": "matched", "alias": "c1"}]},
+        }
+    ]
     otherwise = {
         "transformer": "AddLiterals",
         "params": {"data": [{"value": "not_matched", "alias": "c1"}]},
@@ -94,4 +98,4 @@ def test_apply_to_rows_otherwise():
 
     ar_exp = np.where(index > 5, "matched", "not_matched")
     df_exp = pl.DataFrame({"idx": index, "c1": ar_exp})
-    pl_assert_equal(df_chk, df_exp)
+    pl_assert_equal(df_chk, df_exp, sort=["idx"])

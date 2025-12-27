@@ -25,7 +25,9 @@ class AddLiterals(Transformer):
         pandas_nullable_int: dict[str, str] = {}
 
         for i, row in enumerate(data):
-            validate_keys(f"data[{i}]", row, mandatory={"alias"}, optional={"value", "cast"})
+            validate_keys(
+                f"data[{i}]", row, mandatory={"alias"}, optional={"value", "cast"}
+            )
 
             alias = row["alias"]
             value = row.get("value")
@@ -38,7 +40,9 @@ class AddLiterals(Transformer):
             # Validate cast type
             if cast and cast not in NW_TYPES:
                 nw_types = sorted(NW_TYPES.keys())
-                raise ValueError(f"Invalid cast type '{cast}'. Must be one of: {nw_types}")
+                raise ValueError(
+                    f"Invalid cast type '{cast}'. Must be one of: {nw_types}"
+                )
 
             el_nw = nw.lit(value)
             el_pd = nw.lit(value)
@@ -75,6 +79,7 @@ class AddLiterals(Transformer):
         if self._pandas_nullable_int:
             if backend == "pandas":
                 import pandas as pd
+
                 df_pd = nw.to_native(nw_df)
                 for name, dtype in self._pandas_nullable_int.items():
                     df_pd[name] = pd.Series([None] * len(df_pd), dtype=dtype)
@@ -101,7 +106,7 @@ class Cast(Transformer):
     def _transform_nw(self, df):
         """Narwhals implementation for simple types."""
         # Check if any Spark-specific types requested
-        spark_types = ['array', 'struct', 'map']
+        spark_types = ["array", "struct", "map"]
         has_nested = any(
             any(st in dtype.lower() for st in spark_types)
             for dtype in self._cast.values()
@@ -182,15 +187,15 @@ class Cast(Transformer):
             return PL_TYPES[dtype_str]
 
         # Parse List types: list[inner_type]
-        if dtype_str.startswith('list[') and dtype_str.endswith(']'):
+        if dtype_str.startswith("list[") and dtype_str.endswith("]"):
             inner_str = dtype_str[5:-1]  # Extract content between list[ and ]
             inner_dtype = self._parse_polars_dtype(inner_str)
             return pl.List(inner_dtype)
 
         # Parse Array types: array[inner_type, width]
-        if dtype_str.startswith('array[') and dtype_str.endswith(']'):
+        if dtype_str.startswith("array[") and dtype_str.endswith("]"):
             content = dtype_str[6:-1]  # Extract content between array[ and ]
-            parts = content.rsplit(',', 1)  # Split on last comma
+            parts = content.rsplit(",", 1)  # Split on last comma
 
             if len(parts) != 2:
                 raise ValueError(
@@ -209,11 +214,11 @@ class Cast(Transformer):
             return pl.Array(inner_dtype, width)
 
         # Parse Struct types: struct[{field1: type1, field2: type2}]
-        if dtype_str.startswith('struct[') and dtype_str.endswith(']'):
+        if dtype_str.startswith("struct[") and dtype_str.endswith("]"):
             content = dtype_str[7:-1].strip()  # Extract content between struct[ and ]
 
             # Remove outer braces if present
-            if content.startswith('{') and content.endswith('}'):
+            if content.startswith("{") and content.endswith("}"):
                 content = content[1:-1].strip()
 
             # Parse field definitions
@@ -224,12 +229,12 @@ class Cast(Transformer):
 
                 for field_str in field_strs:
                     field_str = field_str.strip()
-                    if ':' not in field_str:
+                    if ":" not in field_str:
                         raise ValueError(
                             f"Struct field must have format 'name: type', got '{field_str}'"
                         )
 
-                    name, type_str = field_str.split(':', 1)
+                    name, type_str = field_str.split(":", 1)
                     name = name.strip()
                     type_str = type_str.strip()
 
@@ -256,21 +261,21 @@ class Cast(Transformer):
         depth = 0
 
         for char in content:
-            if char in '[{':
+            if char in "[{":
                 depth += 1
                 current.append(char)
-            elif char in ']}':
+            elif char in "]}":
                 depth -= 1
                 current.append(char)
-            elif char == ',' and depth == 0:
+            elif char == "," and depth == 0:
                 # Top-level comma - this is a field separator
-                fields.append(''.join(current))
+                fields.append("".join(current))
                 current = []
             else:
                 current.append(char)
 
         if current:  # last field
-            fields.append(''.join(current))
+            fields.append("".join(current))
 
         return fields
 

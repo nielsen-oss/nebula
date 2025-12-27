@@ -1,4 +1,4 @@
-"""Unit-tests pipeline exceptions handling."""
+"""Test the failure cache."""
 
 import os
 
@@ -7,15 +7,10 @@ import pytest
 from pyspark.sql import functions as F
 from pyspark.sql.types import FloatType, StringType, StructField, StructType
 
+from nebula import TransformerPipeline
 from nebula import nebula_storage as ns
 from nebula.base import Transformer
 from nebula.pipelines.exceptions import raise_pipeline_error
-from nebula.pipelines.pipelines import (
-    _FAIL_CACHE,
-    _PREFIX_FAIL_CACHE,
-    TransformerPipeline,
-    pipeline_config,
-)
 from nebula.spark_util import get_spark_session
 from nebula.transformers import *
 from .auxiliaries import *
@@ -27,18 +22,12 @@ _MSG = "this custom message"
 class ChangeFieldsNullability(Transformer):
     """Just to raise a low level Py4JJavaError."""
 
-    def __init__(
-            self,
-            *,
-            nullable: bool,
-            columns: list[str]
-    ):
+    def __init__(self, *, nullable: bool, columns: list[str]):
         super().__init__()
         self._nullable: bool = nullable
         self._columns = columns
 
     def _transform_spark(self, df):
-
         field: StructField
         new_fields: list[StructField] = []
 
@@ -126,28 +115,49 @@ class TestCacheToNebulaStorage:
     @staticmethod
     @pytest.fixture(scope="class", name="df_input")
     def _get_df_input():
-        return pl.DataFrame({
-            "c1": [1, 2],
-            "c2": [3, 4],
-            "c3": [5, 6],
-        })
+        return pl.DataFrame(
+            {
+                "c1": [1, 2],
+                "c2": [3, 4],
+                "c3": [5, 6],
+            }
+        )
 
     @staticmethod
     def test_flat_pipeline(df_input):
-        """Unit-tests for 'cache-to-nebula-storage' in a flat pipeline."""
+        """Unit-tests for 'cache-to-nebula-storage'."""
         ns.clear()
-        _FAIL_CACHE.clear()
 
         pipe = TransformerPipeline([ThisTransformerIsBroken(), AssertNotEmpty()])
 
         with pytest.raises(Exception):
             pipe.run(df_input)
 
-        name = _PREFIX_FAIL_CACHE + "ThisTransformerIsBroken"
-        df_chk = ns.get(name)
+        df_chk = ns.get("FAIL_DF_transformer:ThisTransformerIsBroken")
         pl_assert_equal(df_chk, df_input)
         ns.clear()
-        _FAIL_CACHE.clear()
+
+    @staticmethod
+    def _invalid_split_function(df):
+        cond = pl.col("c4") < 2  # c4 does not exist
+        return {
+            "low": df.filter(cond),
+            "hi": df.filter(~cond),
+        }
+
+    def test_split_pipeline_before_splitting(self, df_input):
+        """Retrieve the failed DFs before appending."""
+        ns.clear()
+        data = {
+            "low": [DropColumns(columns="c2")],
+            "hi": [DropColumns(columns="c3")],
+        }
+        pipe = TransformerPipeline(data, split_function=self._invalid_split_function)
+        with pytest.raises(Exception):
+            pipe.run(df_input)
+
+        pl_assert_equal(ns.get("FAIL_DF_fork:split"), df_input)
+        ns.clear()
 
     @staticmethod
     def _split_function(df):
@@ -157,35 +167,9 @@ class TestCacheToNebulaStorage:
             "hi": df.filter(~cond),
         }
 
-    @pytest.mark.parametrize("data", (
-            [ThisTransformerIsBroken()],
-            {"low": DropColumns(columns="c2"), "hi": DropColumns(columns="c3")},
-    ))
-    def test_failure_cache_deactivated(self, df_input, data):
-        """Unit-tests when the failure cache is not active."""
+    def test_split_pipeline_before_appending(self, df_input):
+        """Retrieve the failed DFs before appending."""
         ns.clear()
-        _FAIL_CACHE.clear()
-        pipeline_config["activate_failure_cache"] = False
-        try:
-            if isinstance(data, dict):
-                split_func = self._split_function
-            else:
-                split_func = None
-            pipe = TransformerPipeline(
-                data, split_function=split_func, allow_missing_columns=False
-            )
-            with pytest.raises(Exception):
-                pipe.run(df_input)
-            assert not ns.list_keys()
-        finally:
-            pipeline_config["activate_failure_cache"] = True
-            ns.clear()
-            _FAIL_CACHE.clear()
-
-    def test_split_pipeline(self, df_input):
-        """Unit-tests for 'cache-to-nebula-storage' in a split pipeline."""
-        ns.clear()
-        _FAIL_CACHE.clear()
         data = {
             "low": [DropColumns(columns="c2")],
             "hi": [DropColumns(columns="c3")],
@@ -196,12 +180,26 @@ class TestCacheToNebulaStorage:
 
         dict_df_exp = self._split_function(df_input)
 
-        for key, df_input_exp in dict_df_exp.items():
-            col2drop = "c2" if key == "low" else "c3"
-            name = _PREFIX_FAIL_CACHE + key
-            df_chk = ns.get(name)
-            df_exp = df_input_exp.drop(col2drop)
-            pl_assert_equal(df_chk, df_exp)
-
+        pl_assert_equal(
+            ns.get("FAIL_DF_low-df-before-appending:append"),
+            dict_df_exp["low"].drop("c2"),
+        )
+        pl_assert_equal(
+            ns.get("FAIL_DF_hi-df-before-appending:append"),
+            dict_df_exp["hi"].drop("c3"),
+        )
         ns.clear()
-        _FAIL_CACHE.clear()
+
+    def test_interleaved(self, df_input):
+        ns.clear()
+        pipe = TransformerPipeline(
+            [CallMe(), SelectColumns(glob="*"), CallMe()],
+            interleaved=[ThisTransformerIsBroken()],
+        )
+        with pytest.raises(ValueError):
+            pipe.run(df_input)
+
+        assert ns.get("_call_me_") == 1
+        df_cached = ns.get("FAIL_DF_transformer:ThisTransformerIsBroken")
+        pl_assert_equal(df_input, df_cached)
+        ns.clear()

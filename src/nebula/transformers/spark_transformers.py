@@ -21,7 +21,8 @@ from nebula.auxiliaries import (
     assert_at_most_one_args,
     ensure_flat_list,
     ensure_nested_length,
-    is_list_uniform, validate_aggregations,
+    is_list_uniform,
+    validate_aggregations,
 )
 from nebula.base import Transformer
 from nebula.logger import logger
@@ -58,10 +59,10 @@ def _assert_valid_partitions(value: int, name: str):
 
 class _Partitions(Transformer):
     def __init__(
-            self,
-            *,
-            num_partitions: int | None = None,
-            rows_per_partition: int | None = None,
+        self,
+        *,
+        num_partitions: int | None = None,
+        rows_per_partition: int | None = None,
     ):
         n_p = bool(num_partitions) + bool(rows_per_partition)
         if n_p > 1:
@@ -102,10 +103,10 @@ class _Partitions(Transformer):
 
 class CoalescePartitions(_Partitions):
     def __init__(
-            self,
-            *,
-            num_partitions: int | None = None,
-            rows_per_partition: int | None = None,
+        self,
+        *,
+        num_partitions: int | None = None,
+        rows_per_partition: int | None = None,
     ):
         """Coalesce a dataframe according to the inputs.
 
@@ -132,16 +133,16 @@ class CoalescePartitions(_Partitions):
 
 class ColumnsToMap(Transformer):
     def __init__(
-            self,
-            *,
-            output_column: str,
-            columns: str | list[str] | None = None,
-            regex: str | None = None,
-            glob: str | None = None,
-            startswith: str | Iterable[str] | None = None,
-            endswith: str | Iterable[str] | None = None,
-            cast_values: str | None = None,
-            drop_input_columns: bool = False,
+        self,
+        *,
+        output_column: str,
+        columns: str | list[str] | None = None,
+        regex: str | None = None,
+        glob: str | None = None,
+        startswith: str | Iterable[str] | None = None,
+        endswith: str | Iterable[str] | None = None,
+        cast_values: str | None = None,
+        drop_input_columns: bool = False,
     ):
         """Create a MapType field using the provided columns.
 
@@ -306,10 +307,10 @@ class LogDataSkew(Transformer):
 
 class MapToColumns(Transformer):
     def __init__(
-            self,
-            *,
-            input_column: str,
-            output_columns: list[str] | list[list[str]] | dict[Any, str],
+        self,
+        *,
+        input_column: str,
+        output_columns: list[str] | list[list[str]] | dict[Any, str],
     ):
         """Extract keys from a MapType column and create new columns.
 
@@ -398,11 +399,11 @@ class Persist(Transformer):
 
 class Repartition(_Partitions):
     def __init__(
-            self,
-            *,
-            num_partitions: int | None = None,
-            rows_per_partition: int | None = None,
-            columns: str | list[str] | None = None,
+        self,
+        *,
+        num_partitions: int | None = None,
+        rows_per_partition: int | None = None,
+        columns: str | list[str] | None = None,
     ):
         """Return a new DataFrame partitioned by the given partitioning.
 
@@ -457,13 +458,13 @@ class Repartition(_Partitions):
 
 class SparkColumnMethod(Transformer):
     def __init__(
-            self,
-            *,
-            input_column: str,
-            output_column: str | None = None,
-            method: str,
-            args: list[Any] = None,
-            kwargs: dict[str, Any] | None = None,
+        self,
+        *,
+        input_column: str,
+        output_column: str | None = None,
+        method: str,
+        args: list[Any] = None,
+        kwargs: dict[str, Any] | None = None,
     ):
         """Call a pyspark.sql.Column method with the provided args/kwargs.
 
@@ -518,13 +519,13 @@ class SparkColumnMethod(Transformer):
 
 class SparkDropDuplicates(Transformer):
     def __init__(
-            self,
-            *,
-            columns: str | list[str] | None = None,
-            regex: str | None = None,
-            glob: str | None = None,
-            startswith: str | Iterable[str] | None = None,
-            endswith: str | Iterable[str] | None = None,
+        self,
+        *,
+        columns: str | list[str] | None = None,
+        regex: str | None = None,
+        glob: str | None = None,
+        startswith: str | Iterable[str] | None = None,
+        endswith: str | Iterable[str] | None = None,
     ):
         """Perform spark `drop_duplicates` operation.
 
@@ -567,12 +568,12 @@ class SparkDropDuplicates(Transformer):
 
 class SparkExplode(Transformer):
     def __init__(
-            self,
-            *,
-            input_col: str,
-            output_cols: str | list[str] | None = None,
-            outer: bool = True,
-            drop_after: bool = False,
+        self,
+        *,
+        input_col: str,
+        output_cols: str | list[str] | None = None,
+        outer: bool = True,
+        drop_after: bool = False,
     ):
         """Explode an array column into multiple rows.
 
@@ -646,12 +647,12 @@ class SparkExplode(Transformer):
 
 class SparkSqlFunction(Transformer):
     def __init__(
-            self,
-            *,
-            column: str,
-            function: str,
-            args: list[Any] | None = None,
-            kwargs: dict[str, Any] | None = None,
+        self,
+        *,
+        column: str,
+        function: str,
+        args: list[Any] | None = None,
+        kwargs: dict[str, Any] | None = None,
     ):
         """Call a pyspark.sql.function with the provided args/kwargs.
 
@@ -781,13 +782,13 @@ def _expand_ascending_windowing_cols(ascending, order_cols) -> list[str]:
 
 class _Window(Transformer):
     def __init__(
-            self,
-            *,
-            partition_cols: str | list[str] | None,
-            order_cols: str | list[str] | None,
-            ascending: bool | list[bool],
-            rows_between: tuple[str | int, str | int],
-            range_between: tuple[str | int, str | int],
+        self,
+        *,
+        partition_cols: str | list[str] | None,
+        order_cols: str | list[str] | None,
+        ascending: bool | list[bool],
+        rows_between: tuple[str | int, str | int],
+        range_between: tuple[str | int, str | int],
     ):
         if range_between and not order_cols:
             msg = "If 'range_between' is provided 'order_cols' must be set as well."
@@ -835,14 +836,14 @@ class _Window(Transformer):
 
 class AggregateOverWindow(_Window):
     def __init__(
-            self,
-            *,
-            partition_cols: str | list[str] | None = None,
-            aggregations: list[dict[str, str]] | dict[str, str],
-            order_cols: str | list[str] | None = None,
-            ascending: bool | list[bool] = True,
-            rows_between: tuple[str | int, str | int] = None,
-            range_between: tuple[str | int, str | int] = None,
+        self,
+        *,
+        partition_cols: str | list[str] | None = None,
+        aggregations: list[dict[str, str]] | dict[str, str],
+        order_cols: str | list[str] | None = None,
+        ascending: bool | list[bool] = True,
+        rows_between: tuple[str | int, str | int] = None,
+        range_between: tuple[str | int, str | int] = None,
     ):  # noqa: D208, D209
         """Aggregate over a window.
 
@@ -874,9 +875,7 @@ class AggregateOverWindow(_Window):
             order_cols (str | list(str) | None):
                 Columns to order the partition by. If provided, the partition
                 will be ordered based on these columns. Defaults to None."""
-        assert_at_most_one_args(
-            rows_between=rows_between, range_between=range_between
-        )
+        assert_at_most_one_args(rows_between=rows_between, range_between=range_between)
 
         if isinstance(aggregations, dict):
             aggregations = [aggregations]
@@ -925,16 +924,16 @@ class AggregateOverWindow(_Window):
 
 class LagOverWindow(_Window):
     def __init__(
-            self,
-            *,
-            partition_cols: str | list[str] | None = None,
-            order_cols: str | list[str] | None = None,
-            lag_col: str,
-            lag: int,
-            output_col: str,
-            ascending: bool | list[bool] = True,
-            rows_between: tuple[str | int, str | int] = None,
-            range_between: tuple[str | int, str | int] = None,
+        self,
+        *,
+        partition_cols: str | list[str] | None = None,
+        order_cols: str | list[str] | None = None,
+        lag_col: str,
+        lag: int,
+        output_col: str,
+        ascending: bool | list[bool] = True,
+        rows_between: tuple[str | int, str | int] = None,
+        range_between: tuple[str | int, str | int] = None,
     ):  # noqa: D208, D209
         """Aggregate over a window.
 
@@ -953,9 +952,7 @@ class LagOverWindow(_Window):
             output_col (str):
                 Name of the output column containing the windowed result.
         """
-        assert_at_most_one_args(
-            rows_between=rows_between, range_between=range_between
-        )
+        assert_at_most_one_args(rows_between=rows_between, range_between=range_between)
 
         super().__init__(
             partition_cols=partition_cols,
@@ -977,7 +974,7 @@ class LagOverWindow(_Window):
 
 
 AggregateOverWindow.__init__.__doc__ = (
-        AggregateOverWindow.__init__.__doc__ + _DOCSTRING_ARGS_WINDOW
+    AggregateOverWindow.__init__.__doc__ + _DOCSTRING_ARGS_WINDOW
 )
 LagOverWindow.__init__.__doc__ = LagOverWindow.__init__.__doc__ + _DOCSTRING_ARGS_WINDOW
 

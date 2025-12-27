@@ -2,7 +2,7 @@
 
 import pytest
 
-from nebula.pipelines.pipelines import TransformerPipeline
+from nebula import TransformerPipeline
 from nebula.transformers import SelectColumns
 
 
@@ -66,7 +66,7 @@ def test_split_pipeline_wrong_split_order_type():
         TransformerPipeline(data, split_function=lambda x: x, split_order=split_order)
 
 
-@pytest.mark.parametrize("func, err", [(set(), TypeError), (None, AssertionError)])
+@pytest.mark.parametrize("func, err", [(set(), TypeError), (None, ValueError)])
 def test_split_pipeline_wrong_split_function(func, err):
     """Test TransformerPipeline providing a wrong split_function type."""
     with pytest.raises(err):

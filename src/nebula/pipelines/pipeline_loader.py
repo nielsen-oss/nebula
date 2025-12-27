@@ -1,7 +1,5 @@
 """Text pipeline loader."""
 
-# noinspection PyDoctest
-
 from dataclasses import dataclass
 from types import ModuleType
 from typing import Callable
@@ -9,8 +7,8 @@ from typing import Callable
 from nebula.auxiliaries import extract_kwarg_names
 from nebula.base import LazyWrapper, Transformer
 from nebula.pipelines.loop_expansion import expand_loops
-from nebula.pipelines.pipelines import TransformerPipeline, parse_storage_request
-from nebula.pipelines.util import create_dict_extra_functions
+from nebula.pipelines.pipe_aux import create_dict_extra_functions, is_keyword_request
+from nebula.pipelines.pipeline import TransformerPipeline
 from nebula.storage import nebula_storage as ns
 
 __all__ = ["load_pipeline"]
@@ -42,11 +40,11 @@ _NOT_ALLOWED_SPLIT_NAMES.update(_kws_pipeline)
 _allowed_kws_pipeline = {"pipeline", "data"}.union(_kws_pipeline)
 
 _MSG_ERR_EXTRA_TRANSFORMER = """
-If "extra_transformers" is provided it must be a <list> | <tuple> of python
-modules or dataclasses where each attribute match the corresponding
-transformer name.
+If "extra_transformers" is provided it must be a <dict<str, Transformer>>
+ or a <list/tuple<ModuleType | DataClass>> where each
+attribute match the corresponding transformer name.
 
-E.g.:
+E.g. with ModuleType and DataClass:
 ********************************************************************************
 from dataclasses import dataclass
 from my_libray import my_transformer_module
@@ -64,21 +62,49 @@ load_pipeline(..., extra_transformers=[my_transformer_module, ExtraTransformers]
 ********************************************************************************
 """
 
-_cache = {}
+_native_transformers: dict[str, type] = {}
+_full_transformers: dict[str, type] = {}
 
 
-def _cache_transformer_packages(ext_transformers: list | None):
-    """Create a list of transformer packages w/ the right priority."""
-    from nebula import transformers as nebula_transformers
+def _cache_transformers(container) -> dict[str, type]:
+    from nebula.pipelines.transformer_type_util import is_transformer
 
-    _cache["transformer_packages"] = (ext_transformers or []) + [nebula_transformers]
+    ret = {}
+    for name in dir(container):
+        obj = getattr(container, name)
+        if is_transformer(obj):
+            ret[name] = obj
+    return ret
 
 
-def _resolve_lazy_string_marker(obj, extra_funcs: dict[str, Callable]):
+def __load_native():
+    if not _native_transformers:
+        from nebula import transformers as nebula_transformers
+
+        _native_transformers.update(_cache_transformers(nebula_transformers))
+
+
+def _cache_transformer_packages(ext_transformers: list | dict | None):
+    """Load the transformers with the right priority."""
+    __load_native()
+    _full_transformers.clear()
+    _full_transformers.update(_native_transformers)
+
+    if not ext_transformers:
+        return
+
+    if isinstance(ext_transformers, dict):
+        _full_transformers.update(ext_transformers)
+        return
+
+    for container in ext_transformers[::-1]:  # reverse for priority
+        _full_transformers.update(_cache_transformers(container))
+
+
+def _resolve_lazy_string_marker(obj):
     """Recursively resolve lazy string markers in nested structures.
 
     This function traverses nested dicts, lists, and tuples, converting:
-    - "__fn__<name>" strings: to the corresponding function from extra_funcs
     - "__ns__<key>" strings: to (ns, "<key>") tuples for lazy storage access
 
     These markers are the YAML/JSON-serializable equivalents of the Python API's
@@ -86,7 +112,6 @@ def _resolve_lazy_string_marker(obj, extra_funcs: dict[str, Callable]):
 
     Args:
         obj: Any value that may contain lazy string markers at any nesting level.
-        extra_funcs: Dictionary mapping function names to callable functions.
 
     Returns:
         The processed value with all string markers converted to lazy references.
@@ -95,50 +120,37 @@ def _resolve_lazy_string_marker(obj, extra_funcs: dict[str, Callable]):
         data:
           - alias: "col1"
             value: "__ns__stored_value"
-          - alias: "col2"
-            value: "__fn__my_function"
 
         Becomes:
         data:
           - alias: "col1"
             value: (ns, "stored_value")  # Will be resolved at transform time
-          - alias: "col2"
-            value: <function my_function>  # Will be called at transform time
     """
     # Check for lazy string markers
     if isinstance(obj, str):
-        # [6:] because len("__fn__") == len("__ns__") == 6
-        if obj.startswith("__fn__"):
-            func_name: str = obj[6:]
-            if func_name not in extra_funcs:
-                available = list(extra_funcs.keys()) if extra_funcs else []
-                raise KeyError(
-                    f"Lazy function '{func_name}' not found in extra_functions. "
-                    f"Available: {available}"
-                )
-            return extra_funcs[func_name]
+        # [6:] because len("__ns__") == 6
         if obj.startswith("__ns__"):
             # Return as tuple for lazy resolution at transform time
-            return (ns, obj[6:])
+            return ns, obj[6:]
         return obj
 
     # Recurse into dictionaries
     if isinstance(obj, dict):
-        return {k: _resolve_lazy_string_marker(v, extra_funcs) for k, v in obj.items()}
+        return {k: _resolve_lazy_string_marker(v) for k, v in obj.items()}
 
     # Recurse into lists
     if isinstance(obj, list):
-        return [_resolve_lazy_string_marker(item, extra_funcs) for item in obj]
+        return [_resolve_lazy_string_marker(item) for item in obj]
 
     # Recurse into tuples
     if isinstance(obj, tuple):
-        return tuple(_resolve_lazy_string_marker(item, extra_funcs) for item in obj)
+        return tuple(_resolve_lazy_string_marker(item) for item in obj)
 
     # Base case: return value as-is
     return obj
 
 
-def extract_lazy_params(input_params: dict, extra_funcs: dict[str, Callable]) -> dict:
+def extract_lazy_params(input_params: dict) -> dict:
     """Extract and convert lazy string markers from YAML/JSON parameters.
 
     This is the entry point for processing lazy parameters loaded from
@@ -148,7 +160,6 @@ def extract_lazy_params(input_params: dict, extra_funcs: dict[str, Callable]) ->
     Args:
         input_params: Dictionary of parameters that may contain lazy string
                       markers at any nesting depth.
-        extra_funcs: Dictionary mapping function names to callable functions.
 
     Returns:
         New dictionary with all lazy string markers converted.
@@ -158,25 +169,23 @@ def extract_lazy_params(input_params: dict, extra_funcs: dict[str, Callable]) ->
         >>> params = {
         ...     "simple": "static_value",
         ...     "from_storage": "__ns__my_key",
-        ...     "from_func": "__fn__get_threshold",
         ...     "nested": {
         ...         "deep": [{"value": "__ns__nested_key"}]
         ...     }
         ... }
-        >>> extract_lazy_params(params, extra_funcs)
+        >>> extract_lazy_params(params)
         {
             "simple": "static_value",
             "from_storage": (ns, "my_key"),
-            "from_func": <function get_threshold>,
             "nested": {
                 "deep": [{"value": (ns, "nested_key")}]
             }
         }
     """
-    return _resolve_lazy_string_marker(input_params, extra_funcs)
+    return _resolve_lazy_string_marker(input_params)
 
 
-def _load_transformer(d: dict, **kwargs) -> Transformer | None:
+def _load_transformer(d: dict) -> Transformer | None:
     if d.get("skip") or (d.get("perform") is False):
         return None
     name: str = d["transformer"]
@@ -188,21 +197,18 @@ def _load_transformer(d: dict, **kwargs) -> Transformer | None:
         params = {}
 
     # Iterate through the packages and stop as soon as the transformer is found.
-    for pkg in _cache["transformer_packages"]:
-        if hasattr(pkg, name):
-            t = getattr(pkg, name)
-            break
-    else:
-        searched = [pkg.__name__ for pkg in _cache["transformer_packages"]]
+    t = _full_transformers.get(name)
+    if t is None:
+        searched = sorted(_full_transformers)
         raise NameError(f'Unknown transformer "{name}". Searched: {searched}')
 
     try:
         if is_lazy:
-            lazy_params: dict = extract_lazy_params(params, kwargs["extra_funcs"])
+            lazy_params: dict = extract_lazy_params(params)
             t_loaded = LazyWrapper(t, **lazy_params)
         else:
             t_loaded = t(**params)
-        desc = d.get("msg")
+        desc = d.get("description")
         # If the description is provided and the base class is Transformer:
         if desc and isinstance(t_loaded, Transformer):
             t_loaded.set_description(desc)
@@ -214,10 +220,10 @@ def _load_transformer(d: dict, **kwargs) -> Transformer | None:
 
 def _load_generic(o, **kwargs) -> TransformerPipeline | Transformer | dict:
     if "transformer" in o:
-        return _load_transformer(o, **kwargs)
+        return _load_transformer(o)
     elif "pipeline" in o:
         return _load_pipeline(o, **kwargs)
-    elif parse_storage_request(o):
+    elif is_keyword_request(o):
         return o
     else:  # pragma: no cover
         msg = "Not understood. At this stage the loader is looking "
@@ -305,7 +311,7 @@ def _load_pipeline(o, *, extra_funcs) -> TransformerPipeline:
     if isinstance(o_pipe, dict):
         if "transformer" in o_pipe:  # split w/ a single transformer
             input_pipe_data = _load_objects([o_pipe])
-        elif parse_storage_request(o_pipe).value > 0:
+        elif is_keyword_request(o_pipe):
             input_pipe_data = o_pipe
         else:  # split pipeline
             input_pipe_data = {}
@@ -349,7 +355,7 @@ def _load_pipeline(o, *, extra_funcs) -> TransformerPipeline:
         split_apply_before_appending=split_apply_before_appending,
         splits_no_merge=o.get("splits_no_merge"),
         splits_skip_if_empty=o.get("splits_skip_if_empty"),
-        cast_subset_to_input_schema=o.get("cast_subset_to_input_schema", False),
+        cast_subsets_to_input_schema=o.get("cast_subsets_to_input_schema", False),
         repartition_output_to_original=o.get("repartition_output_to_original", False),
         coalesce_output_to_original=o.get("coalesce_output_to_original", False),
         branch=o.get("branch"),
@@ -363,11 +369,11 @@ def _load_pipeline(o, *, extra_funcs) -> TransformerPipeline:
 
 
 def load_pipeline(
-        o: dict | list | tuple,
-        *,
-        extra_functions: Callable | list[Callable] | dict[str, Callable] | None = None,
-        extra_transformers: list[ModuleType] | list[dataclass] | None = None,
-        evaluate_loops: bool = True,
+    o: dict | list | tuple,
+    *,
+    extra_functions: Callable | list[Callable] | dict[str, Callable] | None = None,
+    extra_transformers: list[ModuleType] | list[dataclass] | dict | None = None,
+    evaluate_loops: bool = True,
 ) -> TransformerPipeline:
     """Load a Nebula pipeline object starting from a dictionary.
 
@@ -382,9 +388,10 @@ def load_pipeline(
             Alternatively, use a dictionary format (e.g.,
             {"split_1": func_1, "split_2": func_2}), where keys must match
             the split pipeline names.
-        extra_transformers (list(python module) | None):
-            User modules containing transformers, ordered from highest to
-            lowest priority.
+        extra_transformers (list(python module) | list(dataclass) | dict(str, T) | None):
+            Custom transformers, if passed al list of module | dataclasses,
+            they must be ordered from highest to lowest priority in case
+            duplicated name.
         evaluate_loops (bool):
             If `True`, the parser will search for and evaluate for-loops within
             the pipelines. This is the safest option, and if no loops are present,
@@ -427,7 +434,7 @@ def load_pipeline(
 
     # Check & load the external transformer packages if needed.
     if extra_transformers is not None:
-        if not isinstance(extra_transformers, (list, tuple)):
+        if not isinstance(extra_transformers, (list, tuple, dict)):
             raise TypeError(_MSG_ERR_EXTRA_TRANSFORMER)
 
     _cache_transformer_packages(extra_transformers)
@@ -445,7 +452,7 @@ def load_pipeline(
     return _load_pipeline(o, extra_funcs=extra_funcs)
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     pipe_cfg = {
         "df_input_name": "START",
         "name": "main-pipeline",
@@ -466,4 +473,4 @@ if __name__ == "__main__":
         #     extra_functions=extra_functions,
         #     extra_transformers=my_n1_transformer,
     )
-    pipe.show_pipeline(add_transformer_params=True)
+    pipe.show(add_params=True)

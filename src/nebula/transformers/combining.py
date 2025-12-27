@@ -9,13 +9,13 @@ __all__ = ["AppendDataFrame", "Join"]
 
 class AppendDataFrame(Transformer):
     def __init__(
-            self,
-            *,
-            store_key: str | None = None,
-            allow_missing_cols: bool = False,
-            relax: bool = False,
-            rechunk: bool = False,
-            ignore_index: bool = False,
+        self,
+        *,
+        store_key: str | None = None,
+        allow_missing_cols: bool = False,
+        relax: bool = False,
+        rechunk: bool = False,
+        ignore_index: bool = False,
     ):
         """Append a dataframe to the main one in the pipeline.
 
@@ -60,16 +60,16 @@ class AppendDataFrame(Transformer):
 
 class Join(Transformer):
     def __init__(
-            self,
-            *,
-            store_key: str,
-            how: str,
-            on: list[str] | str | None = None,
-            left_on: str | list[str] | None = None,
-            right_on: str | list[str] | None = None,
-            suffix: str = "_right",
-            broadcast: bool = False,
-            coalesce_keys: bool = True,
+        self,
+        *,
+        store_key: str,
+        how: str,
+        on: list[str] | str | None = None,
+        left_on: str | list[str] | None = None,
+        right_on: str | list[str] | None = None,
+        suffix: str = "_right",
+        broadcast: bool = False,
+        coalesce_keys: bool = True,
     ):
         """Joins with another DataFrame, using the given join expression.
 

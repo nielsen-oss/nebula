@@ -24,8 +24,8 @@ def start_spark():
         return
 
     venv_python = sys.executable
-    os.environ['PYSPARK_PYTHON'] = venv_python
-    os.environ['PYSPARK_DRIVER_PYTHON'] = venv_python
+    os.environ["PYSPARK_PYTHON"] = venv_python
+    os.environ["PYSPARK_DRIVER_PYTHON"] = venv_python
 
     from pyspark.sql import SparkSession
 
