@@ -41,7 +41,8 @@ class TestBranchDeadEnd:
         ns.clear()
 
         pipe = pipe_branch_dead_end()
-        df_out = pipe.run(df_input)
+        pipe.show(add_params=True)
+        df_out = pipe.run(df_input, show_params=True)
 
         # Output equals input (branch result discarded)
         assert df_out.sort("idx").equals(df_input.sort("idx"))
@@ -54,7 +55,8 @@ class TestBranchDeadEnd:
         ns.clear()
 
         pipe = pipe_branch_dead_end()
-        pipe.run(df_input)
+        pipe.show(add_params=True)
+        pipe.run(df_input, show_params=True)
 
         # Branch result should be in storage
         df_stored = ns.get("df_branch_result")
@@ -76,7 +78,8 @@ class TestBranchDeadEnd:
         ns.set("df_source", df_source)
 
         pipe = pipe_branch_dead_end_from_storage()
-        df_out = pipe.run(df_input)
+        pipe.show(add_params=True)
+        df_out = pipe.run(df_input, show_params=True)
 
         # Main DataFrame passes through unchanged
         assert df_out.sort("idx").equals(df_input.sort("idx"))
@@ -95,14 +98,16 @@ class TestBranchAppend:
     def test_append_doubles_rows(self, df_input):
         """Output should have 2x rows (original + branch)."""
         pipe = pipe_branch_append()
-        df_out = pipe.run(df_input)
+        pipe.show(add_params=True)
+        df_out = pipe.run(df_input, show_params=True)
 
         assert df_out.height == df_input.height * 2
 
     def test_append_has_both_versions(self, df_input):
         """Output should contain original c1 values and branch c1 values."""
         pipe = pipe_branch_append()
-        df_out = pipe.run(df_input)
+        pipe.show(add_params=True)
+        df_out = pipe.run(df_input, show_params=True)
 
         c1_values = set(df_out["c1"].to_list())
 
@@ -114,7 +119,8 @@ class TestBranchAppend:
     def test_append_new_column_with_allow_missing(self, df_input):
         """Branch can add new column when allow_missing_columns=True."""
         pipe = pipe_branch_append_new_column()
-        df_out = pipe.run(df_input)
+        pipe.show(add_params=True)
+        df_out = pipe.run(df_input, show_params=True)
 
         assert "new_col" in df_out.columns
         assert df_out.height == df_input.height * 2
@@ -144,7 +150,8 @@ class TestBranchAppend:
         ns.set("df_source", df_source)
 
         pipe = pipe_branch_append_from_storage()
-        df_out = pipe.run(df_input)
+        pipe.show(add_params=True)
+        df_out = pipe.run(df_input, show_params=True)
 
         # Output has main + branch rows
         assert df_out.height == df_input.height + df_source.height
@@ -161,7 +168,8 @@ class TestBranchJoin:
     def test_join_adds_column(self, df_input):
         """Join should add new_col from branch."""
         pipe = pipe_branch_join()
-        df_out = pipe.run(df_input)
+        pipe.show(add_params=True)
+        df_out = pipe.run(df_input, show_params=True)
 
         assert "new_col" in df_out.columns
         assert df_out["new_col"].to_list() == ["joined"] * df_input.height
@@ -169,7 +177,8 @@ class TestBranchJoin:
     def test_join_preserves_row_count(self, df_input):
         """Inner join on same data should preserve row count."""
         pipe = pipe_branch_join()
-        df_out = pipe.run(df_input)
+        pipe.show(add_params=True)
+        df_out = pipe.run(df_input, show_params=True)
 
         assert df_out.height == df_input.height
 
@@ -186,7 +195,8 @@ class TestBranchJoin:
         ns.set("df_source", df_source)
 
         pipe = pipe_branch_join_from_storage()
-        df_out = pipe.run(df_input)
+        pipe.show(add_params=True)
+        df_out = pipe.run(df_input, show_params=True)
 
         # Inner join: only rows with matching idx
         assert df_out.height == 3
@@ -201,7 +211,8 @@ class TestBranchOtherwise:
     def test_append_otherwise_transforms_both(self, df_input):
         """Both main and branch should be transformed differently."""
         pipe = pipe_branch_append_otherwise()
-        df_out = pipe.run(df_input)
+        pipe.show(add_params=True)
+        df_out = pipe.run(df_input, show_params=True)
 
         c1_values = set(df_out["c1"].to_list())
 
@@ -215,7 +226,8 @@ class TestBranchOtherwise:
     def test_join_otherwise_transforms_main(self, df_input):
         """Main DataFrame should have otherwise transform applied before join."""
         pipe = pipe_branch_join_otherwise()
-        df_out = pipe.run(df_input)
+        pipe.show(add_params=True)
+        df_out = pipe.run(df_input, show_params=True)
 
         # Main got other_col from otherwise
         assert "other_col" in df_out.columns
@@ -232,7 +244,8 @@ class TestBranchSkip:
     @pytest.mark.parametrize("pipe", [pipe_branch_skip, pipe_branch_not_perform])
     def test_skip_passes_through_unchanged(self, df_input, pipe):
         """When skip=True / perform=False, main DataFrame passes through unchanged."""
-        df_out = pipe().run(df_input)
+        pipe().show(add_params=True)
+        df_out = pipe().run(df_input, show_params=True)
 
         assert df_out.sort("idx").equals(df_input.sort("idx"))
 
@@ -242,7 +255,8 @@ class TestBranchSkip:
     def test_skip_otherwise_still_runs(self, df_input):
         """When skip=True, otherwise pipeline should still run."""
         pipe = pipe_branch_skip_otherwise()
-        df_out = pipe.run(df_input)
+        pipe.show(add_params=True)
+        df_out = pipe.run(df_input, show_params=True)
 
         # Otherwise transform applied
         assert df_out["c1"].to_list() == ["otherwise_applied"] * df_input.height
@@ -283,11 +297,9 @@ class TestSparkCoalesceRepartitionToOriginal:
         }
         n_exp = df_input_spark.rdd.getNumPartitions()
 
-        pipeline = load_pipeline(data)
-        pipeline.show()
-
-        df_out = pipeline.run(df_input_spark)
+        pipe = load_pipeline(data)
+        pipe.show(add_params=True)
+        df_out = pipe.run(df_input_spark, show_params=True)
         n_chk = df_out.rdd.getNumPartitions()
         assert n_chk == n_exp
-
         ns.clear()

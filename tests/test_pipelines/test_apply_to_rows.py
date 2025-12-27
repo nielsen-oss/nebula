@@ -44,6 +44,7 @@ class TestApplyToRowsBasic:
     def test_transforms_matching_rows_only(self, df_input):
         """Rows where idx > 5 get modified, others pass through unchanged."""
         pipe = pipe_apply_to_rows_basic()
+        pipe.show(add_params=True)
         df_out = pipe.run(df_input, show_params=True, force_interleaved_transformer=CallMe())
 
         assert ns.get("_call_me_") == 2
@@ -80,7 +81,8 @@ class TestApplyToRowsDeadEnd:
         ns.clear()
 
         pipe = pipe_apply_to_rows_dead_end()
-        pipe.run(df_input)
+        pipe.show(add_params=True)
+        pipe.run(df_input, show_params=True)
 
         # Stored DataFrame should have the new column
         df_stored = ns.get("df_null_rows")
@@ -101,7 +103,8 @@ class TestApplyToRowsOtherwise:
         """Both branches apply their respective transforms."""
         n_rows = df_input.shape[0]
         pipe = pipe_apply_to_rows_otherwise()
-        df_out = pipe.run(df_input)
+        pipe.show(add_params=True)
+        df_out = pipe.run(df_input, show_params=True)
 
         index = np.arange(n_rows)
         ar_exp = np.where(index > 5, "matched", "not_matched")
@@ -120,7 +123,8 @@ class TestApplyToRowsSkipIfEmpty:
     def test_skip_when_no_rows_match(self, df_input):
         """When no rows match and skip_if_empty=True, output equals input."""
         pipe = pipe_apply_to_rows_skip_if_empty()
-        df_out = pipe.run(df_input)
+        pipe.show(add_params=True)
+        df_out = pipe.run(df_input, show_params=True)
         pl_assert_equal(df_out, df_input)
 
         # Should be identical to input
@@ -136,7 +140,8 @@ class TestApplyToRowsComparisonColumn:
     def test_compare_two_columns(self, df_input):
         """Rows where c1 > c2 get the new column."""
         pipe = pipe_apply_to_rows_comparison_column()
-        df_out = pipe.run(df_input)
+        pipe.show(add_params=True)
+        df_out = pipe.run(df_input, show_params=True)
 
         # New column should exist
         assert "result" in df_out.columns
@@ -198,7 +203,10 @@ class TestSparkCoalesceRepartitionToOriginal:
         pipeline = load_pipeline(data)
         pipeline.show(add_params=True)
 
-        df_out = pipeline.run(nw.from_native(df_input_spark) if to_nw else df_input_spark)
+        df_out = pipeline.run(
+            nw.from_native(df_input_spark) if to_nw else df_input_spark,
+            show_params=True,
+        )
         n_chk = df_out.rdd.getNumPartitions()
         assert n_chk == n_exp
 

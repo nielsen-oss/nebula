@@ -363,7 +363,7 @@ def print_pipeline(
         *,
         add_params: bool = False,
         indent_size: int = 4,
-) -> None:
+) -> None:  # pragma: no cover
     """Convenience function to print a pipeline IR.
     
     Args:
