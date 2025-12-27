@@ -1,6 +1,5 @@
 build/
 dist/
-docs/_static
 htmlcov/
 notebooks/
 public/
@@ -31,7 +30,6 @@ report.xml
 *.parquet
 *.py[cdo]
 *.swp
-*.png
 *.env
 *.zip
 *.gz
