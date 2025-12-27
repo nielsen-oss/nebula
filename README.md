@@ -151,11 +151,10 @@ Inspect your pipeline structure:
 pipeline.show(add_params=True)
 
 # Graphviz diagram
-dot = pipeline.plot()
-dot.render('my_pipeline.png')
+pipeline.plot()
 ```
 
-![Pipeline Visualization](docs/images/pipeline_example.png)
+![Pipeline Visualization](docs/images/pipeline_example.svg)
 *Example pipeline visualization showing branching and merging*
 
 ### 🔧 Extensible
