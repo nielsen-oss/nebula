@@ -164,7 +164,7 @@ class LoggingHooks(NoOpHooks):
         if logger is None:
             from nebula.logger import logger as nebula_logger
             self.logger = nebula_logger
-        else:
+        else:  # pragma: no cover
             self.logger = logger
 
         self.show_params: bool = show_params

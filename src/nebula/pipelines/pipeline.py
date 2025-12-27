@@ -621,5 +621,5 @@ def _example_flat_pipeline():  # pragma: no cover
     print(example_df_output)
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     _example_flat_pipeline()

@@ -185,22 +185,6 @@ def _function_params_to_yaml_format(args, kwargs) -> str:
     return __get_kws_html(new_params)
 
 
-# def _generic_flat_params_to_yaml_format(params: dict[str, Any]) -> str:
-#     new_params = []
-#     key: str
-#     value: str
-#     for key, value in params.items():
-#         v_loaded = yaml.safe_load(value)
-#         # Do not create a new line if the value is a scalar / string.
-#         if __single_line(v_loaded):
-#             new_params.append((key, v_loaded))
-#             continue
-#         value_formatted = __msg_as_yaml(v_loaded)
-#         new_params.append((key, value_formatted))
-#
-#     return __get_kws_html(new_params)
-
-
 def _generic_flat_params_to_yaml_format(params: dict[str, Any]) -> str:
     ret = []
     for k, v in params.items():
@@ -209,7 +193,7 @@ def _generic_flat_params_to_yaml_format(params: dict[str, Any]) -> str:
     return __get_kws_html(ret)
 
 
-class GraphvizRenderer:
+class GraphvizRenderer:  # pragma: no cover
     """Renders pipeline IR as Graphviz diagram.
     
     Example:
@@ -609,7 +593,7 @@ def render_pipeline(
         *,
         add_params: bool = False,
         add_description: bool = False,
-) -> "Digraph":
+) -> "Digraph":  # pragma: no cover
     """Convenience function to render a pipeline IR.
 
     Args:

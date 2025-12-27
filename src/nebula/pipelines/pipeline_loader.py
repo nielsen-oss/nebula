@@ -450,7 +450,7 @@ def load_pipeline(
     return _load_pipeline(o, extra_funcs=extra_funcs)
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     pipe_cfg = {
         "df_input_name": "START",
         "name": "main-pipeline",
