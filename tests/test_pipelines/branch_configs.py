@@ -37,6 +37,7 @@ __all__ = [
 # Dead-end: branch runs but result is discarded
 # ============================================================================
 
+
 def pipe_branch_dead_end() -> TransformerPipeline:
     """Branch that stores result but doesn't merge back.
 
@@ -73,6 +74,7 @@ def pipe_branch_dead_end_from_storage() -> TransformerPipeline:
 # ============================================================================
 # Append: branch result is appended (union) to main DataFrame
 # ============================================================================
+
 
 def pipe_branch_append() -> TransformerPipeline:
     """Branch result is appended to main DataFrame.
@@ -124,6 +126,7 @@ def pipe_branch_append_from_storage() -> TransformerPipeline:
 # Join: branch result is joined to main DataFrame
 # ============================================================================
 
+
 def pipe_branch_join() -> TransformerPipeline:
     """Branch result is joined to main DataFrame on 'idx'.
 
@@ -166,6 +169,7 @@ def pipe_branch_join_from_storage() -> TransformerPipeline:
 # Otherwise: separate transform for main DataFrame
 # ============================================================================
 
+
 def pipe_branch_append_otherwise() -> TransformerPipeline:
     """Branch appends, but main DataFrame also gets transformed.
 
@@ -204,6 +208,7 @@ def pipe_branch_join_otherwise() -> TransformerPipeline:
 # ============================================================================
 # Skip/Perform: conditionally disable the branch
 # ============================================================================
+
 
 def pipe_branch_skip() -> TransformerPipeline:
     """Branch is skipped entirely, main DataFrame passes through.

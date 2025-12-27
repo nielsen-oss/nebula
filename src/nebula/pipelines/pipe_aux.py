@@ -33,7 +33,7 @@ PIPELINE_KEYWORDS: set[str] = {
 
 
 def create_dict_extra_functions(
-        o: Callable | list[Callable] | dict[str, Callable]
+    o: Callable | list[Callable] | dict[str, Callable],
 ) -> dict[str, Callable]:
     """Create a dictionary of extra functions from a list or dictionary.
 
@@ -181,15 +181,11 @@ def is_lazy_transformer(t) -> bool:
 
 def is_split_pipeline(data, split_function) -> bool:
     """Check if the pipeline is split one."""
-    return (
-            isinstance(data, dict)
-            and split_function is not None
-            and len(data) > 1
-    )
+    return isinstance(data, dict) and split_function is not None and len(data) > 1
 
 
 def _get_transformer_params_formatted(
-        *, li_attrs: list[str], as_list: bool, max_len: int, wrap_text: bool
+    *, li_attrs: list[str], as_list: bool, max_len: int, wrap_text: bool
 ) -> str | list[str]:
     if not li_attrs:  # pragma: no cover
         return [] if as_list else ""
@@ -250,12 +246,12 @@ def replace_params_references(obj):
 
 
 def get_transformer_name(
-        obj: Transformer | LazyWrapper,
-        *,
-        add_params: bool = False,
-        max_len: int = 80,
-        wrap_text: bool = False,
-        as_list: bool = False,
+    obj: Transformer | LazyWrapper,
+    *,
+    add_params: bool = False,
+    max_len: int = 80,
+    wrap_text: bool = False,
+    as_list: bool = False,
 ) -> str | list[str]:
     """Get the name of a transformer object.
 
@@ -326,7 +322,9 @@ def get_transformer_name(
             # Extract and format call parameters
             for k, v in sorted(tf_attrs.items()):
                 v_processed = replace_params_references(v)
-                v_show = f'"{v_processed}"' if isinstance(v_processed, str) else v_processed
+                v_show = (
+                    f'"{v_processed}"' if isinstance(v_processed, str) else v_processed
+                )
 
                 li_attrs.append(f"{k}={v_show}")
         except Exception as e:  # noqa PyBroadException  pragma: no cover

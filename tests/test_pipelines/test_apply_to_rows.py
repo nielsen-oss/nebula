@@ -6,6 +6,7 @@ Tests the apply_to_rows feature which:
 3. Optionally applies different transformers to non-matching rows (otherwise)
 4. Merges results back (unless dead-end)
 """
+
 import os
 
 import narwhals as nw
@@ -31,11 +32,13 @@ def df_input() -> pl.DataFrame:
 
     Null positions in c1: idx 7, 12
     """
-    return pl.DataFrame({
-        "idx": list(range(13)),
-        "c1": ["a", "a", "a", "a", "a", "", "", None, " ", "", "a", "a", None],
-        "c2": ["b", "b", "b", "b", "b", "", "", None, None, None, None, "", "b"],
-    })
+    return pl.DataFrame(
+        {
+            "idx": list(range(13)),
+            "c1": ["a", "a", "a", "a", "a", "", "", None, " ", "", "a", "a", None],
+            "c2": ["b", "b", "b", "b", "b", "", "", None, None, None, None, "", "b"],
+        }
+    )
 
 
 class TestApplyToRowsBasic:
@@ -45,7 +48,9 @@ class TestApplyToRowsBasic:
         """Rows where idx > 5 get modified, others pass through unchanged."""
         pipe = pipe_apply_to_rows_basic()
         pipe.show(add_params=True)
-        df_out = pipe.run(df_input, show_params=True, force_interleaved_transformer=CallMe())
+        df_out = pipe.run(
+            df_input, show_params=True, force_interleaved_transformer=CallMe()
+        )
 
         assert ns.get("_call_me_") == 2
 
@@ -185,6 +190,7 @@ class TestSparkCoalesceRepartitionToOriginal:
     @pytest.fixture(scope="class", name="df_input_spark")
     def _get_df_spark(spark):
         from pyspark.sql.types import IntegerType, StructField, StructType
+
         fields = [StructField("idx", IntegerType(), True)]
         data = np.arange(100).reshape(-1, 1).tolist()
         return spark.createDataFrame(data, schema=StructType(fields)).coalesce(2)
@@ -204,11 +210,8 @@ class TestSparkCoalesceRepartitionToOriginal:
                     "repartition_output_to_original": repartition,
                     "coalesce_output_to_original": coalesce,
                     "pipeline": [
-                        {
-                            "transformer": "Repartition",
-                            "params": {"num_partitions": 10}
-                        }
-                    ]
+                        {"transformer": "Repartition", "params": {"num_partitions": 10}}
+                    ],
                 }
             ]
         }

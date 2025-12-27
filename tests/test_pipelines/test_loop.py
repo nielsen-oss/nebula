@@ -20,17 +20,13 @@ def test_loop_pipeline(df_input):
     pipe = load_pipeline(yaml_data, extra_transformers=[ExtraTransformers])
     pipe.show(add_params=True)
 
-    df_exp = (
-        df_input
-        .unique()
-        .with_columns(
-            pl.lit(None).alias("name_a"),
-            pl.lit(20).alias("ALGO_algo_X_20"),
-            pl.lit(30).alias("ALGO_algo_X_30"),
-            pl.lit("my_string").alias("name_b"),
-            pl.lit(20).alias("ALGO_algo_Y_20"),
-            pl.lit(30).alias("ALGO_algo_Y_30"),
-        )
+    df_exp = df_input.unique().with_columns(
+        pl.lit(None).alias("name_a"),
+        pl.lit(20).alias("ALGO_algo_X_20"),
+        pl.lit(30).alias("ALGO_algo_X_30"),
+        pl.lit("my_string").alias("name_b"),
+        pl.lit(20).alias("ALGO_algo_Y_20"),
+        pl.lit(30).alias("ALGO_algo_Y_30"),
     )
     df_chk = pipe.run(df_input)
     pl_assert_equal(df_chk.sort("join_col"), df_exp.sort("join_col"))

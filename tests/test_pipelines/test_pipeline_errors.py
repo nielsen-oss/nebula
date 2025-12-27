@@ -22,18 +22,12 @@ _MSG = "this custom message"
 class ChangeFieldsNullability(Transformer):
     """Just to raise a low level Py4JJavaError."""
 
-    def __init__(
-            self,
-            *,
-            nullable: bool,
-            columns: list[str]
-    ):
+    def __init__(self, *, nullable: bool, columns: list[str]):
         super().__init__()
         self._nullable: bool = nullable
         self._columns = columns
 
     def _transform_spark(self, df):
-
         field: StructField
         new_fields: list[StructField] = []
 
@@ -121,11 +115,13 @@ class TestCacheToNebulaStorage:
     @staticmethod
     @pytest.fixture(scope="class", name="df_input")
     def _get_df_input():
-        return pl.DataFrame({
-            "c1": [1, 2],
-            "c2": [3, 4],
-            "c3": [5, 6],
-        })
+        return pl.DataFrame(
+            {
+                "c1": [1, 2],
+                "c2": [3, 4],
+                "c3": [5, 6],
+            }
+        )
 
     @staticmethod
     def test_flat_pipeline(df_input):
@@ -137,7 +133,7 @@ class TestCacheToNebulaStorage:
         with pytest.raises(Exception):
             pipe.run(df_input)
 
-        df_chk = ns.get('FAIL_DF_transformer:ThisTransformerIsBroken')
+        df_chk = ns.get("FAIL_DF_transformer:ThisTransformerIsBroken")
         pl_assert_equal(df_chk, df_input)
         ns.clear()
 
@@ -160,10 +156,7 @@ class TestCacheToNebulaStorage:
         with pytest.raises(Exception):
             pipe.run(df_input)
 
-        pl_assert_equal(
-            ns.get('FAIL_DF_fork:split'),
-            df_input
-        )
+        pl_assert_equal(ns.get("FAIL_DF_fork:split"), df_input)
         ns.clear()
 
     @staticmethod
@@ -188,12 +181,12 @@ class TestCacheToNebulaStorage:
         dict_df_exp = self._split_function(df_input)
 
         pl_assert_equal(
-            ns.get('FAIL_DF_low-df-before-appending:append'),
-            dict_df_exp["low"].drop("c2")
+            ns.get("FAIL_DF_low-df-before-appending:append"),
+            dict_df_exp["low"].drop("c2"),
         )
         pl_assert_equal(
-            ns.get('FAIL_DF_hi-df-before-appending:append'),
-            dict_df_exp["hi"].drop("c3")
+            ns.get("FAIL_DF_hi-df-before-appending:append"),
+            dict_df_exp["hi"].drop("c3"),
         )
         ns.clear()
 
@@ -201,7 +194,7 @@ class TestCacheToNebulaStorage:
         ns.clear()
         pipe = TransformerPipeline(
             [CallMe(), SelectColumns(glob="*"), CallMe()],
-            interleaved=[ThisTransformerIsBroken()]
+            interleaved=[ThisTransformerIsBroken()],
         )
         with pytest.raises(ValueError):
             pipe.run(df_input)

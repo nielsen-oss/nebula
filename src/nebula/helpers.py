@@ -27,7 +27,7 @@ def __all_elements_are_hashable(s: pd.Series) -> None:
 
 
 def _get_cols_to_json(
-        df, deep: bool
+    df, deep: bool
 ) -> tuple[list[str], list[str], list[str], list[str]]:
     """Get 4 lists indicating which columns must be dumped to JSON."""
     ret_dict: list[str] = []  # dictionaries
@@ -106,15 +106,15 @@ def __ar_to_orjson_serialized(s: pd.Series) -> pd.Series:
 
 
 def _hash_df(
-        df: pd.DataFrame,
-        dict_to_json: list[str],
-        list_to_json: list[str],
-        set_to_json: list[str],
-        ar_to_json: list[str],
-        *,
-        copy: bool,
-        try_orjson: bool,
-        orjson_opt_serialize_numpy: bool,
+    df: pd.DataFrame,
+    dict_to_json: list[str],
+    list_to_json: list[str],
+    set_to_json: list[str],
+    ar_to_json: list[str],
+    *,
+    copy: bool,
+    try_orjson: bool,
+    orjson_opt_serialize_numpy: bool,
 ) -> np.ndarray:
     """Convert a dataframe to a sorted array of hash.
 
@@ -161,12 +161,12 @@ def _hash_df(
 
 
 def assert_pandas_df_equal(
-        df1: pd.DataFrame,
-        df2: pd.DataFrame,
-        assert_not_deep: bool = False,
-        copy: bool = True,
-        try_orjson: bool = True,
-        orjson_opt_serialize_numpy: bool = False,
+    df1: pd.DataFrame,
+    df2: pd.DataFrame,
+    assert_not_deep: bool = False,
+    copy: bool = True,
+    try_orjson: bool = True,
+    orjson_opt_serialize_numpy: bool = False,
 ) -> None:
     """Assert if 2 flat complex-type pandas dataframe are equal.
 
@@ -240,11 +240,11 @@ def assert_pandas_df_equal(
 
 
 def hash_complex_type_pandas_dataframe(
-        df: pd.DataFrame,
-        assert_not_deep: bool = False,
-        copy: bool = True,
-        try_orjson: bool = True,
-        orjson_opt_serialize_numpy: bool = False,
+    df: pd.DataFrame,
+    assert_not_deep: bool = False,
+    copy: bool = True,
+    try_orjson: bool = True,
+    orjson_opt_serialize_numpy: bool = False,
 ) -> np.ndarray:
     """Hash a flat complex-type pandas dataframe.
 
@@ -294,13 +294,13 @@ def hash_complex_type_pandas_dataframe(
 
 
 def return_different_rows_in_pandas_dataframes(
-        df1: pd.DataFrame,
-        df2: pd.DataFrame,
-        add_hash: str | None = None,
-        assert_not_deep: bool = False,
-        copy: bool = True,
-        try_orjson: bool = True,
-        orjson_opt_serialize_numpy: bool = False,
+    df1: pd.DataFrame,
+    df2: pd.DataFrame,
+    add_hash: str | None = None,
+    assert_not_deep: bool = False,
+    copy: bool = True,
+    try_orjson: bool = True,
+    orjson_opt_serialize_numpy: bool = False,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Return the rows that are different between two pandas DataFrames.
 

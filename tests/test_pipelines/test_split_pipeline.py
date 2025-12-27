@@ -113,9 +113,9 @@ class TestSplitPipeline:
 
     @pytest.mark.parametrize("name", [None, "name_01"])
     def test_basic(
-            self,
-            df_input: pl.DataFrame,
-            name: str | None,
+        self,
+        df_input: pl.DataFrame,
+        name: str | None,
     ):
         """Test with various configurations."""
         dict_splits = {"low": _trf_low, "hi": _trf_hi}
@@ -235,7 +235,9 @@ class TestSplitPipeline:
         pipe.show(add_params=True)
         df_chk = pipe.run(df_input)
 
-        df_exp = df_input.filter(pl.col("c1").is_not_null() & pl.col("c1").is_not_nan()).unique()
+        df_exp = df_input.filter(
+            pl.col("c1").is_not_null() & pl.col("c1").is_not_nan()
+        ).unique()
 
         if interleaved:
             n_chk = ns.get("_call_me_")
@@ -274,7 +276,7 @@ class TestSplitPipelineApplyTransformerBeforeAndAfter:
             dict_transformers,
             split_function=_split_function,
             cast_subsets_to_input_schema=True,
-            **{where: transformer}
+            **{where: transformer},
         )
 
         pipe.show(add_params=True)
@@ -284,8 +286,7 @@ class TestSplitPipelineApplyTransformerBeforeAndAfter:
         # The expected result is distinct rows from the splits
         split_dfs = _split_function(df_input)
         df_exp = pl.concat(
-            [split_dfs["low"].unique(), split_dfs["hi"].unique()],
-            how="diagonal"
+            [split_dfs["low"].unique(), split_dfs["hi"].unique()], how="diagonal"
         )
         pl_assert_equal(df_chk.sort(df_chk.columns), df_exp.sort(df_exp.columns))
 
@@ -303,7 +304,7 @@ class TestSplitPipelineApplyTransformerBeforeAndAfter:
             TransformerPipeline(
                 dict_transformers,
                 split_function=_split_function,
-                **{where: TransformerPipeline([AssertNotEmpty()])}
+                **{where: TransformerPipeline([AssertNotEmpty()])},
             )
 
 
@@ -333,7 +334,9 @@ class TestSplitPipelineDeadEnd:
 
         pipe.show(add_params=True)
         df_chk = pipe.run(df_input)
-        df_exp = df_input.filter((pl.col("c1") < 10) | pl.col("c1").is_null() | pl.col("c1").is_nan())
+        df_exp = df_input.filter(
+            (pl.col("c1") < 10) | pl.col("c1").is_null() | pl.col("c1").is_nan()
+        )
         pl_assert_equal(df_chk, df_exp, ["c1"])
 
     @pytest.mark.parametrize(
@@ -371,7 +374,9 @@ class TestSplitPipelineDeadEnd:
         li_exp_df = [full_splits[k] for k in list_splits_to_merge]
         if li_exp_df:
             df_out_exp = pl.concat(li_exp_df, how="diagonal")
-            pl_assert_equal(df_out.sort(df_out.columns), df_out_exp.sort(df_out_exp.columns))
+            pl_assert_equal(
+                df_out.sort(df_out.columns), df_out_exp.sort(df_out_exp.columns)
+            )
 
         # Check the dead-end splits that are stored in nebula storage.
         for dead_end_split in splits_no_merge:
@@ -502,17 +507,13 @@ class TestSplitPipelineEdgeCases:
 
         # Expected: low split is distinct, hi split unchanged
         split_dfs = _split_function(df_input)
-        df_exp = pl.concat(
-            [split_dfs["low"].unique(), split_dfs["hi"]],
-            how="diagonal"
-        )
+        df_exp = pl.concat([split_dfs["low"].unique(), split_dfs["hi"]], how="diagonal")
 
         pl_assert_equal(df_chk.sort(df_chk.columns), df_exp.sort(df_exp.columns))
 
 
 @pytest.mark.skipif(os.environ.get("TESTS_NO_SPARK") == "true", reason="no spark")
 class TestSpark:
-
     @staticmethod
     @pytest.fixture(scope="class")
     def df_input_spark(spark):

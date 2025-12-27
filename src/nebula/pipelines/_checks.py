@@ -34,8 +34,14 @@ def assert_apply_to_rows_inputs(o: dict[str, str | bool | None]) -> None:
         "apply_to_rows",
         o,
         mandatory={"input_col", "operator"},
-        optional={"value", "comparison_column", "dead-end",
-                  "skip_if_empty", "skip", "perform"}
+        optional={
+            "value",
+            "comparison_column",
+            "dead-end",
+            "skip_if_empty",
+            "skip",
+            "perform",
+        },
     )
 
     value = o.get("value")
@@ -47,7 +53,9 @@ def assert_apply_to_rows_inputs(o: dict[str, str | bool | None]) -> None:
 
     input_col = o["input_col"]
     if input_col == comparison_column:
-        raise ValueError("'input_col' and 'comparison_column' cannot have the same value")
+        raise ValueError(
+            "'input_col' and 'comparison_column' cannot have the same value"
+        )
 
     skip_if_empty = o.get("skip_if_empty", False)
     if skip_if_empty not in [True, False]:
@@ -58,11 +66,22 @@ def assert_branch_inputs(o: dict) -> None:
     """Check the validity of a 'branch' configuration dictionary."""
     _assert_is_dict("branch", o)
 
-    validate_keys("branch",
-                  o,
-                  mandatory={"end"},
-                  optional={"storage", "on", "left_on", "right_on", "suffix",
-                            "how", "broadcast", "skip", "perform"})
+    validate_keys(
+        "branch",
+        o,
+        mandatory={"end"},
+        optional={
+            "storage",
+            "on",
+            "left_on",
+            "right_on",
+            "suffix",
+            "how",
+            "broadcast",
+            "skip",
+            "perform",
+        },
+    )
 
     end_value = o["end"]
     allowed_ends = {"join", "dead-end", "append"}
@@ -76,25 +95,35 @@ def assert_branch_inputs(o: dict) -> None:
             f"branch[end='{end_value}']",
             keys,
             mandatory={"how"},
-            optional={"on", "left_on", "right_on", "suffix", "broadcast", "skip", "perform"}
+            optional={
+                "on",
+                "left_on",
+                "right_on",
+                "suffix",
+                "broadcast",
+                "skip",
+                "perform",
+            },
         )
-        assert_join_params(o.get("how"), o.get("on"), o.get("left_on"), o.get("right_on"))
+        assert_join_params(
+            o.get("how"), o.get("on"), o.get("left_on"), o.get("right_on")
+        )
 
     elif end_value in {"dead-end", "append"}:
         validate_keys(
             f"branch[end='{end_value}']",
             keys,
             mandatory=set(),
-            optional={"skip", "perform"}
+            optional={"skip", "perform"},
         )
 
     validate_skip_perform(o.get("skip"), o.get("perform"))
 
 
 def ensure_no_branch_or_apply_to_rows_otherwise(
-        branch: dict[str, str | bool] | None,
-        apply_to_rows: dict[str, str | bool] | None,
-        otherwise: dict[str, Any] | None,
+    branch: dict[str, str | bool] | None,
+    apply_to_rows: dict[str, str | bool] | None,
+    otherwise: dict[str, Any] | None,
 ) -> None:
     """Ensure that 'branch', 'apply_to_rows' and 'otherwise' are valid.
 
@@ -134,7 +163,7 @@ def ensure_no_branch_or_apply_to_rows_otherwise(
 
 
 def ensure_no_branch_or_apply_to_rows_in_split_pipeline(
-        branch: dict[str, Any] | None, apply_to_rows: dict[str, Any] | None
+    branch: dict[str, Any] | None, apply_to_rows: dict[str, Any] | None
 ) -> None:
     """Ensure that 'branch' and 'apply_to_rows' are not passed in split-pipelines.
 
@@ -160,8 +189,10 @@ def set_split_options(main_data, split_options, name: str) -> set[str]:
 
     if isinstance(split_options, str):
         if split_options not in main_data:
-            raise KeyError(f'{name} "{split_options}" not found '
-                           f'in the split-pipeline: {set(main_data)}')
+            raise KeyError(
+                f'{name} "{split_options}" not found '
+                f"in the split-pipeline: {set(main_data)}"
+            )
         return {split_options}
 
     ret = set(split_options)
@@ -200,6 +231,8 @@ def to_list_of_transformations(data, name: str) -> list[Transformer | Callable] 
         return data
     if isinstance(data, tuple):
         return list(data)
-    raise TypeError(f"{name} must be a callable | "
-                    "transformer | iterable[callable | "
-                    f"transformer], found ({type(data)})")
+    raise TypeError(
+        f"{name} must be a callable | "
+        "transformer | iterable[callable | "
+        f"transformer], found ({type(data)})"
+    )

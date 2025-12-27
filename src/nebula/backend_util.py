@@ -19,6 +19,7 @@ MIN_PYSPARK = "3.5.0"
 
 class BackendInfo(NamedTuple):
     """Information about an installed backend."""
+
     available: bool
     version: str | None
     meets_minimum: bool
@@ -67,7 +68,9 @@ def get_backend_info(backend: str) -> BackendInfo:
         "spark": _PYSPARK_INFO,
     }
     if backend not in info_map:
-        raise ValueError(f"Unknown backend: {backend}. Must be one of {list(info_map.keys())}")
+        raise ValueError(
+            f"Unknown backend: {backend}. Must be one of {list(info_map.keys())}"
+        )
     return info_map[backend]
 
 
@@ -87,8 +90,7 @@ def require_backend(backend: str, *, check_version: bool = True) -> None:
 
     if not info.available:
         raise ImportError(
-            f"{backend} is not installed. "
-            f"Install it with: pip install {backend}"
+            f"{backend} is not installed. Install it with: pip install {backend}"
         )
 
     if check_version and not info.meets_minimum:

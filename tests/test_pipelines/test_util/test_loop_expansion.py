@@ -592,8 +592,8 @@ class TestExpandLoopsInPipeline:
         result = expand_loops(pipe)
         assert result["pipeline"][0]["nested"] is not pipe["pipeline"][0]["nested"]
         assert (
-                result["pipeline"][0]["nested"]["deep"]
-                is not pipe["pipeline"][0]["nested"]["deep"]
+            result["pipeline"][0]["nested"]["deep"]
+            is not pipe["pipeline"][0]["nested"]["deep"]
         )
 
     @staticmethod
@@ -798,7 +798,9 @@ class TestExpandLoopsInPipeline:
                                         "transformer": "AddLiterals",
                                         # This must become: "name_a", "name_b"
                                         "params": {
-                                            "data": [{"value": 2, "alias": "<<names>>"}],
+                                            "data": [
+                                                {"value": 2, "alias": "<<names>>"}
+                                            ],
                                         },
                                     },
                                     {
@@ -935,7 +937,10 @@ class TestExpandLoopsInPipeline:
                                 },
                                 "transformer": "RenameColumns",
                                 "params": {
-                                    "mapping": {"no": "change", "<<names>>": "pre_<<names>>"},
+                                    "mapping": {
+                                        "no": "change",
+                                        "<<names>>": "pre_<<names>>",
+                                    },
                                 },
                             }
                         }

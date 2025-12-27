@@ -22,7 +22,8 @@ def _get_df_input():
 
 def _get_expected_output() -> pl.DataFrame:
     df = (
-        _get_df_input().unique()
+        _get_df_input()
+        .unique()
         .with_columns(
             pl.lit("lazy").alias("c3"),
             pl.lit("lazy-ns").alias("c4"),
@@ -39,8 +40,12 @@ def test_laziness_py():
     list_trf = [
         Distinct(),
         LazyWrapper(AddLiterals, data=[{"alias": "c3", "value": "lazy"}]),
-        LazyWrapper(AddLiterals, data=[{"alias": "c4", "value": (ns, "my_key")}]),  # as list
-        LazyWrapper(AddLiterals, data=({"alias": "c5", "value": (ns, "my_key2")},)),  # as tuple
+        LazyWrapper(
+            AddLiterals, data=[{"alias": "c4", "value": (ns, "my_key")}]
+        ),  # as list
+        LazyWrapper(
+            AddLiterals, data=({"alias": "c5", "value": (ns, "my_key2")},)
+        ),  # as tuple
     ]
     pipe = TransformerPipeline(list_trf)
     pipe.show(add_params=True)

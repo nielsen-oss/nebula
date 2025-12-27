@@ -75,16 +75,19 @@ def get_dataframe_type(df) -> str:
     # Fallback: isinstance checks (more reliable but requires imports)
     if HAS_PANDAS:
         from pandas import DataFrame as pandas_DF
+
         if isinstance(df, pandas_DF):  # pragma: no cover
             return "pandas"
 
     if HAS_POLARS:
         import polars as pl
+
         if isinstance(df, (pl.DataFrame, pl.LazyFrame)):  # pragma: no cover
             return "polars"
 
     if HAS_SPARK:
         from pyspark.sql import DataFrame as ps_DF
+
         if isinstance(df, ps_DF):  # pragma: no cover
             return "spark"
 
@@ -105,8 +108,7 @@ def get_dataframe_type(df) -> str:
         )
 
     raise TypeError(
-        f"Unknown dataframe type: {type(df)}. "
-        f"Supported types: {', '.join(supported)}"
+        f"Unknown dataframe type: {type(df)}. Supported types: {', '.join(supported)}"
     )
 
 

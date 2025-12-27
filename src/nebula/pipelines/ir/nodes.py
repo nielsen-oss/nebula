@@ -41,6 +41,7 @@ __all__ = [
 
 class NodeType(Enum):
     """Enumeration of all node types in the IR."""
+
     INPUT = auto()
     OUTPUT = auto()
     TRANSFORMER = auto()
@@ -54,7 +55,7 @@ class NodeType(Enum):
 @dataclass
 class PipelineNode:
     """Base node in pipeline IR.
-    
+
     Attributes:
         id: Unique, stable identifier (content hash + position).
         node_type: Type discriminator for visitor dispatch.
@@ -63,6 +64,7 @@ class PipelineNode:
         children: Forward edges to child nodes.
         parent: Backward edge to parent (enables restart navigation).
     """
+
     id: str = ""
     node_type: NodeType = NodeType.SEQUENCE
     position: tuple[int | str, ...] = ()
@@ -87,6 +89,7 @@ class PipelineNode:
 @dataclass
 class InputNode(PipelineNode):
     """Represents the input DataFrame entry point."""
+
     name: str = "DF input"
 
     def __post_init__(self):
@@ -98,6 +101,7 @@ class InputNode(PipelineNode):
 @dataclass
 class OutputNode(PipelineNode):
     """Represents the output DataFrame exit point."""
+
     name: str = "DF output"
 
     def __post_init__(self):
@@ -109,11 +113,12 @@ class OutputNode(PipelineNode):
 @dataclass
 class TransformerNode(PipelineNode):
     """Wraps a Transformer or LazyWrapper instance.
-    
+
     Attributes:
         transformer: The actual Transformer or LazyWrapper instance.
         description: Optional user-provided description.
     """
+
     transformer: Transformer | LazyWrapper | None = None
     description: str | None = None
     params_for_print: str | None = None
@@ -129,7 +134,7 @@ class TransformerNode(PipelineNode):
         if self.transformer is None:  # pragma: no cover
             return "Unknown"
         # Handle LazyWrapper
-        if hasattr(self.transformer, 'trf'):
+        if hasattr(self.transformer, "trf"):
             return f"(Lazy) {self.transformer.trf.__name__}"
         return self.transformer.__class__.__name__
 
@@ -144,7 +149,7 @@ class TransformerNode(PipelineNode):
 @dataclass
 class FunctionNode(PipelineNode):
     """Wraps a bare Python function as a transformer.
-    
+
     Supports four call signatures:
     1. func(df) -> df
     2. func(df, *args) -> df
@@ -156,6 +161,7 @@ class FunctionNode(PipelineNode):
         args: Positional arguments (after df).
         kwargs: Keyword arguments.
     """
+
     func: Callable | None = None
     args: tuple = ()
     kwargs: dict[str, Any] = field(default_factory=dict)
@@ -187,20 +193,21 @@ class FunctionNode(PipelineNode):
 @dataclass
 class StorageNode(PipelineNode):
     """Storage operations: store, load, debug toggle.
-    
+
     Operations:
     - 'store': Save df to nebula_storage with key
     - 'store_debug': Save df only if debug mode is active
     - 'load': Replace df with one from storage
     - 'toggle_debug': Enable/disable debug storage mode
-    
+
     Attributes:
         operation: The storage operation type.
         key: Storage key (for store/load operations).
         debug_value: True/False for toggle_debug operation.
     """
-    operation: Literal['store', 'store_debug', 'load', 'toggle_debug'] = 'store'
-    key: str = ''
+
+    operation: Literal["store", "store_debug", "load", "toggle_debug"] = "store"
+    key: str = ""
     debug_value: bool | None = None
 
     def __post_init__(self):
@@ -209,13 +216,13 @@ class StorageNode(PipelineNode):
     @property
     def display_message(self) -> str:
         """Human-readable description of the operation."""
-        if self.operation == 'store':
+        if self.operation == "store":
             return f'Store df with key "{self.key}"'
-        elif self.operation == 'store_debug':
+        elif self.operation == "store_debug":
             return f'Store df (debug) with key "{self.key}"'
-        elif self.operation == 'load':
+        elif self.operation == "load":
             return f'Load df from key "{self.key}"'
-        elif self.operation == 'toggle_debug':
+        elif self.operation == "toggle_debug":
             action = "Activate" if self.debug_value else "Deactivate"
             return f"{action} storage debug mode"
         return f"Unknown operation: {self.operation}"  # pragma: no cover
@@ -224,12 +231,12 @@ class StorageNode(PipelineNode):
 @dataclass
 class ForkNode(PipelineNode):
     """Represents a point where the pipeline splits into branches.
-    
+
     Fork types:
     - 'split': DataFrame split by user function into named subsets
     - 'branch': Secondary pipeline from primary or stored df
     - 'apply_to_rows': Filter rows, apply transforms, merge back
-    
+
     Attributes:
         fork_type: The type of fork operation.
         config: Fork-specific configuration (condition, storage key, etc.).
@@ -237,7 +244,8 @@ class ForkNode(PipelineNode):
         otherwise: Optional pipeline for non-matching rows.
         split_function: For 'split' type, the function that splits df.
     """
-    fork_type: Literal['split', 'branch', 'apply_to_rows'] = 'split'
+
+    fork_type: Literal["split", "branch", "apply_to_rows"] = "split"
     config: dict[str, Any] = field(default_factory=dict)
     branches: dict[str, list[PipelineNode]] = field(default_factory=dict)
     otherwise: list[PipelineNode] | None = None
@@ -250,17 +258,18 @@ class ForkNode(PipelineNode):
 @dataclass
 class MergeNode(PipelineNode):
     """Merge point after a fork - combines branch results.
-    
+
     Merge types:
     - 'append': Vertical concatenation (union by name)
     - 'join': SQL-style join with on/how parameters
     - 'dead-end': No merge, branch result is discarded
-    
+
     Attributes:
         merge_type: How to combine the branches.
         config: Merge-specific config (join keys, allow_missing_cols, etc.).
     """
-    merge_type: Literal['append', 'join', 'dead-end'] = 'append'
+
+    merge_type: Literal["append", "join", "dead-end"] = "append"
     config: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self):
@@ -270,14 +279,15 @@ class MergeNode(PipelineNode):
 @dataclass
 class SequenceNode(PipelineNode):
     """A linear sequence of nodes.
-    
+
     This simplifies the IR for the common case of sequential transformers.
     The steps are also stored in children for uniform traversal.
-    
+
     Attributes:
         steps: Ordered list of nodes to execute sequentially.
         name: Optional pipeline name for display.
     """
+
     steps: list[PipelineNode] = field(default_factory=list)
     name: str | None = None
 

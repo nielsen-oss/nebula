@@ -38,14 +38,14 @@ class Transformer(metaclass=InitParamsStorage):
         self._desc: str | None = None
 
     def _set_columns_selections(
-            self,
-            *,
-            columns: str | Iterable[str] | None = None,
-            regex: str | None = None,
-            glob: str | None = None,
-            startswith: str | Iterable[str] | None = None,
-            endswith: str | Iterable[str] | None = None,
-            allow_excess_columns: bool = False,
+        self,
+        *,
+        columns: str | Iterable[str] | None = None,
+        regex: str | None = None,
+        glob: str | None = None,
+        startswith: str | Iterable[str] | None = None,
+        endswith: str | Iterable[str] | None = None,
+        allow_excess_columns: bool = False,
     ) -> None:
         """Prepare the input for the function 'auxiliaries.select_columns'."""
         self.__columns_selector = partial(
@@ -79,7 +79,7 @@ class Transformer(metaclass=InitParamsStorage):
         """Public transform method."""
         if isinstance(df, (nw.DataFrame, nw.LazyFrame)):
             # narwhals in -> narwhals out
-            if hasattr(self, '_transform_nw'):  # it's nw compatible
+            if hasattr(self, "_transform_nw"):  # it's nw compatible
                 return self._transform_nw(df)
             else:  # it requires separated logic
                 df_native = nw.to_native(df)
@@ -87,7 +87,7 @@ class Transformer(metaclass=InitParamsStorage):
                 return nw.from_native(df_out)
 
         # native df in -> native df out
-        if hasattr(self, '_transform_nw'):  # it's nw compatible
+        if hasattr(self, "_transform_nw"):  # it's nw compatible
             df_nw = nw.from_native(df)
             df_out = self._transform_nw(df_nw)
             return nw.to_native(df_out)

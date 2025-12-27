@@ -19,8 +19,15 @@ from typing import Any, Callable
 from nebula.pipelines.pipe_aux import is_split_pipeline, sanitize_steps
 from .node_id import assign_ids_to_tree
 from .nodes import (
-    PipelineNode, SequenceNode, TransformerNode, FunctionNode,
-    StorageNode, ForkNode, MergeNode, InputNode, OutputNode,
+    PipelineNode,
+    SequenceNode,
+    TransformerNode,
+    FunctionNode,
+    StorageNode,
+    ForkNode,
+    MergeNode,
+    InputNode,
+    OutputNode,
 )
 from .. import transformer_type_util
 
@@ -29,7 +36,7 @@ __all__ = ["IRBuilder", "build_ir"]
 
 class IRBuilder:
     """Builds pipeline IR from user input.
-    
+
     The builder handles:
     - Linear pipelines (list of transformers)
     - Split pipelines (dict with split function)
@@ -38,7 +45,7 @@ class IRBuilder:
     - Interleaved transformers (debug tools inserted between steps)
     - Storage operations (store, load, debug toggle)
     - Bare functions as transformers
-    
+
     Example:
         builder = IRBuilder(
             data=[transformer1, transformer2],
@@ -49,28 +56,28 @@ class IRBuilder:
     """
 
     def __init__(
-            self,
-            data,
-            *,
-            name: str | None = None,
-            df_input_name: str = "DF input",
-            df_output_name: str = "DF output",
-            interleaved: list | None = None,
-            prepend_interleaved: bool = False,
-            append_interleaved: bool = False,
-            split_function: Callable | None = None,
-            split_order: list[str] | None = None,
-            split_apply_after_splitting: list | None = None,
-            split_apply_before_appending: list | None = None,
-            splits_no_merge: set[str] | None = None,
-            splits_skip_if_empty: set[str] | None = None,
-            branch: dict | None = None,
-            apply_to_rows: dict | None = None,
-            otherwise: Any | None = None,
-            allow_missing_columns: bool = False,
-            cast_subsets_to_input_schema: bool = False,
-            repartition_output_to_original: bool = False,
-            coalesce_output_to_original: bool = False,
+        self,
+        data,
+        *,
+        name: str | None = None,
+        df_input_name: str = "DF input",
+        df_output_name: str = "DF output",
+        interleaved: list | None = None,
+        prepend_interleaved: bool = False,
+        append_interleaved: bool = False,
+        split_function: Callable | None = None,
+        split_order: list[str] | None = None,
+        split_apply_after_splitting: list | None = None,
+        split_apply_before_appending: list | None = None,
+        splits_no_merge: set[str] | None = None,
+        splits_skip_if_empty: set[str] | None = None,
+        branch: dict | None = None,
+        apply_to_rows: dict | None = None,
+        otherwise: Any | None = None,
+        allow_missing_columns: bool = False,
+        cast_subsets_to_input_schema: bool = False,
+        repartition_output_to_original: bool = False,
+        coalesce_output_to_original: bool = False,
     ):
         self.data = data
         self.name = name
@@ -99,7 +106,7 @@ class IRBuilder:
 
     def build(self) -> SequenceNode:
         """Build the IR tree from the configuration.
-        
+
         Returns:
             Root SequenceNode containing the full pipeline IR.
         """
@@ -145,13 +152,13 @@ class IRBuilder:
 
         # Create fork node
         fork = ForkNode(
-            fork_type='split',
+            fork_type="split",
             config={
-                'splits_no_merge': self.splits_no_merge,
-                'splits_skip_if_empty': self.splits_skip_if_empty,
-                'cast_subsets_to_input_schema': self.cast_subsets_to_input_schema,
-                'repartition_output_to_original': self.repartition_output_to_original,
-                'coalesce_output_to_original': self.coalesce_output_to_original,
+                "splits_no_merge": self.splits_no_merge,
+                "splits_skip_if_empty": self.splits_skip_if_empty,
+                "cast_subsets_to_input_schema": self.cast_subsets_to_input_schema,
+                "repartition_output_to_original": self.repartition_output_to_original,
+                "coalesce_output_to_original": self.coalesce_output_to_original,
             },
             split_function=self.split_function,
         )
@@ -182,44 +189,44 @@ class IRBuilder:
 
         # Create merge node
         merge = MergeNode(
-            merge_type='append',
+            merge_type="append",
             config={
-                'allow_missing_columns': self.allow_missing_columns,
-                'cast_subsets_to_input_schema': self.cast_subsets_to_input_schema,
-                'repartition_output_to_original': self.repartition_output_to_original,
-                'coalesce_output_to_original': self.coalesce_output_to_original,
-                'splits_no_merge': self.splits_no_merge,
+                "allow_missing_columns": self.allow_missing_columns,
+                "cast_subsets_to_input_schema": self.cast_subsets_to_input_schema,
+                "repartition_output_to_original": self.repartition_output_to_original,
+                "coalesce_output_to_original": self.coalesce_output_to_original,
+                "splits_no_merge": self.splits_no_merge,
             },
         )
         root.add_step(merge)
 
     def _build_branch_pipeline(self, root: SequenceNode) -> None:
         """Build a branch pipeline (fork from main or stored df)."""
-        end_type = self.branch['end']
-        storage_key = self.branch.get('storage')
+        end_type = self.branch["end"]
+        storage_key = self.branch.get("storage")
 
         # Create fork node
         fork = ForkNode(
-            fork_type='branch',
+            fork_type="branch",
             config={
-                'storage': storage_key,
-                'end': end_type,
-                'how': self.branch.get('how'),
-                'on': self.branch.get('on'),
-                'left_on': self.branch.get('left_on'),
-                'right_on': self.branch.get('right_on'),
-                'suffix': self.branch.get('suffix'),
-                'broadcast': self.branch.get('broadcast', False),
-                'allow_missing_columns': self.allow_missing_columns,
-                'cast_subsets_to_input_schema': self.cast_subsets_to_input_schema,
-                'repartition_output_to_original': self.repartition_output_to_original,
-                'coalesce_output_to_original': self.coalesce_output_to_original,
+                "storage": storage_key,
+                "end": end_type,
+                "how": self.branch.get("how"),
+                "on": self.branch.get("on"),
+                "left_on": self.branch.get("left_on"),
+                "right_on": self.branch.get("right_on"),
+                "suffix": self.branch.get("suffix"),
+                "broadcast": self.branch.get("broadcast", False),
+                "allow_missing_columns": self.allow_missing_columns,
+                "cast_subsets_to_input_schema": self.cast_subsets_to_input_schema,
+                "repartition_output_to_original": self.repartition_output_to_original,
+                "coalesce_output_to_original": self.coalesce_output_to_original,
             },
         )
 
         # Build main branch
         main_steps = self._create_steps_with_interleaved(self.data)
-        fork.branches['main'] = main_steps
+        fork.branches["main"] = main_steps
         for step in main_steps:
             step.parent = fork
 
@@ -233,53 +240,53 @@ class IRBuilder:
         root.add_step(fork)
 
         # Create merge node (unless dead-end)
-        if end_type == 'dead-end':
-            merge_type = 'dead-end'
-        elif end_type == 'join':
-            merge_type = 'join'
+        if end_type == "dead-end":
+            merge_type = "dead-end"
+        elif end_type == "join":
+            merge_type = "join"
         else:
-            merge_type = 'append'
+            merge_type = "append"
 
         merge = MergeNode(
             merge_type=merge_type,
             config={
-                'how': self.branch.get('how'),
-                'on': self.branch.get('on'),
-                'left_on': self.branch.get('left_on'),
-                'right_on': self.branch.get('right_on'),
-                'suffix': self.branch.get('suffix'),
-                'broadcast': self.branch.get('broadcast', False),
-                'allow_missing_columns': self.allow_missing_columns,
-                'cast_subsets_to_input_schema': self.cast_subsets_to_input_schema,
-                'repartition_output_to_original': self.repartition_output_to_original,
-                'coalesce_output_to_original': self.coalesce_output_to_original,
+                "how": self.branch.get("how"),
+                "on": self.branch.get("on"),
+                "left_on": self.branch.get("left_on"),
+                "right_on": self.branch.get("right_on"),
+                "suffix": self.branch.get("suffix"),
+                "broadcast": self.branch.get("broadcast", False),
+                "allow_missing_columns": self.allow_missing_columns,
+                "cast_subsets_to_input_schema": self.cast_subsets_to_input_schema,
+                "repartition_output_to_original": self.repartition_output_to_original,
+                "coalesce_output_to_original": self.coalesce_output_to_original,
             },
         )
         root.add_step(merge)
 
     def _build_apply_to_rows_pipeline(self, root: SequenceNode) -> None:
         """Build an apply-to-rows pipeline (filter, transform, merge)."""
-        is_dead_end = self.apply_to_rows.get('dead-end', False)
+        is_dead_end = self.apply_to_rows.get("dead-end", False)
 
         # Create fork node
         fork = ForkNode(
-            fork_type='apply_to_rows',
+            fork_type="apply_to_rows",
             config={
-                'input_col': self.apply_to_rows.get('input_col'),
-                'operator': self.apply_to_rows.get('operator'),
-                'value': self.apply_to_rows.get('value'),
-                'comparison_column': self.apply_to_rows.get('comparison_column'),
-                'dead-end': is_dead_end,
-                'skip_if_empty': self.apply_to_rows.get('skip_if_empty', False),
-                'cast_subsets_to_input_schema': self.cast_subsets_to_input_schema,
-                'repartition_output_to_original': self.repartition_output_to_original,
-                'coalesce_output_to_original': self.coalesce_output_to_original,
+                "input_col": self.apply_to_rows.get("input_col"),
+                "operator": self.apply_to_rows.get("operator"),
+                "value": self.apply_to_rows.get("value"),
+                "comparison_column": self.apply_to_rows.get("comparison_column"),
+                "dead-end": is_dead_end,
+                "skip_if_empty": self.apply_to_rows.get("skip_if_empty", False),
+                "cast_subsets_to_input_schema": self.cast_subsets_to_input_schema,
+                "repartition_output_to_original": self.repartition_output_to_original,
+                "coalesce_output_to_original": self.coalesce_output_to_original,
             },
         )
 
         # Build matched rows branch
         matched_steps = self._create_steps_with_interleaved(self.data)
-        fork.branches['matched'] = matched_steps
+        fork.branches["matched"] = matched_steps
         for step in matched_steps:
             step.parent = fork
 
@@ -296,18 +303,18 @@ class IRBuilder:
 
         # Create merge node
         merge = MergeNode(
-            merge_type='dead-end' if is_dead_end else 'append',
+            merge_type="dead-end" if is_dead_end else "append",
             config={
-                'allow_missing_columns': self.allow_missing_columns,
-                'repartition_output_to_original': self.repartition_output_to_original,
-                'coalesce_output_to_original': self.coalesce_output_to_original,
+                "allow_missing_columns": self.allow_missing_columns,
+                "repartition_output_to_original": self.repartition_output_to_original,
+                "coalesce_output_to_original": self.coalesce_output_to_original,
             },
         )
         root.add_step(merge)
 
     def _create_steps_with_interleaved(self, data) -> list[PipelineNode]:
         """Create nodes with interleaved transformers inserted.
-        
+
         Interleaved transformers are debugging tools inserted between
         each "real" transformer for observability.
         """
@@ -340,11 +347,10 @@ class IRBuilder:
             steps.append(node)
 
             # Add interleaved after each transformer (not after storage ops)
-            is_last = (i == len(data) - 1)
-            should_add_interleaved = (
-                    isinstance(node, (TransformerNode, FunctionNode))
-                    and (not is_last or self.append_interleaved)
-            )
+            is_last = i == len(data) - 1
+            should_add_interleaved = isinstance(
+                node, (TransformerNode, FunctionNode)
+            ) and (not is_last or self.append_interleaved)
 
             if should_add_interleaved:
                 for trf in self.interleaved:
@@ -354,7 +360,7 @@ class IRBuilder:
 
     def _create_node(self, item) -> PipelineNode | None:
         """Create appropriate node type from an item.
-        
+
         Handles:
         - Transformer instances
         - LazyWrapper instances
@@ -375,15 +381,15 @@ class IRBuilder:
         # Handle Transformer or LazyWrapper
         if transformer_type_util.is_transformer(item):
             description = None
-            if hasattr(item, 'get_description'):
+            if hasattr(item, "get_description"):
                 description = item.get_description()
             return TransformerNode(transformer=item, description=description)
 
         if (
-                isinstance(item, (tuple, list)) and
-                (len(item) == 2) and
-                transformer_type_util.is_transformer(item[0]) and
-                isinstance(item[1], str)
+            isinstance(item, (tuple, list))
+            and (len(item) == 2)
+            and transformer_type_util.is_transformer(item[0])
+            and isinstance(item[1], str)
         ):
             return TransformerNode(transformer=item[0], description=item[1])
 
@@ -396,9 +402,11 @@ class IRBuilder:
             if callable(item[0]):
                 n = len(item)
                 if n > 4:  # pragma: no cover
-                    raise ValueError("A function passed in a tuple must be "
-                                     "not longer than 4 elements: "
-                                     "(function, args, kwargs, description")
+                    raise ValueError(
+                        "A function passed in a tuple must be "
+                        "not longer than 4 elements: "
+                        "(function, args, kwargs, description"
+                    )
                 keys = ["func", "args", "kwargs", "description"]
                 inputs = {}
                 for i in range(n):
@@ -406,7 +414,7 @@ class IRBuilder:
                 return FunctionNode(**inputs)
 
         # Handle nested TransformerPipeline
-        if hasattr(item, '_ir'):
+        if hasattr(item, "_ir"):
             # It's already a TransformerPipeline with built IR
             # Extract and embed its steps (skip input/output nodes)
             nested_steps = []
@@ -437,7 +445,7 @@ class IRBuilder:
     @staticmethod
     def _parse_storage_request(item) -> StorageNode | None:
         """Parse a storage request dict into a StorageNode.
-        
+
         Storage request formats:
         - {"store": "key"}
         - {"store_debug": "key"}
@@ -452,42 +460,42 @@ class IRBuilder:
 
         key, value = list(item.items())[0]
 
-        if key == 'store':
+        if key == "store":
             if not isinstance(value, str):  # pragma: no cover
                 raise TypeError("'store' value must be a string")
-            return StorageNode(operation='store', key=value)
+            return StorageNode(operation="store", key=value)
 
-        elif key == 'store_debug':
+        elif key == "store_debug":
             if not isinstance(value, str):  # pragma: no cover
                 raise TypeError("'store_debug' value must be a string")
-            return StorageNode(operation='store_debug', key=value)
+            return StorageNode(operation="store_debug", key=value)
 
-        elif key == 'storage_debug_mode':
+        elif key == "storage_debug_mode":
             if not isinstance(value, bool):  # pragma: no cover
                 raise TypeError("'storage_debug_mode' value must be bool")
-            return StorageNode(operation='toggle_debug', debug_value=value)
+            return StorageNode(operation="toggle_debug", debug_value=value)
 
-        elif key == 'replace_with_stored_df':
+        elif key == "replace_with_stored_df":
             if not isinstance(value, str):  # pragma: no cover
                 raise TypeError("'replace_with_stored_df' value must be string")
-            return StorageNode(operation='load', key=value)
+            return StorageNode(operation="load", key=value)
 
         return None
 
 
 def build_ir(
-        data,
-        *,
-        name: str | None = None,
-        **kwargs,
+    data,
+    *,
+    name: str | None = None,
+    **kwargs,
 ) -> SequenceNode:  # pragma: no cover
     """Convenience function to build IR from pipeline data.
-    
+
     Args:
         data: Pipeline data (transformers, dicts, etc.)
         name: Optional pipeline name
         **kwargs: Additional configuration options
-    
+
     Returns:
         Root SequenceNode of the built IR.
     """

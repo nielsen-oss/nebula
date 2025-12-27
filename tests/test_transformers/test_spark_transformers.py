@@ -93,9 +93,7 @@ class TestAggregateOverWindow:
             ["id", None, ("start", "end")],
         ],
     )
-    def test(
-            self, df_input, ascending, order_cols, rows_between, range_between
-    ):
+    def test(self, df_input, ascending, order_cols, rows_between, range_between):
         """Test with multiple cases."""
         aggregations = [
             {"agg": "min", "col": "id", "alias": "min_id"},
@@ -128,7 +126,9 @@ class TestAggregateOverWindow:
             "sum_id", F.sum("id").over(window)
         )
 
-        assert_df_equality(df_chk, df_exp, ignore_row_order=True, ignore_column_order=True)
+        assert_df_equality(
+            df_chk, df_exp, ignore_row_order=True, ignore_column_order=True
+        )
 
     @pytest.mark.parametrize("ascending", [[True, False], [False, True]])
     def test_ascending(self, df_input, ascending):
@@ -151,7 +151,9 @@ class TestAggregateOverWindow:
         win = Window.partitionBy("category").orderBy(orders)
         df_exp = df_input.withColumn("first_value", F.first("id").over(win))
 
-        assert_df_equality(df_chk, df_exp, ignore_row_order=True, ignore_column_order=True)
+        assert_df_equality(
+            df_chk, df_exp, ignore_row_order=True, ignore_column_order=True
+        )
 
     def test_single_aggregation(self, df_input):
         """Test w/o partitioning."""
@@ -164,7 +166,9 @@ class TestAggregateOverWindow:
         win = Window.rowsBetween(Window.unboundedPreceding, Window.unboundedFollowing)
 
         df_exp = df_input.withColumn("sum_id", F.sum("id").over(win))
-        assert_df_equality(df_chk, df_exp, ignore_row_order=True, ignore_column_order=True)
+        assert_df_equality(
+            df_chk, df_exp, ignore_row_order=True, ignore_column_order=True
+        )
 
     def test_override(self, df_input):
         """Test with 'id' column overridden."""
@@ -177,7 +181,9 @@ class TestAggregateOverWindow:
         win = Window.partitionBy("category")
 
         df_exp = df_input.withColumn("id", F.min("id").over(win).cast("int"))
-        assert_df_equality(df_chk, df_exp, ignore_row_order=True, ignore_column_order=True)
+        assert_df_equality(
+            df_chk, df_exp, ignore_row_order=True, ignore_column_order=True
+        )
 
 
 class TestColumnsToMap:
@@ -722,7 +728,11 @@ class TestSparkExplode:
             {"output_cols": self._COL_OUTPUT_ARRAY, "outer": True, "drop_after": True},
             {"output_cols": self._COL_OUTPUT_ARRAY, "outer": True, "drop_after": False},
             {"output_cols": self._COL_OUTPUT_ARRAY, "outer": False, "drop_after": True},
-            {"output_cols": self._COL_OUTPUT_ARRAY, "outer": False, "drop_after": False},
+            {
+                "output_cols": self._COL_OUTPUT_ARRAY,
+                "outer": False,
+                "drop_after": False,
+            },
             {"outer": True, "drop_after": True},
             {"outer": True, "drop_after": False},
             {"outer": False, "drop_after": True},

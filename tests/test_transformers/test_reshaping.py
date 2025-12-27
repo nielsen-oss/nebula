@@ -27,28 +27,18 @@ class TestGroupBy:
     def test_invalid_single_op(self, agg, prefix, suffix):
         """Test that prefix/suffix raise error when not in single-op format."""
         with pytest.raises(ValueError, match="prefix.*suffix.*allowed only"):
-            GroupBy(
-                aggregations=agg,
-                groupby_columns="x",
-                prefix=prefix,
-                suffix=suffix
-            )
+            GroupBy(aggregations=agg, groupby_columns="x", prefix=prefix, suffix=suffix)
 
     def test_invalid_aggregation(self, df_input):
         """Test that invalid aggregation functions are caught."""
         with pytest.raises(ValueError, match="aggregation"):
-            GroupBy(
-                aggregations={"not_a_real_agg": ["c1"]},
-                groupby_columns="c0"
-            )
+            GroupBy(aggregations={"not_a_real_agg": ["c1"]}, groupby_columns="c0")
 
     def test_multiple_groupby_selections_disallowed(self, df_input):
         """Test that only one groupby selection method can be used."""
         with pytest.raises(AssertionError):
             GroupBy(
-                aggregations={"sum": ["c1"]},
-                groupby_columns="c0",
-                groupby_regex="^c"
+                aggregations={"sum": ["c1"]}, groupby_columns="c0", groupby_regex="^c"
             )
 
     @staticmethod
@@ -80,19 +70,19 @@ class TestGroupBy:
                 {
                     "col": col,
                     "agg": agg,
-                    **({"alias": alias} if alias is not None else {})
+                    **({"alias": alias} if alias is not None else {}),
                 }
                 for col, agg, alias in zip(
-                (f"c{i}" for i in range(3, 5)),
-                ("sum", "count"),
-                (None, "out"),
-            )
+                    (f"c{i}" for i in range(3, 5)),
+                    ("sum", "count"),
+                    (None, "out"),
+                )
             ]
         ],
     )
     @pytest.mark.parametrize("groupby_cols", [["c2"], ["c1", "c2"]])
     def test_multiple_aggregations(
-            self, spark, backend, to_nw, df_input, aggregations, groupby_cols
+        self, spark, backend, to_nw, df_input, aggregations, groupby_cols
     ):
         """Test multiple aggregations with and without aliases."""
         t = GroupBy(aggregations=aggregations, groupby_columns=groupby_cols)
@@ -114,7 +104,9 @@ class TestGroupBy:
     @pytest.mark.parametrize("backend", TEST_BACKENDS)
     @pytest.mark.parametrize("to_nw", [True, False])
     @pytest.mark.parametrize("groupby_columns", [["c1"], ["c1", "c2"]])
-    def test_single_dict_aggregation(self, spark, backend, to_nw, df_input, groupby_columns):
+    def test_single_dict_aggregation(
+        self, spark, backend, to_nw, df_input, groupby_columns
+    ):
         """Test a single aggregation provided as a dict."""
         aggregations = {"col": "c3", "agg": "sum", "alias": "result"}
         t = GroupBy(aggregations=aggregations, groupby_columns=groupby_columns)
@@ -131,7 +123,7 @@ class TestGroupBy:
     @pytest.mark.parametrize("prefix", ["pre_", ""])
     @pytest.mark.parametrize("suffix", ["_post", ""])
     def test_single_aggregation_multiple_columns(
-            self, spark, backend, to_nw, df_input, prefix: str, suffix: str
+        self, spark, backend, to_nw, df_input, prefix: str, suffix: str
     ):
         """Test single aggregation on multiple columns with prefix/suffix."""
         t = GroupBy(
@@ -144,8 +136,7 @@ class TestGroupBy:
 
         df_nw = nw.from_native(df_input)
         agg_exprs = [
-            nw.col(col).sum().alias(f"{prefix}{col}{suffix}")
-            for col in ["c2", "c3"]
+            nw.col(col).sum().alias(f"{prefix}{col}{suffix}") for col in ["c2", "c3"]
         ]
         df_nw_exp = df_nw.group_by("c1").agg(agg_exprs)
         self._compare(df_result, df_nw_exp)
@@ -161,9 +152,7 @@ class TestGroupBy:
         df_result = t.transform(from_pandas(df_input, backend, to_nw, spark=spark))
 
         df_nw = nw.from_native(df_input)
-        df_nw_exp = df_nw.group_by(["c1", "c2"]).agg(
-            nw.col("c3").sum().alias("c3")
-        )
+        df_nw_exp = df_nw.group_by(["c1", "c2"]).agg(nw.col("c3").sum().alias("c3"))
         self._compare(df_result, df_nw_exp)
 
     @pytest.mark.parametrize("backend", ["pandas", "polars"])
@@ -175,9 +164,7 @@ class TestGroupBy:
         df_modified["other"] = df_modified["c0"].copy()
 
         t = GroupBy(
-            aggregations={"count": ["c0"]},
-            groupby_startswith="c",
-            suffix="_count"
+            aggregations={"count": ["c0"]}, groupby_startswith="c", suffix="_count"
         )
         df_result = t.transform(from_pandas(df_modified, backend, to_nw, spark=spark))
 
@@ -193,14 +180,12 @@ class TestGroupBy:
     @pytest.mark.parametrize("to_nw", [True, False])
     @pytest.mark.parametrize(
         "agg_func",
-        ["sum", "mean", "median", "min", "max", "std", "var", "count", "first", "last"]
+        ["sum", "mean", "median", "min", "max", "std", "var", "count", "first", "last"],
     )
     def test_various_aggregations(self, spark, backend, to_nw, df_input, agg_func):
         """Test that various common aggregation functions work."""
         t = GroupBy(
-            aggregations={agg_func: ["c3"]},
-            groupby_columns="c1",
-            suffix=f"_{agg_func}"
+            aggregations={agg_func: ["c3"]}, groupby_columns="c1", suffix=f"_{agg_func}"
         )
         df_result = t.transform(from_pandas(df_input, backend, to_nw, spark=spark))
 
@@ -257,7 +242,7 @@ class TestPivot:
             pivot_col="metric_type",
             id_regex="^id_.*",
             aggregate_function="first",
-            values_cols=["value"]
+            values_cols=["value"],
         )
         result = transformer.transform(df)
 
@@ -563,7 +548,12 @@ class TestUnpivot:
         result = transformer.transform(df)
 
         assert result.shape == (4, 4)  # 2 rows × 2 metrics
-        assert set(result.columns) == {"id_user", "id_session", "metric_name", "metric_value"}
+        assert set(result.columns) == {
+            "id_user",
+            "id_session",
+            "metric_name",
+            "metric_value",
+        }
 
     def test_without_id_cols(self):
         """Test melt discards non-melt columns when no id_cols specified."""

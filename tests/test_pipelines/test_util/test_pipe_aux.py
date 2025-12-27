@@ -128,12 +128,11 @@ class TestIsEligibleFunction:
 
     def test_tuple_with_args_kwargs_and_description(self):
         """A 4-tuple (func, args, kwargs, desc) should be eligible."""
-        assert is_eligible_function(
-            (function_with_args, [1, 2], {"c": 3}, "description")
-        ) is True
-        assert is_eligible_function(
-            (function_with_args, [], {}, "")
-        ) is True
+        assert (
+            is_eligible_function((function_with_args, [1, 2], {"c": 3}, "description"))
+            is True
+        )
+        assert is_eligible_function((function_with_args, [], {}, "")) is True
 
     def test_tuple_invalid_args_type(self):
         """Second element must be list or tuple, not other types."""
@@ -164,9 +163,7 @@ class TestIsEligibleFunction:
         """Tuples with length < 2 or > 4 should be ineligible."""
         assert is_eligible_function((dummy_function,)) is False
         assert is_eligible_function(()) is False
-        assert is_eligible_function(
-            (dummy_function, [], {}, "desc", "extra")
-        ) is False
+        assert is_eligible_function((dummy_function, [], {}, "desc", "extra")) is False
 
     def test_non_callable_types(self):
         """Non-callable types should be ineligible."""
@@ -315,7 +312,6 @@ def test_create_dict_extra_functions_error(o):
 
 @pytest.mark.parametrize("to_nw", [True, False])
 class TestGetNativeSchema:
-
     def test_pandas(self, to_nw: bool):
         df = pd.DataFrame({"a": [1, 2], "b": ["x", "y"]})
         if to_nw:
@@ -359,12 +355,14 @@ class TestSplitDf:
 
     @pytest.fixture(scope="class", name="df_input")
     def _get_df_input(self):
-        return pl.DataFrame({
-            "id": [1, 2, 3, 4, 5],
-            "status": ["active", "inactive", "active", "pending", "active"],
-            "score": [85, 42, 91, None, 73],
-            "name": ["Alice", "Bob", "Charlie", "Diana", "Eve"],
-        })
+        return pl.DataFrame(
+            {
+                "id": [1, 2, 3, 4, 5],
+                "status": ["active", "inactive", "active", "pending", "active"],
+                "score": [85, 42, 91, None, 73],
+                "name": ["Alice", "Bob", "Charlie", "Diana", "Eve"],
+            }
+        )
 
     def test(self, df_input):
         cfg = {"input_col": "score", "operator": "gt", "value": 80}
@@ -386,23 +384,21 @@ class TestToSchema:
 
     @pytest.fixture(scope="class", name="list_dfs")
     def _get_list_dfs(self) -> list[pd.DataFrame]:
-        df1 = pd.DataFrame({
-            "id": [1, 2, 3],
-            "value": [10.5, 20.5, 30.5],
-            "name": ["a", "b", "c"]
-        })
+        df1 = pd.DataFrame(
+            {"id": [1, 2, 3], "value": [10.5, 20.5, 30.5], "name": ["a", "b", "c"]}
+        )
 
-        df2 = pd.DataFrame({
-            "id": [1, 2, 3],
-            "value": [10, 20, 30],
-            "name": ["a", "b", "c"]
-        })
+        df2 = pd.DataFrame(
+            {"id": [1, 2, 3], "value": [10, 20, 30], "name": ["a", "b", "c"]}
+        )
 
-        df3 = pd.DataFrame({
-            "id": [1, 2, 3],
-            "value": [1.2, float("nan"), 3.1],
-            "name": ["a", "b", "c"]
-        })
+        df3 = pd.DataFrame(
+            {
+                "id": [1, 2, 3],
+                "value": [1.2, float("nan"), 3.1],
+                "name": ["a", "b", "c"],
+            }
+        )
 
         return [df1, df2, df3]
 
@@ -415,14 +411,16 @@ class TestToSchema:
             (None, 1),
             (None, None),
             (None, "all"),
-        ]
+        ],
     )
     def test_pandas(self, backend: str, list_dfs, n, to_nw):
         dtypes = {"id": "int64", "value": "float32"}
         dataframes = list_dfs[:n]
         expected = [i.astype(dtypes) for i in dataframes]
 
-        dataframes = [from_pandas(i, backend, to_nw=False, spark=None) for i in dataframes]
+        dataframes = [
+            from_pandas(i, backend, to_nw=False, spark=None) for i in dataframes
+        ]
 
         if to_nw == 1:
             dataframes[1] = nw.from_native(dataframes[1])
@@ -543,7 +541,11 @@ class TestSanitizeSteps:
 
     def test_flat_list_of_keyword_requests(self):
         """A flat list of keyword requests should be returned as-is."""
-        keywords = list(PIPELINE_KEYWORDS)[:2] if len(PIPELINE_KEYWORDS) >= 2 else list(PIPELINE_KEYWORDS)
+        keywords = (
+            list(PIPELINE_KEYWORDS)[:2]
+            if len(PIPELINE_KEYWORDS) >= 2
+            else list(PIPELINE_KEYWORDS)
+        )
         requests = [{kw: f"key_{i}"} for i, kw in enumerate(keywords)]
 
         result = sanitize_steps(requests)
@@ -665,7 +667,12 @@ class TestSanitizeSteps:
         assert result[1] is trf2
         assert result[2] == (trf3, "Ensure the DF is not empty")
         assert result[3] is dummy_function
-        assert result[4] == (function_with_args, [1, 2, 3], {"c": 10}, "random function")
+        assert result[4] == (
+            function_with_args,
+            [1, 2, 3],
+            {"c": 10},
+            "random function",
+        )
         assert result[5] == {keyword: "intermediate_result"}
 
     def test_realistic_pipeline_with_nested_groups(self):

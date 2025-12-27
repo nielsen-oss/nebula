@@ -120,11 +120,9 @@ class TestExtractFunction:
     def test_valid(self):
         """Test valid list of functions."""
 
-        def f1():
-            ...
+        def f1(): ...
 
-        def f2():
-            ...
+        def f2(): ...
 
         chk = _extract_function([f1, f2], "f1")
         assert chk == f1
@@ -132,15 +130,20 @@ class TestExtractFunction:
     def test_invalid(self):
         """Test duplicated list of functions."""
 
-        def f1():
-            ...
+        def f1(): ...
 
         with pytest.raises(AssertionError):
             _extract_function([f1, f1], "f1")
 
 
 class TestExtractLazyParams:
-    regular_params = {"p1": "param_1", "p2": 2, "p3": [1], "p4": {"a": 1, "b": 2}, "p5": (5,)}
+    regular_params = {
+        "p1": "param_1",
+        "p2": 2,
+        "p3": [1],
+        "p4": {"a": 1, "b": 2},
+        "p5": (5,),
+    }
 
     def test_no_lazy_params(self):
         """Tests input with no lazy parameters."""

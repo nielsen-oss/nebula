@@ -26,11 +26,13 @@ def df_input() -> pl.DataFrame:
     - idx: 0-5 (integers, unique, for join testing)
     - c1, c2: simple string columns
     """
-    return pl.DataFrame({
-        "idx": [0, 1, 2, 3, 4, 5],
-        "c1": ["a", "b", "c", "d", "e", "f"],
-        "c2": ["x", "y", "z", "w", "v", "u"],
-    })
+    return pl.DataFrame(
+        {
+            "idx": [0, 1, 2, 3, 4, 5],
+            "c1": ["a", "b", "c", "d", "e", "f"],
+            "c2": ["x", "y", "z", "w", "v", "u"],
+        }
+    )
 
 
 class TestBranchDeadEnd:
@@ -70,11 +72,13 @@ class TestBranchDeadEnd:
         ns.clear()
 
         # Store a different DataFrame for the branch to use
-        df_source = pl.DataFrame({
-            "idx": [100, 101],
-            "c1": ["stored_a", "stored_b"],
-            "c2": ["stored_x", "stored_y"],
-        })
+        df_source = pl.DataFrame(
+            {
+                "idx": [100, 101],
+                "c1": ["stored_a", "stored_b"],
+                "c2": ["stored_x", "stored_y"],
+            }
+        )
         ns.set("df_source", df_source)
 
         pipe = pipe_branch_dead_end_from_storage()
@@ -142,11 +146,13 @@ class TestBranchAppend:
         """Branch can read from storage and append to main."""
         ns.clear()
 
-        df_source = pl.DataFrame({
-            "idx": [100, 101],
-            "c1": ["stored_a", "stored_b"],
-            "c2": ["stored_x", "stored_y"],
-        })
+        df_source = pl.DataFrame(
+            {
+                "idx": [100, 101],
+                "c1": ["stored_a", "stored_b"],
+                "c2": ["stored_x", "stored_y"],
+            }
+        )
         ns.set("df_source", df_source)
 
         pipe = pipe_branch_append_from_storage()
@@ -187,11 +193,13 @@ class TestBranchJoin:
         ns.clear()
 
         # Store DataFrame with subset of idx values
-        df_source = pl.DataFrame({
-            "idx": [0, 1, 2],  # Only 3 of 6 idx values
-            "c1": ["x", "y", "z"],
-            "c2": ["a", "b", "c"],
-        })
+        df_source = pl.DataFrame(
+            {
+                "idx": [0, 1, 2],  # Only 3 of 6 idx values
+                "c1": ["x", "y", "z"],
+                "c2": ["a", "b", "c"],
+            }
+        )
         ns.set("df_source", df_source)
 
         pipe = pipe_branch_join_from_storage()
@@ -273,6 +281,7 @@ class TestSparkCoalesceRepartitionToOriginal:
     @pytest.fixture(scope="class", name="df_input_spark")
     def _get_df_spark(spark):
         from pyspark.sql.types import IntegerType, StructField, StructType
+
         fields = [StructField("idx", IntegerType(), True)]
         data = np.arange(100).reshape(-1, 1).tolist()
         return spark.createDataFrame(data, schema=StructType(fields)).coalesce(2)
@@ -287,11 +296,8 @@ class TestSparkCoalesceRepartitionToOriginal:
                     "repartition_output_to_original": repartition,
                     "coalesce_output_to_original": coalesce,
                     "pipeline": [
-                        {
-                            "transformer": "Repartition",
-                            "params": {"num_partitions": 10}
-                        }
-                    ]
+                        {"transformer": "Repartition", "params": {"num_partitions": 10}}
+                    ],
                 }
             ]
         }

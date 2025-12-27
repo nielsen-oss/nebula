@@ -32,6 +32,7 @@ class ExecutionContext:
         metadata: Extensible dict for custom data.
         fail_cache: Cache of DataFrames for error recovery.
     """
+
     df: Any = None
     completed_nodes: set[str] = field(default_factory=set)
     resume_from: str | None = None

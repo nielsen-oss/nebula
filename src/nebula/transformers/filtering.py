@@ -11,16 +11,16 @@ __all__ = ["DropNulls", "Filter"]
 
 class DropNulls(Transformer):
     def __init__(
-            self,
-            *,
-            how: str = "any",
-            thresh: int | None = None,
-            drop_na: bool = False,
-            columns: str | list[str] | None = None,
-            regex: str | None = None,
-            glob: str | None = None,
-            startswith: str | Iterable[str] | None = None,
-            endswith: str | Iterable[str] | None = None,
+        self,
+        *,
+        how: str = "any",
+        thresh: int | None = None,
+        drop_na: bool = False,
+        columns: str | list[str] | None = None,
+        regex: str | None = None,
+        glob: str | None = None,
+        startswith: str | Iterable[str] | None = None,
+        endswith: str | Iterable[str] | None = None,
     ):
         """Drop rows with null values.
 
@@ -112,15 +112,14 @@ class DropNulls(Transformer):
 
 
 class Filter(Transformer):
-
     def __init__(
-            self,
-            *,
-            input_col: str,
-            perform: str,
-            operator: str,
-            value=None,
-            compare_col: str | None = None,
+        self,
+        *,
+        input_col: str,
+        perform: str,
+        operator: str,
+        value=None,
+        compare_col: str | None = None,
     ):
         """Row filtering using Narwhals conditions.
 
@@ -280,7 +279,10 @@ class Filter(Transformer):
         """
         # Prevent confusing double negatives
         if perform == "remove" and operator in {
-            "ne", "is_not_in", "is_not_null", "is_not_nan"
+            "ne",
+            "is_not_in",
+            "is_not_null",
+            "is_not_nan",
         }:
             raise ValueError(
                 f"Cannot use perform='remove' with operator '{operator}'. "

@@ -26,21 +26,20 @@ class GroupBy(Transformer):
     )
 
     _ALLOWED_GROUPBY_AGG: set[str] = {
-        m for m in dir(nw.col())
-        if m.islower() and not m.startswith('_')
+        m for m in dir(nw.col()) if m.islower() and not m.startswith("_")
     }
 
     def __init__(
-            self,
-            *,
-            aggregations: dict[str, list[str]] | dict[str, str] | list[dict[str, str]],
-            groupby_columns: str | list[str] | None = None,
-            groupby_regex: str | None = None,
-            groupby_glob: str | None = None,
-            groupby_startswith: str | Iterable[str] | None = None,
-            groupby_endswith: str | Iterable[str] | None = None,
-            prefix: str = "",
-            suffix: str = "",
+        self,
+        *,
+        aggregations: dict[str, list[str]] | dict[str, str] | list[dict[str, str]],
+        groupby_columns: str | list[str] | None = None,
+        groupby_regex: str | None = None,
+        groupby_glob: str | None = None,
+        groupby_startswith: str | Iterable[str] | None = None,
+        groupby_endswith: str | Iterable[str] | None = None,
+        prefix: str = "",
+        suffix: str = "",
     ):
         """Perform GroupBy aggregation operations.
 
@@ -104,7 +103,7 @@ class GroupBy(Transformer):
             groupby_regex=groupby_regex,
             groupby_glob=groupby_glob,
             groupby_startswith=groupby_startswith,
-            groupby_endswith=groupby_endswith
+            groupby_endswith=groupby_endswith,
         )
         super().__init__()
 
@@ -117,7 +116,9 @@ class GroupBy(Transformer):
             if prefix or suffix:
                 raise ValueError(self._msg_err)
 
-        self._aggregations: list[dict[str, str]] = self._get_sanitized_aggregations(aggregations)
+        self._aggregations: list[dict[str, str]] = self._get_sanitized_aggregations(
+            aggregations
+        )
 
         self._set_columns_selections(
             columns=groupby_columns,
@@ -128,7 +129,7 @@ class GroupBy(Transformer):
         )
 
     def _get_sanitized_aggregations(
-            self, aggregations: dict[str, str] | list[dict[str, str]]
+        self, aggregations: dict[str, str] | list[dict[str, str]]
     ) -> list[dict[str, str]]:
         if isinstance(aggregations, dict):
             aggregations = [aggregations]
@@ -141,11 +142,11 @@ class GroupBy(Transformer):
         return aggregations
 
     def _validate_aggregations(
-            self,
-            aggregations: list[dict[str, str]],
-            *,
-            required_keys: set[str],
-            allowed_keys: set[str],
+        self,
+        aggregations: list[dict[str, str]],
+        *,
+        required_keys: set[str],
+        allowed_keys: set[str],
     ) -> None:
         """Validate the list of aggregations for groupBy operations."""
         for d in aggregations:
@@ -174,7 +175,7 @@ class GroupBy(Transformer):
                 )
 
     def _check_single_op(
-            self, o: dict, prefix: str, suffix: str
+        self, o: dict, prefix: str, suffix: str
     ) -> dict[str, str] | list[dict[str, str]]:
         """Check if this is single-operation syntax and expand it."""
         values = list(o.values())
@@ -222,23 +223,23 @@ class GroupBy(Transformer):
 
 class Pivot(Transformer):
     def __init__(
-            self,
-            *,
-            pivot_col: str,
-            id_cols: str | list[str] | None = None,
-            id_regex: str | None = None,
-            id_glob: str | None = None,
-            id_startswith: str | Iterable[str] | None = None,
-            id_endswith: str | Iterable[str] | None = None,
-            aggregate_function: Literal[
-                "min", "max", "first", "last", "sum", "mean", "median", "len"
-            ] = "first",
-            values_cols: str | list[str] | None = None,
-            values_regex: str | None = None,
-            values_glob: str | None = None,
-            values_startswith: str | Iterable[str] | None = None,
-            values_endswith: str | Iterable[str] | None = None,
-            separator: str = "_",
+        self,
+        *,
+        pivot_col: str,
+        id_cols: str | list[str] | None = None,
+        id_regex: str | None = None,
+        id_glob: str | None = None,
+        id_startswith: str | Iterable[str] | None = None,
+        id_endswith: str | Iterable[str] | None = None,
+        aggregate_function: Literal[
+            "min", "max", "first", "last", "sum", "mean", "median", "len"
+        ] = "first",
+        values_cols: str | list[str] | None = None,
+        values_regex: str | None = None,
+        values_glob: str | None = None,
+        values_startswith: str | Iterable[str] | None = None,
+        values_endswith: str | Iterable[str] | None = None,
+        separator: str = "_",
     ):
         """Transform DataFrame from long to wide format (pivot operation).
 
@@ -309,7 +310,7 @@ class Pivot(Transformer):
             id_regex=id_regex,
             id_glob=id_glob,
             id_startswith=id_startswith,
-            id_endswith=id_endswith
+            id_endswith=id_endswith,
         )
         super().__init__()
         self._pivot_col = pivot_col
@@ -343,13 +344,15 @@ class Pivot(Transformer):
 
         # Select value columns if any selector is specified
         values_cols: list[str] | None = None
-        if any([
-            self._values_cols,
-            self._values_regex,
-            self._values_glob,
-            self._values_startswith,
-            self._values_endswith,
-        ]):
+        if any(
+            [
+                self._values_cols,
+                self._values_regex,
+                self._values_glob,
+                self._values_startswith,
+                self._values_endswith,
+            ]
+        ):
             self._set_columns_selections(
                 columns=self._values_cols,
                 regex=self._values_regex,
@@ -371,14 +374,14 @@ class Pivot(Transformer):
 
 class Unpivot(Transformer):
     def __init__(
-            self,
-            *,
-            id_cols: str | list[str] | None = None,
-            id_regex: str | None = None,
-            melt_cols: str | list[str] | None = None,
-            melt_regex: str | None = None,
-            variable_col: str,
-            value_col: str,
+        self,
+        *,
+        id_cols: str | list[str] | None = None,
+        id_regex: str | None = None,
+        melt_cols: str | list[str] | None = None,
+        melt_regex: str | None = None,
+        variable_col: str,
+        value_col: str,
     ):
         """Unpivot DataFrame from wide to long format.
 
@@ -390,10 +393,7 @@ class Unpivot(Transformer):
             variable_col: Name for the new variable column
             value_col: Name for the new value column
         """
-        assert_at_least_one_non_null(
-            melt_cols=melt_cols,
-            melt_regex=melt_regex
-        )
+        assert_at_least_one_non_null(melt_cols=melt_cols, melt_regex=melt_regex)
         super().__init__()
 
         self._id_cols = id_cols

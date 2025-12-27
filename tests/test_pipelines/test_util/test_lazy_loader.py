@@ -5,7 +5,9 @@ are correctly resolved at any nesting depth within parameter structures.
 """
 
 from nebula.base import extract_lazy_params
-from nebula.pipelines.pipeline_loader import extract_lazy_params as extract_lazy_params_text
+from nebula.pipelines.pipeline_loader import (
+    extract_lazy_params as extract_lazy_params_text,
+)
 from nebula.storage import nebula_storage as ns
 
 
@@ -40,33 +42,19 @@ class TestBasePyLazyResolution:
         """(ns, "key") nested in dict should be resolved."""
         ns.set("threshold", 0.5)
 
-        params = {
-            "config": {
-                "threshold": (ns, "threshold"),
-                "static": True
-            }
-        }
+        params = {"config": {"threshold": (ns, "threshold"), "static": True}}
         result = extract_lazy_params(params)
 
-        assert result == {
-            "config": {
-                "threshold": 0.5,
-                "static": True
-            }
-        }
+        assert result == {"config": {"threshold": 0.5, "static": True}}
 
     def test_nested_ns_in_list(self):
         """(ns, "key") nested in list should be resolved."""
         ns.set("col_name", "user_id")
 
-        params = {
-            "columns": ["static_col", (ns, "col_name")]
-        }
+        params = {"columns": ["static_col", (ns, "col_name")]}
         result = extract_lazy_params(params)
 
-        assert result == {
-            "columns": ["static_col", "user_id"]
-        }
+        assert result == {"columns": ["static_col", "user_id"]}
 
     def test_nested_ns_in_list_of_dicts(self):
         """(ns, "key") in list of dicts should be resolved - the AddLiterals case."""
@@ -116,14 +104,11 @@ class TestBasePyLazyResolution:
         """Regular tuples (not ns references) should be preserved."""
         params = {
             "bounds": (0, 100),  # Regular tuple, not ns reference
-            "point": (1, 2, 3)
+            "point": (1, 2, 3),
         }
         result = extract_lazy_params(params)
 
-        assert result == {
-            "bounds": (0, 100),
-            "point": (1, 2, 3)
-        }
+        assert result == {"bounds": (0, 100), "point": (1, 2, 3)}
 
     def test_mixed_static_and_lazy(self):
         """Mix of static and lazy values should work correctly."""
@@ -134,14 +119,11 @@ class TestBasePyLazyResolution:
             "static_str": "hello",
             "static_int": 123,
             "lazy_ns": (ns, "key1"),
-            "nested": {
-                "static": True,
-                "lazy": (ns, "key2")
-            },
+            "nested": {"static": True, "lazy": (ns, "key2")},
             "list_mixed": [
                 "static",
                 (ns, "key1"),
-            ]
+            ],
         }
         result = extract_lazy_params(params)
 
@@ -150,13 +132,14 @@ class TestBasePyLazyResolution:
             "static_int": 123,
             "lazy_ns": "value1",
             "nested": {"static": True, "lazy": "value2"},
-            "list_mixed": ["static", "value1"]
+            "list_mixed": ["static", "value1"],
         }
 
 
 # =============================================================================
 # Tests for pipeline_loader.py (YAML/JSON API)
 # =============================================================================
+
 
 class TestPipelineLoaderLazyResolution:
     """Tests for the YAML/JSON lazy parameter resolution."""
@@ -177,18 +160,10 @@ class TestPipelineLoaderLazyResolution:
 
     def test_nested_ns_in_dict(self):
         """__ns__ nested in dict should become (ns, key) tuple."""
-        params = {
-            "config": {
-                "threshold": "__ns__threshold_key"
-            }
-        }
+        params = {"config": {"threshold": "__ns__threshold_key"}}
         result = extract_lazy_params_text(params)
 
-        assert result == {
-            "config": {
-                "threshold": (ns, "threshold_key")
-            }
-        }
+        assert result == {"config": {"threshold": (ns, "threshold_key")}}
 
     def test_nested_ns_in_list_of_dicts(self):
         """__ns__ in list of dicts - the YAML AddLiterals case."""
@@ -221,12 +196,7 @@ class TestPipelineLoaderLazyResolution:
 
     def test_static_strings_preserved(self):
         """Strings without markers should pass through unchanged."""
-        params = {
-            "name": "my_column",
-            "nested": {
-                "description": "some text"
-            }
-        }
+        params = {"name": "my_column", "nested": {"description": "some text"}}
         result = extract_lazy_params_text(params)
 
         assert result == params
@@ -235,6 +205,7 @@ class TestPipelineLoaderLazyResolution:
 # =============================================================================
 # Integration tests (full flow)
 # =============================================================================
+
 
 class TestFullLazyFlow:
     """Test the complete lazy evaluation flow from definition to resolution."""

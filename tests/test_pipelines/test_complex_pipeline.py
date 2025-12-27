@@ -103,10 +103,10 @@ def _get_df_exp(df_input, trf_hi):
     ],
 )
 def test_complex_pipeline(
-        df_input,
-        interleaved: list,
-        prepend_interleaved: bool,
-        append_interleaved: bool,
+    df_input,
+    interleaved: list,
+    prepend_interleaved: bool,
+    append_interleaved: bool,
 ):
     """Test TransformerPipeline composition."""
     ns.allow_debug(False)  # disallow debug

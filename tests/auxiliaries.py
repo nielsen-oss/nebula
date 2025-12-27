@@ -35,11 +35,11 @@ def from_pandas(df_input, backend: str, to_nw: bool, spark=None):
 
 
 def get_expected_columns(
-        input_columns: list[str],
-        *,
-        columns: list | None = None,
-        regex: str | None = None,
-        glob: str | None = None
+    input_columns: list[str],
+    *,
+    columns: list | None = None,
+    regex: str | None = None,
+    glob: str | None = None,
 ) -> list[str]:
     """Get the expected columns by using the nlsn.nebula.select_columns logic."""
     columns = ensure_list(columns)
@@ -69,10 +69,7 @@ def get_expected_columns(
 
 
 def pd_sort_assert(
-        chk: pd.DataFrame,
-        exp: pd.DataFrame,
-        na_position: str = 'first',
-        **kws
+    chk: pd.DataFrame, exp: pd.DataFrame, na_position: str = "first", **kws
 ):
     cols = list(chk.columns)
     if list(exp.columns) != cols:

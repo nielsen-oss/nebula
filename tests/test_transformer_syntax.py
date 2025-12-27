@@ -20,6 +20,7 @@ from nebula.base import Transformer
 
 # ------------------------------ Invalid Transformers
 
+
 class InvalidPublicMethodTransform:
     def __init__(self):  # noqa: D107
         ...  # Private method "_transform is not defined"
@@ -34,6 +35,7 @@ class InvalidInitSignature:
 
 
 # ------------------------------ Check Functions
+
 
 def _test_transformer_subclass(transformer):
     """Transformer must be a subclass of base.Transformer."""
@@ -70,6 +72,7 @@ def _test_transformer_init_signature(transformer):
 
 
 # ------------------------------ Public Tests
+
 
 class TestInvalidTransformers:
     """Test invalid transformers defined in this module.

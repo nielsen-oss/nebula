@@ -39,11 +39,11 @@ class AssertContainsColumns(Transformer):
 
 class AssertCount(Transformer):
     def __init__(
-            self,
-            *,
-            expected: int | None = None,
-            min_count: int | None = None,
-            max_count: int | None = None,
+        self,
+        *,
+        expected: int | None = None,
+        min_count: int | None = None,
+        max_count: int | None = None,
     ):
         """Assert DataFrame has expected number of rows.
 
@@ -101,6 +101,7 @@ class AssertCount(Transformer):
 
     def _transform_polars(self, df):
         import polars as pl
+
         if isinstance(df, pl.LazyFrame):
             count = len(df.collect())
         else:

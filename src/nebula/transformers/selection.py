@@ -19,14 +19,14 @@ __all__ = [
 
 class DropColumns(Transformer):
     def __init__(
-            self,
-            *,
-            columns: str | list[str] | None = None,
-            regex: str | None = None,
-            glob: str | None = None,
-            startswith: str | Iterable[str] | None = None,
-            endswith: str | Iterable[str] | None = None,
-            allow_excess_columns: bool = True,
+        self,
+        *,
+        columns: str | list[str] | None = None,
+        regex: str | None = None,
+        glob: str | None = None,
+        startswith: str | Iterable[str] | None = None,
+        endswith: str | Iterable[str] | None = None,
+        allow_excess_columns: bool = True,
     ):
         """Drop a subset of columns.
 
@@ -61,7 +61,7 @@ class DropColumns(Transformer):
             regex=regex,
             glob=glob,
             startswith=startswith,
-            endswith=endswith
+            endswith=endswith,
         )
         super().__init__()
         self._set_columns_selections(
@@ -83,16 +83,15 @@ class DropColumns(Transformer):
 
 
 class RenameColumns(Transformer):
-
     def __init__(
-            self,
-            *,
-            columns: str | list[str] | None = None,
-            columns_renamed: str | list[str] | None = None,
-            mapping: dict[str, str] | None = None,
-            regex_pattern: str | None = None,
-            regex_replacement: str | None = None,
-            fail_on_missing_columns: bool = True,
+        self,
+        *,
+        columns: str | list[str] | None = None,
+        columns_renamed: str | list[str] | None = None,
+        mapping: dict[str, str] | None = None,
+        regex_pattern: str | None = None,
+        regex_replacement: str | None = None,
+        fail_on_missing_columns: bool = True,
     ):
         """Transformer to rename DataFrame columns.
 
@@ -129,7 +128,7 @@ class RenameColumns(Transformer):
         assert_only_one_non_none(
             columns=columns,
             mapping=mapping,
-            regex_pattern=regex_pattern or regex_replacement
+            regex_pattern=regex_pattern or regex_replacement,
         )
         super().__init__()
 
@@ -142,9 +141,7 @@ class RenameColumns(Transformer):
         self._fail_on_missing_columns: bool = fail_on_missing_columns
 
         if bool(columns) != bool(columns_renamed):
-            raise ValueError(
-                "'columns_renamed' and 'columns' must be used together."
-            )
+            raise ValueError("'columns_renamed' and 'columns' must be used together.")
 
         columns: list[str] = ensure_flat_list(columns)
         columns_renamed: list[str] = ensure_flat_list(columns_renamed)
@@ -166,7 +163,9 @@ class RenameColumns(Transformer):
             raise ValueError(msg)
 
     def _get_regex_mapping(self, nw_df) -> dict[str, str]:
-        return {c: re.sub(self._regex_pattern, self._regex_repl, c) for c in nw_df.columns}
+        return {
+            c: re.sub(self._regex_pattern, self._regex_repl, c) for c in nw_df.columns
+        }
 
     def _transform_nw(self, nw_df):
         self._check_diff(nw_df)
@@ -177,15 +176,14 @@ class RenameColumns(Transformer):
 
 
 class SelectColumns(Transformer):
-
     def __init__(
-            self,
-            *,
-            columns: str | list[str] | None = None,
-            regex: str | None = None,
-            glob: str | None = None,
-            startswith: str | Iterable[str] | None = None,
-            endswith: str | Iterable[str] | None = None,
+        self,
+        *,
+        columns: str | list[str] | None = None,
+        regex: str | None = None,
+        glob: str | None = None,
+        startswith: str | Iterable[str] | None = None,
+        endswith: str | Iterable[str] | None = None,
     ):
         """Select a subset of columns.
 
@@ -210,7 +208,7 @@ class SelectColumns(Transformer):
             regex=regex,
             glob=glob,
             startswith=startswith,
-            endswith=endswith
+            endswith=endswith,
         )
         super().__init__()
         self._set_columns_selections(

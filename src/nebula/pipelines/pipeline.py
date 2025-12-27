@@ -8,7 +8,7 @@ the existing API while using the new IR-based architecture internally.
 
 Example:
     from nebula import TransformerPipeline
-    
+
     pipeline = TransformerPipeline(
         [
             SelectColumns(columns=['a', 'b']),
@@ -17,7 +17,7 @@ Example:
         ],
         name="my_pipeline",
     )
-    
+
     result = pipeline.run(df)
     pipeline.show(add_params=True)
     pipeline.plot().render('pipeline.png')
@@ -30,9 +30,18 @@ from typing import Any, Callable, Iterable, Union
 from nebula.auxiliaries import assert_at_most_one_args
 from nebula.base import Transformer, LazyWrapper
 from nebula.pipelines._checks import *
-from nebula.pipelines.execution import PipelineExecutor, PipelineHooks, NoOpHooks, LoggingHooks
+from nebula.pipelines.execution import (
+    PipelineExecutor,
+    PipelineHooks,
+    NoOpHooks,
+    LoggingHooks,
+)
 from nebula.pipelines.ir import IRBuilder, SequenceNode
-from nebula.pipelines.pipe_aux import is_keyword_request, is_split_pipeline, PIPELINE_KEYWORDS
+from nebula.pipelines.pipe_aux import (
+    is_keyword_request,
+    is_split_pipeline,
+    PIPELINE_KEYWORDS,
+)
 from nebula.pipelines.pipe_cfg import PIPE_CFG
 from nebula.pipelines.visualization import PipelinePrinter
 
@@ -52,10 +61,10 @@ PipeType = Union[
 
 class TransformerPipeline:
     """A declarative data transformation pipeline.
-    
+
     TransformerPipeline allows you to compose transformers, functions,
     and nested pipelines into a reusable, inspectable pipeline.
-    
+
     Features:
     - Linear pipelines: Sequential transformers
     - Split pipelines: Parallel branches that merge back
@@ -65,7 +74,7 @@ class TransformerPipeline:
     - Bare functions: Use regular functions as transformers
     - Interleaved debugging: Insert debug transformers between steps
     - Checkpointing: Resume from failed step (future)
-    
+
     Example:
         # Simple linear pipeline
         pipe = TransformerPipeline([
@@ -73,7 +82,7 @@ class TransformerPipeline:
             Filter(input_col='a', operator='gt', value=0),
         ])
         result = pipe.run(df)
-        
+
         # With functions and storage
         pipe = TransformerPipeline([
             SelectColumns(columns=['a', 'b']),
@@ -81,14 +90,14 @@ class TransformerPipeline:
             my_transform_function,
             {'store': 'final'},
         ])
-        
+
         # Split pipeline
         def split_by_type(df):
             return {
                 'high': df.filter(col('value') > 100),
                 'low': df.filter(col('value') <= 100),
             }
-        
+
         pipe = TransformerPipeline(
             {
                 'high': [HighValueTransformer()],
@@ -99,38 +108,38 @@ class TransformerPipeline:
     """
 
     def __init__(
-            self,
-            data: PipeType | dict[str, PipeType],
-            *,
-            name: str | None = None,
-            df_input_name: str | None = None,
-            df_output_name: str | None = None,
-            # Interleaved (debugging)
-            interleaved: list | None = None,
-            prepend_interleaved: bool = False,
-            append_interleaved: bool = False,
-            # Split pipeline options
-            split_function: Callable | None = None,
-            split_order: list[str] | None = None,
-            split_apply_after_splitting: list | None = None,
-            split_apply_before_appending: list | None = None,
-            splits_no_merge: str | Iterable[str] | None = None,
-            splits_skip_if_empty: str | Iterable[str] | None = None,
-            # Branch/Fork options
-            branch: dict[str, Any] | None = None,
-            apply_to_rows: dict[str, Any] | None = None,
-            otherwise: PipeType | None = None,
-            # Merge options
-            allow_missing_columns: bool = False,
-            cast_subsets_to_input_schema: bool = False,
-            repartition_output_to_original: bool = False,
-            coalesce_output_to_original: bool = False,
-            # Skip options
-            skip: bool | None = None,
-            perform: bool | None = None,
+        self,
+        data: PipeType | dict[str, PipeType],
+        *,
+        name: str | None = None,
+        df_input_name: str | None = None,
+        df_output_name: str | None = None,
+        # Interleaved (debugging)
+        interleaved: list | None = None,
+        prepend_interleaved: bool = False,
+        append_interleaved: bool = False,
+        # Split pipeline options
+        split_function: Callable | None = None,
+        split_order: list[str] | None = None,
+        split_apply_after_splitting: list | None = None,
+        split_apply_before_appending: list | None = None,
+        splits_no_merge: str | Iterable[str] | None = None,
+        splits_skip_if_empty: str | Iterable[str] | None = None,
+        # Branch/Fork options
+        branch: dict[str, Any] | None = None,
+        apply_to_rows: dict[str, Any] | None = None,
+        otherwise: PipeType | None = None,
+        # Merge options
+        allow_missing_columns: bool = False,
+        cast_subsets_to_input_schema: bool = False,
+        repartition_output_to_original: bool = False,
+        coalesce_output_to_original: bool = False,
+        # Skip options
+        skip: bool | None = None,
+        perform: bool | None = None,
     ):
         """Create a transformer pipeline.
-        
+
         A pipeline can consist of transformers or, recursively, other
         <TransformerPipeline>.
 
@@ -363,13 +372,17 @@ class TransformerPipeline:
 
         if split_function is not None:
             if not callable(split_function):
-                raise TypeError("If provided, the 'split_function' must be "
-                                f"a callable, found {type(split_function)}")
+                raise TypeError(
+                    "If provided, the 'split_function' must be "
+                    f"a callable, found {type(split_function)}"
+                )
 
         if is_split_pipeline(data, split_function):
             if not callable(split_function):  # pragma: no cover
-                raise TypeError("For split-pipelines, the 'split_function' "
-                                f"must be callable, found {type(split_function)}")
+                raise TypeError(
+                    "For split-pipelines, the 'split_function' "
+                    f"must be callable, found {type(split_function)}"
+                )
 
             ensure_no_branch_or_apply_to_rows_in_split_pipeline(branch, apply_to_rows)
 
@@ -377,16 +390,22 @@ class TransformerPipeline:
                 assert_split_order(data, split_order)
 
             # Normalize splits_no_merge and splits_skip_if_empty to sets
-            splits_no_merge = set_split_options(data, splits_no_merge, "splits_no_merge")
-            splits_skip_if_empty = set_split_options(data, splits_skip_if_empty, "splits_skip_if_empty")
+            splits_no_merge = set_split_options(
+                data, splits_no_merge, "splits_no_merge"
+            )
+            splits_skip_if_empty = set_split_options(
+                data, splits_skip_if_empty, "splits_skip_if_empty"
+            )
 
         else:
             if isinstance(data, dict) and not is_keyword_request(data):
-                raise ValueError("Unknown input, For split-pipelines the "
-                                 "number of splits must be > 1, found "
-                                 f"{len(data)}, key-word operations the dictionary "
-                                 "must be single key-value pair with a valid key"
-                                 f"{PIPELINE_KEYWORDS}")
+                raise ValueError(
+                    "Unknown input, For split-pipelines the "
+                    "number of splits must be > 1, found "
+                    f"{len(data)}, key-word operations the dictionary "
+                    "must be single key-value pair with a valid key"
+                    f"{PIPELINE_KEYWORDS}"
+                )
 
         self.name = name
 
@@ -399,18 +418,20 @@ class TransformerPipeline:
 
         interleaved = to_list_of_transformations(interleaved, "interleaved")
         split_apply_after_splitting = to_list_of_transformations(
-            split_apply_after_splitting, "split_apply_after_splitting")
+            split_apply_after_splitting, "split_apply_after_splitting"
+        )
         split_apply_before_appending = to_list_of_transformations(
-            split_apply_before_appending, "split_apply_before_appending")
+            split_apply_before_appending, "split_apply_before_appending"
+        )
 
         otherwise_only: bool = False
         if apply_to_rows:
             assert_apply_to_rows_inputs(apply_to_rows)
-            if apply_to_rows.get('skip') or (apply_to_rows.get("perform") is False):
+            if apply_to_rows.get("skip") or (apply_to_rows.get("perform") is False):
                 otherwise_only = True
         if branch:
             assert_branch_inputs(branch)
-            if branch.get('skip') or (branch.get("perform") is False):
+            if branch.get("skip") or (branch.get("perform") is False):
                 otherwise_only = True
 
         if otherwise_only:  # branch / apply_to_rows is skipped
@@ -448,46 +469,47 @@ class TransformerPipeline:
 
         # Store config for inspection
         self._config = {
-            'name': name,
-            'branch': branch,
-            'apply_to_rows': apply_to_rows,
-            'allow_missing_columns': allow_missing_columns,
+            "name": name,
+            "branch": branch,
+            "apply_to_rows": apply_to_rows,
+            "allow_missing_columns": allow_missing_columns,
         }
 
     def run(
-            self,
-            df: Any,
-            *,
-            hooks: PipelineHooks | None = None,
-            resume_from: str | None = None,
-            show_params: bool = False,
-            force_interleaved_transformer: Any = None,
+        self,
+        df: Any,
+        *,
+        hooks: PipelineHooks | None = None,
+        resume_from: str | None = None,
+        show_params: bool = False,
+        force_interleaved_transformer: Any = None,
     ) -> Any:
         """Execute the pipeline on input DataFrame.
-        
+
         Args:
             df: Input DataFrame (pandas, Polars, Spark, or Narwhals).
             hooks: Optional hooks for monitoring/extensibility.
             resume_from: Node ID to resume from (skip prior nodes).
             show_params: Whether to show the parameter of transformers, function, etc.
             force_interleaved_transformer: Transformer to run after each step.
-        
+
         Returns:
             Transformed DataFrame (same backend as input).
-        
+
         Example:
             result = pipeline.run(df)
-            
+
             # With custom hooks
             result = pipeline.run(df, hooks=LoggingHooks())
-            
+
             # Resume from checkpoint
             result = pipeline.run(df, resume_from="Filter_abc123@3")
         """
         # Default to logging hooks for backward compatibility
         if hooks is None:
-            hooks = LoggingHooks(max_param_length=PIPE_CFG["max_param_length"],
-                                 show_params=show_params)
+            hooks = LoggingHooks(
+                max_param_length=PIPE_CFG["max_param_length"], show_params=show_params
+            )
 
         executor = PipelineExecutor(
             ir=self._ir,
@@ -499,65 +521,70 @@ class TransformerPipeline:
         return executor.run(df)
 
     def show(
-            self,
-            *,
-            add_params: bool = False,
-            add_ids: bool = False,
-            indent_size: int = 4,
+        self,
+        *,
+        add_params: bool = False,
+        add_ids: bool = False,
+        indent_size: int = 4,
     ) -> None:
         """Print pipeline structure to terminal.
-        
+
         Args:
             add_params: Include transformer parameters.
             add_ids: Include node IDs (useful for resume_from).
             indent_size: Spaces per indentation level.
-        
+
         Example:
             pipeline.show()
             pipeline.show(add_params=True, add_ids=True)
         """
-        printer = PipelinePrinter(self._ir, max_param_length=PIPE_CFG["max_param_length"],
-                                  indent_size=indent_size)
+        printer = PipelinePrinter(
+            self._ir,
+            max_param_length=PIPE_CFG["max_param_length"],
+            indent_size=indent_size,
+        )
         printer.print(add_params=add_params, add_ids=add_ids)
 
     def to_string(self, *, add_params: bool = False) -> str:
         """Get pipeline structure as string.
-        
+
         Args:
             add_params: Include transformer parameters.
-        
+
         Returns:
             Multi-line string representation.
         """
-        printer = PipelinePrinter(self._ir, max_param_length=PIPE_CFG["max_param_length"])
+        printer = PipelinePrinter(
+            self._ir, max_param_length=PIPE_CFG["max_param_length"]
+        )
         return printer.to_string(add_params=add_params)
 
     def plot(
-            self,
-            *,
-            add_params: bool = False,
-            add_description: bool = False,
+        self,
+        *,
+        add_params: bool = False,
+        add_description: bool = False,
     ):  # pragma: no cover
         """Create Graphviz visualization.
-        
+
         Args:
             add_params: Include transformer parameters.
             add_description: Include transformer descriptions.
-        
+
         Returns:
             Graphviz Digraph object.
-        
+
         Example:
             dot = pipeline.plot(add_params=True)
             dot.render('pipeline', format='png')
             dot  # Display in Jupyter
         """
-        from .visualization import GraphvizRenderer, HAS_GRAPHVIZ
+        from .visualization import GraphvizRenderer, HAS_GRAPHVIZ, HAS_PYYAML
 
-        if not HAS_GRAPHVIZ:
+        if (not HAS_GRAPHVIZ) or (not HAS_PYYAML):
             raise ImportError(
-                "graphviz package not installed. "
-                "Install with: pip install graphviz"
+                "graphviz and pyyaml package not installed."
+                " Install with: 'pip install graphviz pyyaml'"
             )
 
         renderer = GraphvizRenderer(self._ir)
@@ -568,9 +595,9 @@ class TransformerPipeline:
 
     def get_node_ids(self) -> list[str]:
         """Get all node IDs in the pipeline.
-        
+
         Useful for debugging and setting up checkpoints.
-        
+
         Returns:
             List of node IDs in execution order.
         """
@@ -578,10 +605,10 @@ class TransformerPipeline:
 
     def find_node(self, node_id: str):
         """Find a node by its ID.
-        
+
         Args:
             node_id: The node ID to find.
-        
+
         Returns:
             The node if found, None otherwise.
         """
@@ -598,7 +625,7 @@ def _example_flat_pipeline():  # pragma: no cover
 
     example_df_input = pl.DataFrame({"a": [1, 2], "b": [3, 4]})
     pipeline = TransformerPipeline(
-        [SelectColumns(columns=['a']), my_function],
+        [SelectColumns(columns=["a"]), my_function],
         # name="my_pipeline",
     )
     # show the pipeline without running it ...

@@ -75,9 +75,9 @@ class MathOperator(Transformer):
     """
 
     def __init__(
-            self,
-            *,
-            strategy: dict | list[dict],
+        self,
+        *,
+        strategy: dict | list[dict],
     ):
         """Initialize MathOperator transformer.
 
@@ -130,8 +130,7 @@ class MathOperator(Transformer):
         dtype_lower = dtype_str.lower()
         if dtype_lower not in NW_TYPES:
             raise ValueError(
-                f"Unknown type '{dtype_str}'. "
-                f"Must be one of: {sorted(NW_TYPES.keys())}"
+                f"Unknown type '{dtype_str}'. Must be one of: {sorted(NW_TYPES.keys())}"
             )
         return NW_TYPES[dtype_lower]
 
@@ -266,13 +265,13 @@ class When(Transformer):
     """
 
     def __init__(
-            self,
-            *,
-            output_col: str,
-            conditions: list[dict[str, Any]],
-            otherwise_constant: Any = None,
-            otherwise_col: str | None = None,
-            cast_output: str | None = None,
+        self,
+        *,
+        output_col: str,
+        conditions: list[dict[str, Any]],
+        otherwise_constant: Any = None,
+        otherwise_col: str | None = None,
+        cast_output: str | None = None,
     ):
         """Initialize When transformer.
 

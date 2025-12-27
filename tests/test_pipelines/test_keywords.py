@@ -45,7 +45,7 @@ def test_store(source: str):
     else:
         pipe_text = [
             {"transformer": "DropNulls", "params": {"glob": "*"}},
-            {"store": "df_no_null"}
+            {"store": "df_no_null"},
         ]
         pipe = load_pipeline({"pipeline": pipe_text})
 
@@ -72,7 +72,7 @@ def test_store_debug(debug_active: bool, source: str):
     else:
         pipe_text = [
             {"transformer": "DropNulls", "params": {"glob": "*"}},
-            {"store_debug": "df_no_null"}
+            {"store_debug": "df_no_null"},
         ]
         pipe = load_pipeline({"pipeline": pipe_text})
 

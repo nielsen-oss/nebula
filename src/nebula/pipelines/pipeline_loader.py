@@ -68,6 +68,7 @@ _full_transformers: dict[str, type] = {}
 
 def _cache_transformers(container) -> dict[str, type]:
     from nebula.pipelines.transformer_type_util import is_transformer
+
     ret = {}
     for name in dir(container):
         obj = getattr(container, name)
@@ -79,6 +80,7 @@ def _cache_transformers(container) -> dict[str, type]:
 def __load_native():
     if not _native_transformers:
         from nebula import transformers as nebula_transformers
+
         _native_transformers.update(_cache_transformers(nebula_transformers))
 
 
@@ -367,11 +369,11 @@ def _load_pipeline(o, *, extra_funcs) -> TransformerPipeline:
 
 
 def load_pipeline(
-        o: dict | list | tuple,
-        *,
-        extra_functions: Callable | list[Callable] | dict[str, Callable] | None = None,
-        extra_transformers: list[ModuleType] | list[dataclass] | dict | None = None,
-        evaluate_loops: bool = True,
+    o: dict | list | tuple,
+    *,
+    extra_functions: Callable | list[Callable] | dict[str, Callable] | None = None,
+    extra_transformers: list[ModuleType] | list[dataclass] | dict | None = None,
+    evaluate_loops: bool = True,
 ) -> TransformerPipeline:
     """Load a Nebula pipeline object starting from a dictionary.
 

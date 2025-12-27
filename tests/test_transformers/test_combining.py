@@ -52,33 +52,38 @@ class TestJoin:
     @pytest.fixture
     def df_left(self):
         """Sample left dataframe."""
-        return pl.DataFrame({
-            "user_id": [1, 2, 3, 4],
-            "name": ["Alice", "Bob", "Charlie", "David"],
-            "age": [25, 30, 35, 40]
-        })
+        return pl.DataFrame(
+            {
+                "user_id": [1, 2, 3, 4],
+                "name": ["Alice", "Bob", "Charlie", "David"],
+                "age": [25, 30, 35, 40],
+            }
+        )
 
     @pytest.fixture
     def df_right(self):
         """Sample right dataframe."""
-        return pl.DataFrame({
-            "user_id": [2, 3, 4, 5],
-            "city": ["NYC", "LA", "Chicago", "Boston"],
-            "country": ["USA", "USA", "USA", "USA"]
-        })
+        return pl.DataFrame(
+            {
+                "user_id": [2, 3, 4, 5],
+                "city": ["NYC", "LA", "Chicago", "Boston"],
+                "country": ["USA", "USA", "USA", "USA"],
+            }
+        )
 
     def test_different_column_names(self):
         """Test join with different column names using left_on/right_on."""
-        df_orders = pl.DataFrame({
-            "order_id": [101, 102, 103],
-            "customer_id": [1, 2, 3],
-            "amount": [100, 200, 150]
-        })
+        df_orders = pl.DataFrame(
+            {
+                "order_id": [101, 102, 103],
+                "customer_id": [1, 2, 3],
+                "amount": [100, 200, 150],
+            }
+        )
 
-        df_customers = pl.DataFrame({
-            "id": [1, 2, 3],
-            "customer_name": ["Alice", "Bob", "Charlie"]
-        })
+        df_customers = pl.DataFrame(
+            {"id": [1, 2, 3], "customer_name": ["Alice", "Bob", "Charlie"]}
+        )
 
         ns.set("customers", df_customers)
 
@@ -86,7 +91,7 @@ class TestJoin:
             store_key="customers",
             left_on="customer_id",  # this column will not be present in the output
             right_on="id",
-            how="inner"
+            how="inner",
         )
         result = transformer.transform(df_orders)
 
@@ -107,25 +112,25 @@ class TestJoin:
 
     def test_multiple_join_keys(self):
         """Test join on multiple columns."""
-        df_sales = pl.DataFrame({
-            "region": ["North", "North", "South"],
-            "product": ["A", "B", "A"],
-            "sales": [100, 150, 200]
-        })
+        df_sales = pl.DataFrame(
+            {
+                "region": ["North", "North", "South"],
+                "product": ["A", "B", "A"],
+                "sales": [100, 150, 200],
+            }
+        )
 
-        df_targets = pl.DataFrame({
-            "region": ["North", "North", "South"],
-            "product": ["A", "B", "A"],
-            "target": [120, 140, 180]
-        })
+        df_targets = pl.DataFrame(
+            {
+                "region": ["North", "North", "South"],
+                "product": ["A", "B", "A"],
+                "target": [120, 140, 180],
+            }
+        )
 
         ns.set("targets", df_targets)
 
-        transformer = Join(
-            store_key="targets",
-            on=["region", "product"],
-            how="inner"
-        )
+        transformer = Join(store_key="targets", on=["region", "product"], how="inner")
         result = transformer.transform(df_sales)
 
         assert result.shape == (3, 4)

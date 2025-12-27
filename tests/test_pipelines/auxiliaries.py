@@ -26,7 +26,6 @@ _this_path = Path(os.path.dirname(os.path.realpath(__file__)))
 
 
 class AddOne(Transformer):
-
     def __init__(self, column: str):
         super().__init__()
         self._col: str = column
@@ -41,7 +40,6 @@ class AddOne(Transformer):
 
 
 class CallMe(Transformer):
-
     def __init__(self):
         super().__init__()
 
@@ -56,7 +54,6 @@ class CallMe(Transformer):
 
 
 class Distinct(Transformer):
-
     def __init__(self):
         super().__init__()
 
@@ -72,7 +69,6 @@ class NoParentClass:
 
 
 class RoundValues(Transformer):
-
     def __init__(self, *, column: str, precision: int):
         super().__init__()
         self._col = column
