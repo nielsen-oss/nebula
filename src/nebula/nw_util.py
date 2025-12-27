@@ -237,6 +237,7 @@ def append_dataframes(
         ...     rechunk=True
         ... )
     """
+    allow_missing_cols = bool(allow_missing_cols)  # None will throw an error
     native_dataframes, native_backend, nw_found = to_native_dataframes(dataframes)
     to_native: bool = not nw_found
 

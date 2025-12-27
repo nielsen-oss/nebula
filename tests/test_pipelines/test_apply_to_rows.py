@@ -6,11 +6,13 @@ Tests the apply_to_rows feature which:
 3. Optionally applies different transformers to non-matching rows (otherwise)
 4. Merges results back (unless dead-end)
 """
+import os
 
 import numpy as np
 import polars as pl
 import pytest
 
+from nebula import load_pipeline
 from nebula.storage import nebula_storage as ns
 from .apply_to_rows_configs import *
 from ..auxiliaries import pl_assert_equal
@@ -150,3 +152,49 @@ class TestApplyToRowsErrors:
 
         with pytest.raises(ValueError):
             pipe.run(df_input)
+
+
+@pytest.mark.skipif(os.environ.get("TESTS_NO_SPARK") == "true", reason="no spark")
+class TestSparkCoalesceRepartitionToOriginal:
+    """Test 'coalesce' and 'repartition' options for spark."""
+
+    @staticmethod
+    @pytest.fixture(scope="class", name="df_input_spark")
+    def _get_df_spark(spark):
+        from pyspark.sql.types import IntegerType, StructField, StructType
+        fields = [StructField("idx", IntegerType(), True)]
+        data = np.arange(100).reshape(-1, 1).tolist()
+        return spark.createDataFrame(data, schema=StructType(fields)).coalesce(2)
+
+    @pytest.mark.parametrize("repartition, coalesce", ([True, False], [False, True]))
+    def test(self, df_input_spark, repartition: bool, coalesce: bool):
+        ns.clear()
+        data = {
+            "pipeline": [
+                {
+                    "apply_to_rows": {
+                        "input_col": "idx",
+                        "operator": "gt",
+                        "value": 5,
+                    },
+                    "repartition_output_to_original": repartition,
+                    "coalesce_output_to_original": coalesce,
+                    "pipeline": [
+                        {
+                            "transformer": "Repartition",
+                            "params": {"num_partitions": 10}
+                        }
+                    ]
+                }
+            ]
+        }
+        n_exp = df_input_spark.rdd.getNumPartitions()
+
+        pipeline = load_pipeline(data)
+        pipeline.show(add_params=True)
+
+        df_out = pipeline.run(df_input_spark)
+        n_chk = df_out.rdd.getNumPartitions()
+        assert n_chk == n_exp
+
+        ns.clear()

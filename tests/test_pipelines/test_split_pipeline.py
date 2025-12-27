@@ -127,7 +127,7 @@ class TestSplitPipeline:
             name=name,
         )
 
-        pipe.show()
+        pipe.show(add_params=True)
         df_chk = pipe.run(df_input)
 
         # Create the expected DF
@@ -157,7 +157,7 @@ class TestSplitPipeline:
             cast_subsets_to_input_schema=True,
         )
 
-        pipe.show()
+        pipe.show(add_params=True)
         df_chk = pipe.run(df_input)
         # ... and ensure it is converted back to float64 at the end
         assert df_chk["c1"].dtype == pl.Float64
@@ -232,7 +232,7 @@ class TestSplitPipeline:
             allow_missing_columns=True,
         )
 
-        pipe.show()
+        pipe.show(add_params=True)
         df_chk = pipe.run(df_input)
 
         df_exp = df_input.filter(pl.col("c1").is_not_null() & pl.col("c1").is_not_nan()).unique()
@@ -277,7 +277,7 @@ class TestSplitPipelineApplyTransformerBeforeAndAfter:
             **{where: transformer}
         )
 
-        pipe.show()
+        pipe.show(add_params=True)
 
         df_chk = pipe.run(df_input)
 
@@ -331,7 +331,7 @@ class TestSplitPipelineDeadEnd:
             splits_no_merge=splits_no_merge,
         )
 
-        pipe.show()
+        pipe.show(add_params=True)
         df_chk = pipe.run(df_input)
         df_exp = df_input.filter((pl.col("c1") < 10) | pl.col("c1").is_null() | pl.col("c1").is_nan())
         pl_assert_equal(df_chk, df_exp, ["c1"])
@@ -363,7 +363,7 @@ class TestSplitPipelineDeadEnd:
             splits_no_merge=splits_no_merge,
         )
 
-        pipe.show()
+        pipe.show(add_params=True)
         df_out = pipe.run(df_input)
 
         # Check the df output
@@ -412,7 +412,7 @@ class TestSplitPipelineSplitOrder:
             split_order=split_order,
         )
 
-        pipe.show()
+        pipe.show(add_params=True)
         df_chk = pipe.run(df_input)
         splits = _split_function(df_input)
         df_hi = splits["hi"]

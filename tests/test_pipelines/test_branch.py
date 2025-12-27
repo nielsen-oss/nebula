@@ -9,6 +9,7 @@ Tests the branch feature which:
 
 import os
 
+import numpy as np
 import polars as pl
 import pytest
 
@@ -257,29 +258,10 @@ class TestSparkCoalesceRepartitionToOriginal:
     @staticmethod
     @pytest.fixture(scope="class", name="df_input_spark")
     def _get_df_spark(spark):
-        from pyspark.sql.types import IntegerType, StringType, StructField, StructType
-        fields = [
-            StructField("idx", IntegerType(), True),
-            StructField("c1", StringType(), True),
-            StructField("c2", StringType(), True),
-        ]
-
-        data = [
-            [0, "a", "b"],
-            [1, "a", "b"],
-            [2, "a", "b"],
-            [3, "", ""],
-            [4, "", ""],
-            [5, None, None],
-            [6, " ", None],
-            [7, "", None],
-            [8, "a", None],
-            [9, "a", ""],
-            [10, "", "b"],
-            [11, "a", None],
-            [12, None, "b"],
-        ]
-        return spark.createDataFrame(data, schema=StructType(fields))
+        from pyspark.sql.types import IntegerType, StructField, StructType
+        fields = [StructField("idx", IntegerType(), True)]
+        data = np.arange(100).reshape(-1, 1).tolist()
+        return spark.createDataFrame(data, schema=StructType(fields)).coalesce(2)
 
     @pytest.mark.parametrize("repartition, coalesce", ([True, False], [False, True]))
     def test(self, df_input_spark, repartition: bool, coalesce: bool):

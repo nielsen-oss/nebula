@@ -80,7 +80,7 @@ def test_pipeline_flat_list_transformers(
         append_interleaved=append_interleaved,
         name=name,
     )
-    pipe.show()
+    pipe.show(add_params=True)
     df_chk = pipe.run(df_input)
     pl_assert_equal(df_chk, df_exp)
 
@@ -118,7 +118,7 @@ def test_pipeline_nested_list_transformers(df_input: pl.DataFrame):
         # nested list, it will be flattened & merged with the outermost
         [(AssertNotEmpty(), "Ensure the DF is not empty"), AssertNotEmpty(), {"store": "this_key"}]
     ])
-    pipe.show()
+    pipe.show(add_params=True)
     df_chk = pipe.run(df_input)
     pl_assert_equal(df_chk, df_exp, sort=["idx"])
     pl_assert_equal(ns.get("this_key"), df_exp, sort=["idx"])

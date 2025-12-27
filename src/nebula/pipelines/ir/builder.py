@@ -214,6 +214,9 @@ class IRBuilder:
                 'suffix': self.branch.get('suffix'),
                 'broadcast': self.branch.get('broadcast', False),
                 'allow_missing_columns': self.allow_missing_columns,
+                'cast_subsets_to_input_schema': self.cast_subsets_to_input_schema,
+                'repartition_output_to_original': self.repartition_output_to_original,
+                'coalesce_output_to_original': self.coalesce_output_to_original,
             },
         )
 
@@ -250,6 +253,9 @@ class IRBuilder:
                 'suffix': self.branch.get('suffix'),
                 'broadcast': self.branch.get('broadcast', False),
                 'allow_missing_columns': self.allow_missing_columns,
+                'cast_subsets_to_input_schema': self.cast_subsets_to_input_schema,
+                'repartition_output_to_original': self.repartition_output_to_original,
+                'coalesce_output_to_original': self.coalesce_output_to_original,
             },
         )
         root.add_step(merge)
@@ -268,6 +274,9 @@ class IRBuilder:
                 'comparison_column': self.apply_to_rows.get('comparison_column'),
                 'dead-end': is_dead_end,
                 'skip_if_empty': self.apply_to_rows.get('skip_if_empty', False),
+                'cast_subsets_to_input_schema': self.cast_subsets_to_input_schema,
+                'repartition_output_to_original': self.repartition_output_to_original,
+                'coalesce_output_to_original': self.coalesce_output_to_original,
             },
         )
 

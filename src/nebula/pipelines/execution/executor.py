@@ -48,6 +48,8 @@ def _get_n_partitions(df: "GenericDataFrame") -> int:
 
 def _repartition_coalesce(df, cfg: dict, n: int) -> "GenericDataFrame":
     """Repartition / coalesce if "df" is a spark DF and if requested."""
+    if isinstance(df, (nw.DataFrame, nw.LazyFrame)):
+        df = nw.to_native(df)
     if cfg.get("repartition_output_to_original"):
         df = df.repartition(n)
     elif cfg.get("coalesce_output_to_original"):
