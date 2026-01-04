@@ -59,6 +59,7 @@ pipeline = TransformerPipeline([
     SelectColumns(columns=["user_id", "amount", "status"]),
     Filter(input_col="status", operator="eq", value="active"),
     Cast(cast={"amount": "float64"}),
+    (my_custom_function, args, kwargs),
 ])
 
 # Run on any DataFrame backend
@@ -97,7 +98,12 @@ pipeline:
     params:
       cast:
         amount: float64
+
+  - function: my_custom_function
+    args: ...
+    kwargs: ...
 ```
+
 ```python
 from nebula import load_pipeline
 
@@ -131,7 +137,7 @@ pipeline = TransformerPipeline(
 pipeline = TransformerPipeline(
     [EnrichmentTransforms()],
     branch={'end': 'join', 'on': 'user_id'},
-    otherwise=[MainPipelineTransforms()]
+    otherwise=custom_user_function,
 )
 ```
 
@@ -143,6 +149,11 @@ pipeline = TransformerPipeline(
 )
 ```
 
+**Pipeline composition** - Pipelines can be made of sub-pipelines:
+```python
+pipeline = TransformerPipeline([pipeline_1, pipeline2, ...])
+```
+
 ### 🎨 Visualization
 
 Inspect your pipeline structure:
@@ -151,11 +162,11 @@ Inspect your pipeline structure:
 pipeline.show(add_params=True)
 
 # Graphviz diagram
-pipeline.plot()
+pipeline.plot(add_params=True, add_description=True)
 ```
 
 ![Pipeline Visualization](docs/images/pipeline_example.svg)
-*Example pipeline visualization showing branching and merging*
+*Example pipeline visualization showing branching, splitting and merging*
 
 ### 🔧 Extensible
 
@@ -163,15 +174,21 @@ Create custom transformers by inheriting from `Transformer`:
 ```python
 from nebula.base import Transformer
 import narwhals as nw
+import polars as pl
 
 class MyCustomTransformer(Transformer):
     def __init__(self, *, multiplier: float):
         super().__init__()
         self.multiplier = multiplier
 
-    def _transform_nw(self, df):
+    def _transform_nw(self, df):  # for all backends
         return df.with_columns(
             (nw.col('amount') * self.multiplier).alias('adjusted_amount')
+        )
+
+    def _transform_polars(self, df):  # for specific backend
+        return df.with_columns(
+            (pl.col('amount') * self.multiplier).alias('adjusted_amount')
         )
 ```
 
