@@ -5,9 +5,10 @@ from copy import deepcopy
 import polars as pl
 import pytest
 
-from nebula.pipelines.pipeline_loader import load_pipeline
 from nebula import TransformerPipeline
+from nebula.pipelines.pipeline_loader import load_pipeline
 from nebula.transformers import AddLiterals
+
 from ..auxiliaries import pl_assert_equal
 
 
@@ -45,9 +46,7 @@ class TestSkipPipeline:
         df_chk = load_pipeline({"pipeline": data}).run(self.df_input)
         pl_assert_equal(self.df_input, df_chk)
 
-    @pytest.mark.parametrize(
-        "data", [{"transformer": "invalid"}, {"wrong_key": "invalid"}]
-    )
+    @pytest.mark.parametrize("data", [{"transformer": "invalid"}, {"wrong_key": "invalid"}])
     def test_text_invalid_arguments(self, data, skip, perform):
         """Ensures that a skipped pipeline does not attempt to parse its arguments.
 

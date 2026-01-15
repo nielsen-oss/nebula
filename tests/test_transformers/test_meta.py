@@ -6,7 +6,8 @@ import polars as pl
 import pytest
 
 from nebula.transformers.meta import *
-from ..auxiliaries import from_pandas, to_pandas, pl_assert_equal, pd_sort_assert
+
+from ..auxiliaries import from_pandas, pd_sort_assert, pl_assert_equal, to_pandas
 from ..constants import TEST_BACKENDS
 
 
@@ -115,9 +116,7 @@ class TestDataFrameMethod:
         result_pd = to_pandas(df_out)
         expected_pd = df.sort_values("c1", ascending=False)
 
-        pd.testing.assert_frame_equal(
-            result_pd.reset_index(drop=True), expected_pd.reset_index(drop=True)
-        )
+        pd.testing.assert_frame_equal(result_pd.reset_index(drop=True), expected_pd.reset_index(drop=True))
 
 
 class TestHorizontalFunction:
@@ -212,9 +211,7 @@ class TestHorizontalFunction:
         )
         df_nw = nw.from_native(df)
 
-        t = HorizontalFunction(
-            output_col="total_revenue", function="sum_horizontal", regex="^revenue_.*"
-        )
+        t = HorizontalFunction(output_col="total_revenue", function="sum_horizontal", regex="^revenue_.*")
         df_out = t.transform(df_nw)
 
         result = nw.to_native(df_out)
@@ -236,9 +233,7 @@ class TestHorizontalFunction:
         )
         df_nw = nw.from_native(df)
 
-        t = HorizontalFunction(
-            output_col="avg_temp", function="mean_horizontal", glob="temp_*"
-        )
+        t = HorizontalFunction(output_col="avg_temp", function="mean_horizontal", glob="temp_*")
         df_out = t.transform(df_nw)
 
         result = nw.to_native(df_out)
@@ -256,9 +251,7 @@ class TestHorizontalFunction:
                 "score_max": [0, 0, 0],
             }
         )
-        t = HorizontalFunction(
-            output_col="score_max", function="max_horizontal", startswith="invalid_"
-        )
+        t = HorizontalFunction(output_col="score_max", function="max_horizontal", startswith="invalid_")
         df_out = t.transform(df)
         pl_assert_equal(df, df_out)
 
@@ -271,14 +264,10 @@ class TestWithColumns:
         with pytest.raises(ValueError):
             WithColumns(columns="a", method=meth)
 
-    @pytest.mark.parametrize(
-        "prefix, suffix", [("xx", None), (None, "xx"), ("xx", "xx")]
-    )
+    @pytest.mark.parametrize("prefix, suffix", [("xx", None), (None, "xx"), ("xx", "xx")])
     def test_invalid_alias(self, prefix, suffix):
         with pytest.raises(AssertionError):
-            WithColumns(
-                columns="a", method="round", prefix=prefix, suffix=suffix, alias="alias"
-            )
+            WithColumns(columns="a", method="round", prefix=prefix, suffix=suffix, alias="alias")
 
     def test_single_column_string_method(self):
         """Test applying str.strip_chars to a single column."""
@@ -438,9 +427,7 @@ class TestWithColumns:
         )
         df_nw = nw.from_native(df)
 
-        t = WithColumns(
-            columns=["price", "tax"], method="round", args=[2], prefix="rounded_"
-        )
+        t = WithColumns(columns=["price", "tax"], method="round", args=[2], prefix="rounded_")
         df_out = t.transform(df_nw)
 
         result = nw.to_native(df_out)
@@ -462,9 +449,7 @@ class TestWithColumns:
         )
         df_nw = nw.from_native(df)
 
-        t = WithColumns(
-            columns=["price", "tax"], method="round", args=[2], suffix="_rounded"
-        )
+        t = WithColumns(columns=["price", "tax"], method="round", args=[2], suffix="_rounded")
         df_out = t.transform(df_nw)
 
         result = nw.to_native(df_out)
@@ -534,9 +519,7 @@ class TestWithColumns:
         )
         df_nw = nw.from_native(df)
 
-        t = WithColumns(
-            columns="int_col", method="cast", args=[nw.Float64], alias="new_col"
-        )
+        t = WithColumns(columns="int_col", method="cast", args=[nw.Float64], alias="new_col")
         df_out = t.transform(df_nw)
 
         result = nw.to_native(df_out)

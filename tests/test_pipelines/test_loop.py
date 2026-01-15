@@ -4,8 +4,9 @@ import polars as pl
 import pytest
 
 from nebula.pipelines.pipeline_loader import load_pipeline
-from .auxiliaries import *
+
 from ..auxiliaries import pl_assert_equal
+from .auxiliaries import *
 
 
 @pytest.fixture(scope="module", name="df_input")

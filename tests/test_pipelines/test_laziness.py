@@ -7,8 +7,9 @@ from nebula import nebula_storage as ns
 from nebula.base import LazyWrapper
 from nebula.pipelines.pipeline_loader import load_pipeline
 from nebula.transformers import AddLiterals
-from .auxiliaries import *
+
 from ..auxiliaries import pl_assert_equal
+from .auxiliaries import *
 
 
 def _get_df_input():
@@ -40,12 +41,8 @@ def test_laziness_py():
     list_trf = [
         Distinct(),
         LazyWrapper(AddLiterals, data=[{"alias": "c3", "value": "lazy"}]),
-        LazyWrapper(
-            AddLiterals, data=[{"alias": "c4", "value": (ns, "my_key")}]
-        ),  # as list
-        LazyWrapper(
-            AddLiterals, data=({"alias": "c5", "value": (ns, "my_key2")},)
-        ),  # as tuple
+        LazyWrapper(AddLiterals, data=[{"alias": "c4", "value": (ns, "my_key")}]),  # as list
+        LazyWrapper(AddLiterals, data=({"alias": "c5", "value": (ns, "my_key2")},)),  # as tuple
     ]
     pipe = TransformerPipeline(list_trf)
     pipe.show(add_params=True)

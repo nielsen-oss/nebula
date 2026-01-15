@@ -1,3 +1,5 @@
+"""Narwhals utilities."""
+
 import operator as py_operator
 from functools import partial, reduce
 from typing import Iterable
@@ -26,14 +28,11 @@ COMPARISON_OPERATORS = {"eq", "ne", "le", "lt", "ge", "gt"}
 NULL_OPERATORS = {"is_null", "is_not_null", "is_nan", "is_not_nan"}
 STRING_OPERATORS = {"contains", "starts_with", "ends_with"}
 MEMBERSHIP_OPERATORS = {"is_between", "is_in", "is_not_in"}
-_allowed_operators = (
-    COMPARISON_OPERATORS | NULL_OPERATORS | STRING_OPERATORS | MEMBERSHIP_OPERATORS
-)
+_allowed_operators = COMPARISON_OPERATORS | NULL_OPERATORS | STRING_OPERATORS | MEMBERSHIP_OPERATORS
 
 
-def assert_join_params(
-    how: str, on: str | None, left_on: str | None, right_on: str | None
-) -> None:
+def assert_join_params(how: str, on: str | None, left_on: str | None, right_on: str | None) -> None:
+    """Assert join parameters validity."""
     allowed_how = {
         "inner",
         "cross",
@@ -52,9 +51,7 @@ def assert_join_params(
 
     if how == "cross":
         if on or left_on or right_on:
-            raise ValueError(
-                "Can not pass 'left_on', 'right_on' or 'on' keys for cross join"
-            )
+            raise ValueError("Can not pass 'left_on', 'right_on' or 'on' keys for cross join")
         return
 
     if on and (left_on or right_on):
@@ -64,9 +61,7 @@ def assert_join_params(
         )
 
     if (left_on and not right_on) or (right_on and not left_on):
-        raise ValueError(
-            "Must specify both 'left_on' and 'right_on' together, not just one."
-        )
+        raise ValueError("Must specify both 'left_on' and 'right_on' together, not just one.")
 
 
 def _is_nw_df(df) -> bool:
@@ -119,8 +114,7 @@ def to_native_dataframes(dataframes) -> tuple[list, str, bool]:
 
     if n_backends > 1:
         raise ValueError(
-            f"Cannot mix multiple backends. Found: {sorted(backends)}. "
-            f"All dataframes must use the same backend."
+            f"Cannot mix multiple backends. Found: {sorted(backends)}. All dataframes must use the same backend."
         )
 
     return ret, backends.pop(), narwhals_found
@@ -413,9 +407,7 @@ def join_dataframes(
     """
     assert_join_params(how, on, left_on, right_on)
 
-    (df_native, df_to_join_native), backend, nw_found = to_native_dataframes(
-        [df, df_to_join]
-    )
+    (df_native, df_to_join_native), backend, nw_found = to_native_dataframes([df, df_to_join])
 
     if broadcast and (backend == "spark"):
         df_to_join = broadcast_spark(df_to_join_native)
@@ -507,9 +499,7 @@ def validate_operation(
     # Null/NaN operators don't need value or compare_col
     if operator in NULL_OPERATORS:
         if value is not None or compare_col is not None:  # pragma: no cover
-            raise ValueError(
-                f"Operator '{operator}' does not accept 'value' or 'compare_col'"
-            )
+            raise ValueError(f"Operator '{operator}' does not accept 'value' or 'compare_col'")
         return
 
     # All other operators need exactly one of value/compare_col
@@ -517,9 +507,7 @@ def validate_operation(
         raise ValueError("Exactly one of 'value' or 'compare_col' must be provided")
 
     if (value is None) and (compare_col is None):
-        raise ValueError(
-            f"Operator '{operator}' requires either 'value' or 'compare_col'"
-        )
+        raise ValueError(f"Operator '{operator}' requires either 'value' or 'compare_col'")
 
     # Standard comparisons accept either value or compare_col - no extra validation
     if operator in COMPARISON_OPERATORS:
@@ -532,27 +520,18 @@ def validate_operation(
     if operator in {"is_in", "is_not_in"}:
         if isinstance(value, str):
             raise TypeError(
-                f"Operator '{operator}' requires an iterable, not a string. "
-                "Use 'contains' for substring matching."
+                f"Operator '{operator}' requires an iterable, not a string. Use 'contains' for substring matching."
             )
         if not isinstance(value, Iterable):
-            raise TypeError(
-                f"Operator '{operator}' requires an iterable (list, tuple, set)"
-            )
+            raise TypeError(f"Operator '{operator}' requires an iterable (list, tuple, set)")
         if None in value:
-            raise ValueError(
-                f"Operator '{operator}' does not handle None values in the iterable"
-            )
+            raise ValueError(f"Operator '{operator}' does not handle None values in the iterable")
 
     elif operator == "is_between":
         if not isinstance(value, (list, tuple)):
-            raise TypeError(
-                "Operator 'is_between' requires a list or tuple of [lower, upper]"
-            )
+            raise TypeError("Operator 'is_between' requires a list or tuple of [lower, upper]")
         if len(value) != 2:
-            raise ValueError(
-                "Value for 'is_between' must have exactly 2 elements: [lower, upper]"
-            )
+            raise ValueError("Value for 'is_between' must have exactly 2 elements: [lower, upper]")
 
     elif operator in STRING_OPERATORS:
         if not isinstance(value, str):

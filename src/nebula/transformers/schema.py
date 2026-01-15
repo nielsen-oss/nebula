@@ -25,9 +25,7 @@ class AddLiterals(Transformer):
         pandas_nullable_int: dict[str, str] = {}
 
         for i, row in enumerate(data):
-            validate_keys(
-                f"data[{i}]", row, mandatory={"alias"}, optional={"value", "cast"}
-            )
+            validate_keys(f"data[{i}]", row, mandatory={"alias"}, optional={"value", "cast"})
 
             alias = row["alias"]
             value = row.get("value")
@@ -40,9 +38,7 @@ class AddLiterals(Transformer):
             # Validate cast type
             if cast and cast not in NW_TYPES:
                 nw_types = sorted(NW_TYPES.keys())
-                raise ValueError(
-                    f"Invalid cast type '{cast}'. Must be one of: {nw_types}"
-                )
+                raise ValueError(f"Invalid cast type '{cast}'. Must be one of: {nw_types}")
 
             el_nw = nw.lit(value)
             el_pd = nw.lit(value)
@@ -107,10 +103,7 @@ class Cast(Transformer):
         """Narwhals implementation for simple types."""
         # Check if any Spark-specific types requested
         spark_types = ["array", "struct", "map"]
-        has_nested = any(
-            any(st in dtype.lower() for st in spark_types)
-            for dtype in self._cast.values()
-        )
+        has_nested = any(any(st in dtype.lower() for st in spark_types) for dtype in self._cast.values())
 
         set_types = set(self._cast.values())
 
@@ -145,8 +138,7 @@ class Cast(Transformer):
                     exprs.append(df[col].cast(NW_TYPES[target_type]).alias(col))
                 else:  # pragma: no cover
                     raise ValueError(
-                        f"Unknown type '{self._cast[col]}' for column '{col}'. "
-                        f"Supported: {list(NW_TYPES.keys())}"
+                        f"Unknown type '{self._cast[col]}' for column '{col}'. Supported: {list(NW_TYPES.keys())}"
                     )
             else:
                 exprs.append(df[col])
@@ -157,10 +149,7 @@ class Cast(Transformer):
         """Spark-specific implementation supporting nested types."""
         import pyspark.sql.functions as F
 
-        cols = [
-            F.col(c).cast(self._cast[c]).alias(c) if c in self._cast else c
-            for c in df.columns
-        ]
+        cols = [F.col(c).cast(self._cast[c]).alias(c) if c in self._cast else c for c in df.columns]
         return df.select(*cols)
 
     def _parse_polars_dtype(self, dtype_str: str):
@@ -198,17 +187,13 @@ class Cast(Transformer):
             parts = content.rsplit(",", 1)  # Split on last comma
 
             if len(parts) != 2:
-                raise ValueError(
-                    f"Array type must specify width: 'array[type, width]', got '{dtype_str}'"
-                )
+                raise ValueError(f"Array type must specify width: 'array[type, width]', got '{dtype_str}'")
 
             inner_str = parts[0].strip()
             try:
                 width = int(parts[1].strip())
             except ValueError:
-                raise ValueError(
-                    f"Array width must be an integer, got '{parts[1].strip()}'"
-                )
+                raise ValueError(f"Array width must be an integer, got '{parts[1].strip()}'")
 
             inner_dtype = self._parse_polars_dtype(inner_str)
             return pl.Array(inner_dtype, width)
@@ -227,12 +212,10 @@ class Cast(Transformer):
                 # Split on commas not inside nested brackets
                 field_strs = self._split_struct_fields(content)
 
-                for field_str in field_strs:
-                    field_str = field_str.strip()
+                for field_str_orig in field_strs:
+                    field_str = field_str_orig.strip()
                     if ":" not in field_str:
-                        raise ValueError(
-                            f"Struct field must have format 'name: type', got '{field_str}'"
-                        )
+                        raise ValueError(f"Struct field must have format 'name: type', got '{field_str}'")
 
                     name, type_str = field_str.split(":", 1)
                     name = name.strip()

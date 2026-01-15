@@ -27,9 +27,7 @@ def _get_df_input():
 @pytest.mark.parametrize("try_orjson", [True, False])
 @pytest.mark.parametrize("deep", [True, False])
 @pytest.mark.parametrize("copy", [True, False])
-def test_assert_pandas_df_equal(
-    df_input: pd.DataFrame, deep: bool, try_orjson: bool, copy: bool
-):
+def test_assert_pandas_df_equal(df_input: pd.DataFrame, deep: bool, try_orjson: bool, copy: bool):
     """Test 'assert_pandas_df_equal' function."""
     df1 = df_input.copy(deep=True)
     df2 = df_input.copy(deep=True)
@@ -40,9 +38,7 @@ def test_assert_pandas_df_equal(
     else:
         df1 = df1.drop(columns=["c_complex"])
         df2 = df2.drop(columns=["c_complex"])
-        assert_pandas_df_equal(
-            df1, df2, assert_not_deep=deep, try_orjson=try_orjson, copy=copy
-        )
+        assert_pandas_df_equal(df1, df2, assert_not_deep=deep, try_orjson=try_orjson, copy=copy)
 
 
 @pytest.mark.parametrize("cut_rows", [True, False])
@@ -111,9 +107,7 @@ def test_return_different_rows_in_pandas_dataframes(add_hash):
     }
     df2 = pd.DataFrame(data_2)
 
-    df1_chk, df2_chk = return_different_rows_in_pandas_dataframes(
-        df1, df2, add_hash=add_hash
-    )
+    df1_chk, df2_chk = return_different_rows_in_pandas_dataframes(df1, df2, add_hash=add_hash)
 
     df1_exp = df1.copy().loc[[1]]
     df2_exp = df2.copy().loc[[1]]

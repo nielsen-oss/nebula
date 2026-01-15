@@ -82,7 +82,7 @@ def cast_to_schema(
     return df.select(new_cols)
 
 
-def compare_dfs(
+def compare_dfs(  # noqa: PLR0915
     df1: "pyspark.sql.DataFrame",
     df2: "pyspark.sql.DataFrame",
     *,

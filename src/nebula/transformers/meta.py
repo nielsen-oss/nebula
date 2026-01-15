@@ -102,14 +102,13 @@ class DataFrameMethod(Transformer):
                     f"Available LazyFrame methods: {sorted(_NW_LAZYFRAME_METHODS)}"
                 )
                 raise AttributeError(msg)
-        else:  # nw.DataFrame
-            if self._method_name not in _NW_DATAFRAME_METHODS:
-                msg = (
-                    f"Method '{self._method_name}' is not available for DataFrame. "
-                    f"This method is only available on LazyFrames. "
-                    f"Available DataFrame methods: {sorted(_NW_DATAFRAME_METHODS)}"
-                )
-                raise AttributeError(msg)
+        elif self._method_name not in _NW_DATAFRAME_METHODS:
+            msg = (
+                f"Method '{self._method_name}' is not available for DataFrame. "
+                f"This method is only available on LazyFrames. "
+                f"Available DataFrame methods: {sorted(_NW_DATAFRAME_METHODS)}"
+            )
+            raise AttributeError(msg)
 
         # Call the method with provided args and kwargs
         method = getattr(df, self._method_name)
@@ -117,7 +116,7 @@ class DataFrameMethod(Transformer):
 
 
 class HorizontalFunction(Transformer):
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self,
         *,
         output_col: str,
@@ -218,7 +217,7 @@ class HorizontalFunction(Transformer):
 
 
 class WithColumns(Transformer):
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self,
         *,
         columns: str | list[str] | None = None,
@@ -266,9 +265,7 @@ class WithColumns(Transformer):
         """
         if alias:
             if (prefix is not None) or (suffix is not None):
-                raise AssertionError(
-                    "'prefix'/'suffix' cannot be provided with 'alias'"
-                )
+                raise AssertionError("'prefix'/'suffix' cannot be provided with 'alias'")
 
         super().__init__()
         self._set_columns_selections(
@@ -286,7 +283,7 @@ class WithColumns(Transformer):
             assert_allowed(method, _NW_FLAT_COL_METHODS, "column-method")
             self._method_accessor = None
             self._method_name = method_splits[0]
-        elif n_split == 2:
+        elif n_split == 2:  # noqa: PLR2004
             accessor: str = method_splits[0]
             assert_allowed(accessor, {"str", "dt"}, "column-accessor")
             allowed = _NW_NESTED_COL_METHODS[accessor]
@@ -294,10 +291,7 @@ class WithColumns(Transformer):
             self._method_accessor = accessor
             self._method_name = method_splits[1]
         else:
-            raise ValueError(
-                f"Method '{method}' has too many parts. "
-                f"Expected format: 'method' or 'namespace.method'"
-            )
+            raise ValueError(f"Method '{method}' has too many parts. Expected format: 'method' or 'namespace.method'")
 
         self._args: list = args if args else []
         self._kwargs: dict[str, Any] = kwargs if kwargs else {}

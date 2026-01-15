@@ -86,12 +86,10 @@ def assert_only_one_non_none(**kws):
         raise AssertionError(msg)
 
 
-def compare_lists_of_string(
-    *lists: list[str], names: list[str] | None = None
-) -> list[str]:
+def compare_lists_of_string(*lists: list[str], names: list[str] | None = None) -> list[str]:
     """Compare lists of strings and represent the differences in a tabular format.
 
-     Args:
+    Args:
          *lists (list(str)):
              An indefinite number of lists of strings to compare.
          names (list(str) | None):
@@ -107,7 +105,7 @@ def compare_lists_of_string(
          If the number of 'names' provided is not equal to the number of *lists.
 
 
-     Example:
+    Example:
          >>> li_1 = ['aa', 'cc', 'dd']
          >>> li_2 = ['aa']
          >>> li_3 = ['bb', 'cc']
@@ -544,15 +542,11 @@ def validate_keys(
 
     if not keys.issubset(all_keys):
         excess = keys - all_keys
-        raise KeyError(
-            f"'{name}' keys must be a subset of {all_keys}. Unknown key(s): {excess}"
-        )
+        raise KeyError(f"'{name}' keys must be a subset of {all_keys}. Unknown key(s): {excess}")
 
     if not mandatory.issubset(keys):
         missing = mandatory - keys
-        raise KeyError(
-            f"'{name}' must contain the key(s): {mandatory}. Missing: {missing}"
-        )
+        raise KeyError(f"'{name}' must contain the key(s): {mandatory}. Missing: {missing}")
 
 
 def validate_regex_pattern(pattern: str) -> bool:

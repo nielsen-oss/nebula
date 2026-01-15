@@ -24,24 +24,24 @@ import narwhals as nw
 
 from nebula.base import Transformer
 from nebula.df_types import GenericDataFrame, is_natively_spark
-from nebula.nw_util import append_dataframes, join_dataframes
-from nebula.nw_util import df_is_empty
+from nebula.nw_util import append_dataframes, df_is_empty, join_dataframes
 from nebula.pipelines.pipe_aux import get_native_schema, split_df, to_schema
 from nebula.storage import nebula_storage as ns
-from .context import ExecutionContext
-from .hooks import NoOpHooks, PipelineHooks
+
 from ..exceptions import raise_pipeline_error
 from ..ir.nodes import (
+    ForkNode,
+    FunctionNode,
+    InputNode,
+    MergeNode,
+    OutputNode,
     PipelineNode,
     SequenceNode,
-    TransformerNode,
-    FunctionNode,
     StorageNode,
-    ForkNode,
-    MergeNode,
-    InputNode,
-    OutputNode,
+    TransformerNode,
 )
+from .context import ExecutionContext
+from .hooks import NoOpHooks, PipelineHooks
 
 __all__ = ["PipelineExecutor", "execute_pipeline"]
 
@@ -153,9 +153,7 @@ class PipelineExecutor:
 
         return result_df
 
-    def _execute_node(
-        self, node: "PipelineNode", ctx: ExecutionContext
-    ) -> ExecutionContext:
+    def _execute_node(self, node: "PipelineNode", ctx: ExecutionContext) -> ExecutionContext:
         """Execute a single node, dispatching to type-specific handler."""
         # Check if we should skip (resume logic)
         should_skip, reason = ctx.should_skip_node(node.id)
@@ -183,17 +181,13 @@ class PipelineExecutor:
         else:  # pragma: no cover
             raise TypeError(f"Unknown node type: {type(node)}")
 
-    def _execute_sequence(
-        self, node: "SequenceNode", ctx: ExecutionContext
-    ) -> ExecutionContext:
+    def _execute_sequence(self, node: "SequenceNode", ctx: ExecutionContext) -> ExecutionContext:
         """Execute a sequence of nodes."""
         for step in node.steps:
             ctx = self._execute_node(step, ctx)
         return ctx
 
-    def _execute_transformer(
-        self, node: "TransformerNode", ctx: ExecutionContext
-    ) -> ExecutionContext:
+    def _execute_transformer(self, node: "TransformerNode", ctx: ExecutionContext) -> ExecutionContext:
         """Execute a transformer node."""
         ctx.start_node(node.id)
         self.hooks.on_node_start(node, {"df": ctx.df})
@@ -218,9 +212,7 @@ class PipelineExecutor:
 
         return ctx
 
-    def _execute_function(
-        self, node: "FunctionNode", ctx: ExecutionContext
-    ) -> ExecutionContext:
+    def _execute_function(self, node: "FunctionNode", ctx: ExecutionContext) -> ExecutionContext:
         """Execute a function node."""
         ctx.start_node(node.id)
         self.hooks.on_node_start(node, {"df": ctx.df})
@@ -245,9 +237,7 @@ class PipelineExecutor:
 
         return ctx
 
-    def _execute_storage(
-        self, node: "StorageNode", ctx: ExecutionContext
-    ) -> ExecutionContext:
+    def _execute_storage(self, node: "StorageNode", ctx: ExecutionContext) -> ExecutionContext:
         """Execute a storage operation."""
         ctx.start_node(node.id)
         self.hooks.on_node_start(node, {"df": ctx.df})
@@ -269,9 +259,7 @@ class PipelineExecutor:
 
         return ctx
 
-    def _execute_fork(
-        self, node: "ForkNode", ctx: ExecutionContext
-    ) -> ExecutionContext:
+    def _execute_fork(self, node: "ForkNode", ctx: ExecutionContext) -> ExecutionContext:
         """Execute a fork node (split, branch, apply_to_rows)."""
         ctx.start_node(node.id)
         self.hooks.on_node_start(node, {"df": ctx.df})
@@ -282,9 +270,7 @@ class PipelineExecutor:
         if node.config.get("cast_subsets_to_input_schema"):
             node.config["input_schema"] = get_native_schema(ctx.df)
 
-        if node.config.get("repartition_output_to_original") or node.config.get(
-            "coalesce_output_to_original"
-        ):
+        if node.config.get("repartition_output_to_original") or node.config.get("coalesce_output_to_original"):
             n_part_orig: int = _get_n_partitions(ctx.df)
             if n_part_orig:
                 node.config["spark_input_partitions"] = n_part_orig
@@ -304,9 +290,7 @@ class PipelineExecutor:
 
         return ctx
 
-    def _execute_split_fork(
-        self, node: "ForkNode", ctx: ExecutionContext
-    ) -> ExecutionContext:
+    def _execute_split_fork(self, node: "ForkNode", ctx: ExecutionContext) -> ExecutionContext:
         """Execute a split fork - DataFrame split by function into branches."""
         # Call split function
         split_dfs = node.split_function(ctx.df)
@@ -346,9 +330,7 @@ class PipelineExecutor:
 
         return ctx
 
-    def _execute_branch_fork(
-        self, node: "ForkNode", ctx: ExecutionContext
-    ) -> ExecutionContext:
+    def _execute_branch_fork(self, node: "ForkNode", ctx: ExecutionContext) -> ExecutionContext:
         """Execute a branch fork - secondary pipeline from main or stored df."""
         # Get input for branch
         storage_key = node.config.get("storage")
@@ -384,9 +366,7 @@ class PipelineExecutor:
 
         return ctx
 
-    def _execute_apply_to_rows_fork(
-        self, node: "ForkNode", ctx: ExecutionContext
-    ) -> ExecutionContext:
+    def _execute_apply_to_rows_fork(self, node: "ForkNode", ctx: ExecutionContext) -> ExecutionContext:
         """Execute apply_to_rows fork - filter, transform, merge back."""
         # Get condition from config
         df = ctx.df
@@ -425,7 +405,7 @@ class PipelineExecutor:
 
         return ctx
 
-    def _execute_merge(
+    def _execute_merge(  # noqa: PLR0915
         self, node: "MergeNode", ctx: ExecutionContext
     ) -> ExecutionContext:
         """Execute a merge node."""
@@ -456,22 +436,16 @@ class PipelineExecutor:
             if dfs_to_append:
                 if node.config.get("cast_subsets_to_input_schema"):
                     for name, df in zip(names, dfs_to_append):
-                        ctx.cache_for_failure(
-                            f"{name}-df-before-casting:{node.merge_type}", df
-                        )
+                        ctx.cache_for_failure(f"{name}-df-before-casting:{node.merge_type}", df)
                     input_schema = fork_config["input_schema"]
                     dfs_to_append = to_schema(dfs_to_append, input_schema)
                     # cast, clear cache
                     ctx.clear_fail_cache()
 
                 for name, df in zip(names, dfs_to_append):
-                    ctx.cache_for_failure(
-                        f"{name}-df-before-appending:{node.merge_type}", df
-                    )
+                    ctx.cache_for_failure(f"{name}-df-before-appending:{node.merge_type}", df)
                 allow_missing = node.config.get("allow_missing_columns", False)
-                ctx.df = append_dataframes(
-                    dfs_to_append, allow_missing_cols=allow_missing
-                )
+                ctx.df = append_dataframes(dfs_to_append, allow_missing_cols=allow_missing)
                 # appended, clear cache
                 ctx.clear_fail_cache()
 
@@ -479,11 +453,7 @@ class PipelineExecutor:
             # Join main result with original (or otherwise)
             main_df = branch_results.get("main")
             otherwise_df = branch_results.get("otherwise")
-            base_df = (
-                otherwise_df
-                if otherwise_df is not None
-                else ctx.metadata.get("original_df", ctx.df)
-            )
+            base_df = otherwise_df if otherwise_df is not None else ctx.metadata.get("original_df", ctx.df)
 
             ctx.cache_for_failure(f"join-left-df:{node.merge_type}", base_df)
             ctx.cache_for_failure(f"join-right-df:{node.merge_type}", main_df)

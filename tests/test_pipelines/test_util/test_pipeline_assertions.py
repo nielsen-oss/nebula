@@ -36,14 +36,10 @@ def test_branch_and_apply_to_rows_in_split_pipeline(branch, apply_to_rows):
         "valid_problems": [SelectColumns(columns="c2")],
     }
     with pytest.raises(ValueError):
-        TransformerPipeline(
-            d, split_function=lambda x: x, branch=branch, apply_to_rows=apply_to_rows
-        )
+        TransformerPipeline(d, split_function=lambda x: x, branch=branch, apply_to_rows=apply_to_rows)
 
 
-@pytest.mark.parametrize(
-    "split_order", [["low"], ["hi"], ["hi", "low", "wrong"], ["hi", "low1"]]
-)
+@pytest.mark.parametrize("split_order", [["low"], ["hi"], ["hi", "low", "wrong"], ["hi", "low1"]])
 def test_split_pipeline_wrong_split_order(split_order):
     """Test TransformerPipeline providing wrong 'split_order' parameters."""
     data = {"low": [], "hi": []}

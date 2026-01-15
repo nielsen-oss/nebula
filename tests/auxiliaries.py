@@ -68,9 +68,7 @@ def get_expected_columns(
     return ret
 
 
-def pd_sort_assert(
-    chk: pd.DataFrame, exp: pd.DataFrame, na_position: str = "first", **kws
-):
+def pd_sort_assert(chk: pd.DataFrame, exp: pd.DataFrame, na_position: str = "first", **kws):
     cols = list(chk.columns)
     if list(exp.columns) != cols:
         raise ValueError(f"{exp.columns=} != {chk.columns=}")

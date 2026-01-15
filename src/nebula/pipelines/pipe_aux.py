@@ -5,8 +5,8 @@ from typing import Callable
 import narwhals as nw
 
 from nebula.auxiliaries import truncate_long_string
-from nebula.base import Transformer, LazyWrapper, is_ns_lazy_request
-from nebula.df_types import get_dataframe_type, NwDataFrame, GenericDataFrame
+from nebula.base import LazyWrapper, Transformer, is_ns_lazy_request
+from nebula.df_types import GenericDataFrame, NwDataFrame, get_dataframe_type
 from nebula.nw_util import get_condition, null_cond_to_false, to_native_dataframes
 from nebula.pipelines.transformer_type_util import is_transformer
 
@@ -105,12 +105,11 @@ def create_dict_extra_functions(
         return dict(zip(names, o))
 
     # Raise an error if the input is not a list, tuple, or dictionary
-    raise AssertionError(
-        f'If "functions" is provided it must be <list> | <tuple> | <dict>. Got {type(o)}'
-    )
+    raise AssertionError(f'If "functions" is provided it must be <list> | <tuple> | <dict>. Got {type(o)}')
 
 
 def get_native_schema(df: "GenericDataFrame"):
+    """Get the native dataframe schema."""
     if isinstance(df, (nw.DataFrame, nw.LazyFrame)):
         df = nw.to_native(df)
 
@@ -127,22 +126,24 @@ def get_native_schema(df: "GenericDataFrame"):
 
 
 def is_eligible_transformer(o) -> bool:
+    """Check whether the object is a transformer."""
     if is_transformer(o):
         return True
     if isinstance(o, tuple):
-        if len(o) == 2:
+        if len(o) == 2:  # noqa: PLR2004
             return is_transformer(o[0]) and isinstance(o[1], str)
     return False
 
 
-def is_eligible_function(o) -> bool:
+def is_eligible_function(o) -> bool:  # noqa: PLR0911
+    """Check whether the object is a valid function."""
     # Plain callable
     if callable(o) and not isinstance(o, tuple):
         return True
 
     if isinstance(o, tuple):
         n = len(o)
-        if n < 2 or n > 4:
+        if n < 2 or n > 4:  # noqa: PLR2004
             return False
         if not callable(o[0]):
             return False
@@ -151,14 +152,14 @@ def is_eligible_function(o) -> bool:
         if not isinstance(o[1], (list, tuple)):
             return False
 
-        if n == 2:
+        if n == 2:  # noqa: PLR2004
             return True
 
         # o[2] must be kwargs (dict)
         if not isinstance(o[2], dict):
             return False
 
-        if n == 3:
+        if n == 3:  # noqa: PLR2004
             return True
 
         # o[3] must be description (str)
@@ -168,6 +169,7 @@ def is_eligible_function(o) -> bool:
 
 
 def is_keyword_request(d: dict) -> bool:
+    """Check whether the input dictionary represents a known requests."""
     if isinstance(d, dict):
         if len(d) == 1:
             return set(d).issubset(PIPELINE_KEYWORDS)
@@ -322,9 +324,7 @@ def get_transformer_name(
             # Extract and format call parameters
             for k, v in sorted(tf_attrs.items()):
                 v_processed = replace_params_references(v)
-                v_show = (
-                    f'"{v_processed}"' if isinstance(v_processed, str) else v_processed
-                )
+                v_show = f'"{v_processed}"' if isinstance(v_processed, str) else v_processed
 
                 li_attrs.append(f"{k}={v_show}")
         except Exception as e:  # noqa PyBroadException  pragma: no cover
@@ -372,7 +372,7 @@ def to_schema(li_df: list, schema) -> list[GenericDataFrame]:
     return [nw.from_native(i) for i in ret] if nw_found else ret
 
 
-def sanitize_steps(data) -> list:
+def sanitize_steps(data) -> list:  # noqa: PLR0912
     """Sanitize and flatten a list of pipeline steps.
 
     Accepts transformers, functions, keyword requests, and nested lists.
@@ -426,15 +426,14 @@ def sanitize_steps(data) -> list:
         elif isinstance(item, (list, tuple)):
             # Recurse for nested lists/tuples
             result.extend(sanitize_steps(item))
+        # A pipeline is accepted
+        elif getattr(type(item), "__name__", None) == "TransformerPipeline":
+            result.append(item)
         else:
-            # A pipeline is accepted
-            if getattr(type(item), "__name__", None) == "TransformerPipeline":
-                result.append(item)
-            else:
-                raise TypeError(
-                    f"Invalid step in pipeline. Expected Transformer, callable, "
-                    f"keyword request, or nested list. Got {type(item)}: {item}"
-                )
+            raise TypeError(
+                f"Invalid step in pipeline. Expected Transformer, callable, "
+                f"keyword request, or nested list. Got {type(item)}: {item}"
+            )
 
     return result
 

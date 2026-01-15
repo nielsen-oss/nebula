@@ -25,11 +25,9 @@ class GroupBy(Transformer):
         "{'sum': ['col_1', 'col_2']}"
     )
 
-    _ALLOWED_GROUPBY_AGG: set[str] = {
-        m for m in dir(nw.col()) if m.islower() and not m.startswith("_")
-    }
+    _ALLOWED_GROUPBY_AGG: set[str] = {m for m in dir(nw.col()) if m.islower() and not m.startswith("_")}
 
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self,
         *,
         aggregations: dict[str, list[str]] | dict[str, str] | list[dict[str, str]],
@@ -63,7 +61,7 @@ class GroupBy(Transformer):
             ...     aggregations=[
             ...         {"agg": "sum", "col": "sales", "alias": "total_sales"},
             ...         {"agg": "mean", "col": "price", "alias": "avg_price"},
-            ...         {"agg": "count", "col": "transaction_id", "alias": "n_transactions"}
+            ...         {"agg": "count", "col": "transaction_id", "alias": "m"}
             ...     ]
             ... )
 
@@ -83,9 +81,12 @@ class GroupBy(Transformer):
                    [{"agg": "sum", "col": "dollars", "alias": "total"}]
                    Keys "agg" and "col" are mandatory, "alias" is optional.
             groupby_columns: Columns to group by. Defaults to None.
-            groupby_regex: Regex pattern to select groupby columns. Defaults to None.
-            groupby_glob: Glob pattern to select groupby columns. Defaults to None.
-            groupby_startswith: Select columns starting with string(s). Defaults to None.
+            groupby_regex: Regex pattern to select groupby columns.
+                Defaults to None.
+            groupby_glob: Glob pattern to select groupby columns.
+                Defaults to None.
+            groupby_startswith: Select columns starting with string(s).
+                Defaults to None.
             groupby_endswith: Select columns ending with string(s). Defaults to None.
             prefix: Prefix for aggregated column names (single aggregation only).
                 Defaults to "".
@@ -112,13 +113,10 @@ class GroupBy(Transformer):
             aggregations = self._check_single_op(aggregations[0], prefix, suffix)
         elif isinstance(aggregations, dict):
             aggregations = self._check_single_op(aggregations, prefix, suffix)
-        else:
-            if prefix or suffix:
-                raise ValueError(self._msg_err)
+        elif prefix or suffix:
+            raise ValueError(self._msg_err)
 
-        self._aggregations: list[dict[str, str]] = self._get_sanitized_aggregations(
-            aggregations
-        )
+        self._aggregations: list[dict[str, str]] = self._get_sanitized_aggregations(aggregations)
 
         self._set_columns_selections(
             columns=groupby_columns,
@@ -128,9 +126,7 @@ class GroupBy(Transformer):
             endswith=groupby_endswith,
         )
 
-    def _get_sanitized_aggregations(
-        self, aggregations: dict[str, str] | list[dict[str, str]]
-    ) -> list[dict[str, str]]:
+    def _get_sanitized_aggregations(self, aggregations: dict[str, str] | list[dict[str, str]]) -> list[dict[str, str]]:
         if isinstance(aggregations, dict):
             aggregations = [aggregations]
 
@@ -170,13 +166,9 @@ class GroupBy(Transformer):
                 assert_allowed(d["agg"], self._ALLOWED_GROUPBY_AGG, "aggregation")
             except ValueError as e:
                 # Enhance error message
-                raise ValueError(
-                    f"{e}\nAvailable aggregations: {sorted(self._ALLOWED_GROUPBY_AGG)}"
-                )
+                raise ValueError(f"{e}\nAvailable aggregations: {sorted(self._ALLOWED_GROUPBY_AGG)}")
 
-    def _check_single_op(
-        self, o: dict, prefix: str, suffix: str
-    ) -> dict[str, str] | list[dict[str, str]]:
+    def _check_single_op(self, o: dict, prefix: str, suffix: str) -> dict[str, str] | list[dict[str, str]]:
         """Check if this is single-operation syntax and expand it."""
         values = list(o.values())
         n = len(values)
@@ -222,7 +214,7 @@ class GroupBy(Transformer):
 
 
 class Pivot(Transformer):
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self,
         *,
         pivot_col: str,
@@ -231,9 +223,7 @@ class Pivot(Transformer):
         id_glob: str | None = None,
         id_startswith: str | Iterable[str] | None = None,
         id_endswith: str | Iterable[str] | None = None,
-        aggregate_function: Literal[
-            "min", "max", "first", "last", "sum", "mean", "median", "len"
-        ] = "first",
+        aggregate_function: Literal["min", "max", "first", "last", "sum", "mean", "median", "len"] = "first",
         values_cols: str | list[str] | None = None,
         values_regex: str | None = None,
         values_glob: str | None = None,

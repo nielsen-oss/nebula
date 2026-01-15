@@ -9,6 +9,7 @@ import pytest
 
 from nebula.nw_util import *
 from nebula.nw_util import COMPARISON_OPERATORS, NULL_OPERATORS, assert_join_params
+
 from .auxiliaries import from_pandas, to_pandas
 from .constants import TEST_BACKENDS
 
@@ -173,7 +174,6 @@ class TestAppendDataframes:
     @pytest.mark.parametrize("backend", TEST_BACKENDS)
     def test_mix_narwhals_and_native(self, spark, backend: str):
         """Test mixing Narwhals wrappers with native dataframes (same backend)."""
-
         df1_pd = pd.DataFrame({"a": [1, 2], "b": [3, 4]})
         df2_pd = pd.DataFrame({"a": [5, 6], "b": [7, 8]})
 
@@ -195,9 +195,7 @@ class TestAppendDataframes:
         df1_pd = pd.DataFrame({"a": [1, 2]}, index=[10, 20])
         df2_pd = pd.DataFrame({"a": [3, 4]}, index=[30, 40])
 
-        result = append_dataframes(
-            [df1_pd, df2_pd], allow_missing_cols=False, ignore_index=ignore_index
-        )
+        result = append_dataframes([df1_pd, df2_pd], allow_missing_cols=False, ignore_index=ignore_index)
 
         if ignore_index:
             # Index should be reset to 0, 1, 2, 3
@@ -208,7 +206,6 @@ class TestAppendDataframes:
 
     def test_polars_relax_parameter(self):
         """Test Polars relax parameter for type coercion."""
-
         # One with int32, one with int64
         df1 = pl.DataFrame({"a": [1, 2]}, schema={"a": pl.Int32})
         df2 = pl.DataFrame({"a": [3, 4]}, schema={"a": pl.Int64})
@@ -342,9 +339,7 @@ class TestGetCondition:
 
     def test_gt_with_compare_col(self):
         """Test greater-than comparison between two columns."""
-        df = nw.from_native(
-            pd.DataFrame({"sales": [100, 200, 300], "target": [150, 150, 150]})
-        )
+        df = nw.from_native(pd.DataFrame({"sales": [100, 200, 300], "target": [150, 150, 150]}))
 
         cond = get_condition("sales", "gt", compare_col="target")
         result = df.filter(cond)
@@ -424,9 +419,7 @@ class TestGetCondition:
 
     def test_is_not_in_with_nulls(self):
         """Test that is_not_in treats nulls as True."""
-        df = nw.from_native(
-            pd.DataFrame({"status": ["active", "pending", None, "inactive"]})
-        )
+        df = nw.from_native(pd.DataFrame({"status": ["active", "pending", None, "inactive"]}))
 
         cond = get_condition("status", "is_not_in", value=["active"])
         result = df.filter(cond)
@@ -487,11 +480,7 @@ class TestGetCondition:
 
     def test_comparison_with_dates(self):
         """Test with date/datetime columns."""
-        df = nw.from_native(
-            pd.DataFrame(
-                {"date": pd.to_datetime(["2023-01-01", "2023-06-01", "2023-12-01"])}
-            )
-        )
+        df = nw.from_native(pd.DataFrame({"date": pd.to_datetime(["2023-01-01", "2023-06-01", "2023-12-01"])}))
         cond = get_condition("date", "gt", value=pd.Timestamp("2023-05-01"))
         result = df.filter(cond)
         assert len(result) == 2
@@ -603,11 +592,10 @@ class TestJoinDataframes:
         result = join_dataframes(df_left, df_right, how=how, on="user_id")
         if to_nw:
             assert isinstance(result, (nw.DataFrame, nw.LazyFrame))
+        elif backend == "pandas":
+            assert isinstance(result, pd.DataFrame)
         else:
-            if backend == "pandas":
-                assert isinstance(result, pd.DataFrame)
-            else:
-                assert isinstance(result, pl.DataFrame)
+            assert isinstance(result, pl.DataFrame)
         df_chk = to_pandas(result).reset_index(drop=True)
 
         out_cols = df_chk.columns.tolist()
@@ -633,9 +621,7 @@ class TestJoinDataframes:
         df_exp = df_left.join(df_right, on="id", how="full")
 
         if coalesce_keys:
-            df_exp = df_exp.with_columns(
-                pl.coalesce("id", "id_right").alias("id")
-            ).drop("id_right")
+            df_exp = df_exp.with_columns(pl.coalesce("id", "id_right").alias("id")).drop("id_right")
         pl.testing.assert_frame_equal(df_chk, df_exp)
 
     def test_cross_join(self):
@@ -660,9 +646,7 @@ class TestJoinDataframes:
         df_left = from_pandas(df_left_pd, backend, to_nw=to_nw, spark=spark)
         df_right = from_pandas(df_right_pd, backend, to_nw=to_nw, spark=spark)
 
-        result = join_dataframes(
-            df_left, df_right, how="right", left_on="left_id", right_on="right_id"
-        )
+        result = join_dataframes(df_left, df_right, how="right", left_on="left_id", right_on="right_id")
         result_pd = to_pandas(result).reset_index(drop=True)
 
         # Should keep all right rows (right_id: 2, 3, 4)
@@ -672,9 +656,7 @@ class TestJoinDataframes:
     @pytest.mark.parametrize("suffix", [None, "_b"])
     def test_suffix_default(self, suffix):
         """Test default suffix is applied to overlapping columns."""
-        df_left = pd.DataFrame(
-            {"id": [1, 2], "value": [10, 20], "status": ["active", "inactive"]}
-        )
+        df_left = pd.DataFrame({"id": [1, 2], "value": [10, 20], "status": ["active", "inactive"]})
         df_right = pd.DataFrame(
             {
                 "id": [1, 2],
@@ -722,9 +704,7 @@ class TestJoinDataframes:
         df_right = from_pandas(df_right_pd, "spark", to_nw=True, spark=spark)
 
         # Should not error with broadcast=True
-        result = join_dataframes(
-            df_left, df_right, how="inner", on="id", broadcast=True
-        )
+        result = join_dataframes(df_left, df_right, how="inner", on="id", broadcast=True)
         df_chk = to_pandas(result).sort_values("id").reset_index(drop=True)
         df_exp = df_left_pd.merge(df_right_pd, on="id", how="inner")
         pd.testing.assert_frame_equal(df_chk, df_exp)
@@ -754,9 +734,7 @@ class TestNullCondToFalse:
         cond = null_cond_to_false(nw.col("a"))
         result = df.with_columns(cond.alias("result"))
 
-        expected = pd.DataFrame(
-            {"a": [True, False, None], "result": [True, False, False]}
-        )
+        expected = pd.DataFrame({"a": [True, False, None], "result": [True, False, False]})
 
         pd.testing.assert_frame_equal(nw.to_native(result), expected)
 
@@ -799,9 +777,7 @@ class TestToNativeDataframes:
         df1 = pd.DataFrame({"a": [1, 2]})
         df2 = pd.DataFrame({"b": [3, 4]})
 
-        native_dfs, detected_backend, found_nw = to_native_dataframes(
-            [df1, nw.from_native(df2)]
-        )
+        native_dfs, detected_backend, found_nw = to_native_dataframes([df1, nw.from_native(df2)])
 
         assert len(native_dfs) == 2
         assert detected_backend == "pandas"

@@ -63,9 +63,7 @@ class AssertCount(Transformer):
         """
         if expected is not None:
             if min_count is not None or max_count is not None:
-                raise AssertionError(
-                    "'expected' cannot be used with 'min_count' or 'max_count'"
-                )
+                raise AssertionError("'expected' cannot be used with 'min_count' or 'max_count'")
 
         if min_count is not None and max_count is not None:
             if min_count > max_count:

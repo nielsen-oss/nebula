@@ -17,7 +17,6 @@ import pytest
 from nebula import transformers
 from nebula.base import Transformer
 
-
 # ------------------------------ Invalid Transformers
 
 

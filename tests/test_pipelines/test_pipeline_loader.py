@@ -6,8 +6,9 @@ import polars as pl
 import pytest
 
 from nebula.pipelines.pipeline_loader import load_pipeline
-from .auxiliaries import *
+
 from ..auxiliaries import pl_assert_equal
+from .auxiliaries import *
 
 
 @pytest.mark.parametrize("pipeline_key", ["split-is-none", "split-is-empty-list"])
@@ -55,15 +56,11 @@ def test_pipeline_loader_list_tuple():
     pd.testing.assert_frame_equal(df_input, pipe_tuple.run(df_input))
 
 
-@pytest.mark.parametrize(
-    "extra_transformers", [[ExtraTransformers], DICT_EXTRA_TRANSFORMERS]
-)
+@pytest.mark.parametrize("extra_transformers", [[ExtraTransformers], DICT_EXTRA_TRANSFORMERS])
 def test_extra_transformers(extra_transformers):
     df = pl.DataFrame({"a": [1, 1, 2]})
 
-    pipe = load_pipeline(
-        [{"transformer": "Distinct"}], extra_transformers=extra_transformers
-    )
+    pipe = load_pipeline([{"transformer": "Distinct"}], extra_transformers=extra_transformers)
     df_chk = pipe.run(df)
     df_exp = df.unique()
     pl_assert_equal(df_chk.sort("a"), df_exp.sort("a"))

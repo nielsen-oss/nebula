@@ -8,7 +8,6 @@ from nebula.pipelines.transformer_type_util import (
 )
 from nebula.transformers import AssertNotEmpty
 
-
 # ---------------------------- VALID TRANSFORMERS -----------------------------
 
 
@@ -164,9 +163,7 @@ def test_not_valid_transformer_type(cls):
     assert not is_duck_typed_transformer(cls())
 
 
-@pytest.mark.parametrize(
-    "o, exp", [(TransformerOk(), True), (AssertNotEmpty(), True), ([1], False)]
-)
+@pytest.mark.parametrize("o, exp", [(TransformerOk(), True), (AssertNotEmpty(), True), ([1], False)])
 def test_is_transformer(o, exp: bool):
     """Test 'is_transformer' function."""
     assert is_transformer(o) == exp

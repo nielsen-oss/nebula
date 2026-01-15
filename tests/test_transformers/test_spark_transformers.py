@@ -8,8 +8,15 @@ import pytest
 from chispa import assert_df_equality
 from pyspark.sql import Window
 from pyspark.sql import functions as F
-from pyspark.sql.types import ArrayType, MapType, Row
-from pyspark.sql.types import IntegerType, StringType, StructField, StructType
+from pyspark.sql.types import (
+    ArrayType,
+    IntegerType,
+    MapType,
+    Row,
+    StringType,
+    StructField,
+    StructType,
+)
 from pyspark.sql.utils import AnalysisException
 
 from nebula.auxiliaries import is_list_uniform
@@ -18,8 +25,11 @@ from nebula.spark_util import (
     get_default_spark_partitions,
 )
 from nebula.transformers.spark_transformers import *
-from nebula.transformers.spark_transformers import _Partitions, _Window
-from nebula.transformers.spark_transformers import validate_window_frame_boundaries
+from nebula.transformers.spark_transformers import (
+    _Partitions,
+    _Window,
+    validate_window_frame_boundaries,
+)
 
 
 def test_cache(spark):
@@ -122,13 +132,9 @@ class TestAggregateOverWindow:
             start, end = validate_window_frame_boundaries(*range_between)
             window = window.rangeBetween(start, end)
 
-        df_exp = df_input.withColumn("min_id", F.min("id").over(window)).withColumn(
-            "sum_id", F.sum("id").over(window)
-        )
+        df_exp = df_input.withColumn("min_id", F.min("id").over(window)).withColumn("sum_id", F.sum("id").over(window))
 
-        assert_df_equality(
-            df_chk, df_exp, ignore_row_order=True, ignore_column_order=True
-        )
+        assert_df_equality(df_chk, df_exp, ignore_row_order=True, ignore_column_order=True)
 
     @pytest.mark.parametrize("ascending", [[True, False], [False, True]])
     def test_ascending(self, df_input, ascending):
@@ -145,15 +151,11 @@ class TestAggregateOverWindow:
 
         # Set the order
         li_asc = ascending if isinstance(ascending, list) else [ascending] * 2
-        orders = [
-            F.col(i).asc() if j else F.col(i).desc() for i, j in zip(order_cols, li_asc)
-        ]
+        orders = [F.col(i).asc() if j else F.col(i).desc() for i, j in zip(order_cols, li_asc)]
         win = Window.partitionBy("category").orderBy(orders)
         df_exp = df_input.withColumn("first_value", F.first("id").over(win))
 
-        assert_df_equality(
-            df_chk, df_exp, ignore_row_order=True, ignore_column_order=True
-        )
+        assert_df_equality(df_chk, df_exp, ignore_row_order=True, ignore_column_order=True)
 
     def test_single_aggregation(self, df_input):
         """Test w/o partitioning."""
@@ -166,9 +168,7 @@ class TestAggregateOverWindow:
         win = Window.rowsBetween(Window.unboundedPreceding, Window.unboundedFollowing)
 
         df_exp = df_input.withColumn("sum_id", F.sum("id").over(win))
-        assert_df_equality(
-            df_chk, df_exp, ignore_row_order=True, ignore_column_order=True
-        )
+        assert_df_equality(df_chk, df_exp, ignore_row_order=True, ignore_column_order=True)
 
     def test_override(self, df_input):
         """Test with 'id' column overridden."""
@@ -181,9 +181,7 @@ class TestAggregateOverWindow:
         win = Window.partitionBy("category")
 
         df_exp = df_input.withColumn("id", F.min("id").over(win).cast("int"))
-        assert_df_equality(
-            df_chk, df_exp, ignore_row_order=True, ignore_column_order=True
-        )
+        assert_df_equality(df_chk, df_exp, ignore_row_order=True, ignore_column_order=True)
 
 
 class TestColumnsToMap:
@@ -203,11 +201,10 @@ class TestColumnsToMap:
     def _check(v_exp, v_chk, cast_values):
         if v_exp is None:
             assert v_chk is None
+        elif cast_values == "string":
+            assert v_chk == str(v_exp)
         else:
-            if cast_values == "string":
-                assert v_chk == str(v_exp)
-            else:
-                assert v_chk == v_exp
+            assert v_chk == v_exp
 
     @pytest.mark.parametrize(
         "cast_values, drop",
@@ -363,7 +360,8 @@ class TestLagOverWindow:
 
         df_chk = t.transform(df_input).toPandas()
 
-        # Assert that the number of nulls in the lagged column is equal to the number of groups
+        # Assert that the number of nulls in the lagged column is equal
+        # to the number of groups
         n_nulls = df_chk[output_col].isna().sum()
         expected_nulls = int(df_chk[partition_cols].nunique()) * abs(lag)
         assert n_nulls == expected_nulls
@@ -559,9 +557,7 @@ class TestSparkColumnMethod:
             t.transform(df_input)
 
     def test_valid(self, df_input):
-        t = SparkColumnMethod(
-            input_column="name", method="contains", output_column="result", args=["se"]
-        )
+        t = SparkColumnMethod(input_column="name", method="contains", output_column="result", args=["se"])
         df_chk = t.transform(df_input)
 
         df_exp = df_input.withColumn("result", F.col("name").contains("se"))
@@ -769,9 +765,7 @@ class TestSparkExplode:
         cols_exp.copy()
 
         for kwg in inputs:
-            t = SparkExplode(
-                input_col=self._COL_MAP, output_cols=self._COL_OUTPUT_MAP, **kwg
-            )
+            t = SparkExplode(input_col=self._COL_MAP, output_cols=self._COL_OUTPUT_MAP, **kwg)
             df_out = t.transform(df_input)
 
             set_cols_chk = set(df_out.columns)
@@ -799,9 +793,7 @@ class TestSparkSqlFunction:
     @pytest.mark.parametrize("asc", [True, False])
     def test_with_args(self, df_input, asc: bool):
         """Test SqlFunction."""
-        t = SparkSqlFunction(
-            column="result", function="sort_array", args=["data"], kwargs={"asc": asc}
-        )
+        t = SparkSqlFunction(column="result", function="sort_array", args=["data"], kwargs={"asc": asc})
         df_chk = t.transform(df_input)
 
         df_exp = df_input.withColumn("result", F.sort_array("data", asc=asc))

@@ -30,9 +30,7 @@ class TestLoopValidation:
         validate_loop_params(d)
 
     @staticmethod
-    @pytest.mark.parametrize(
-        "gen_type, err", [(123, TypeError), ("invalid", ValueError)]
-    )
+    @pytest.mark.parametrize("gen_type, err", [(123, TypeError), ("invalid", ValueError)])
     def test_validate_loop_params_invalid_mode(gen_type, err):
         """Test validation fails with invalid mode."""
         d = {
@@ -591,10 +589,7 @@ class TestExpandLoopsInPipeline:
         pipe = {"pipeline": [{"nested": {"deep": {"value": 42}}}]}
         result = expand_loops(pipe)
         assert result["pipeline"][0]["nested"] is not pipe["pipeline"][0]["nested"]
-        assert (
-            result["pipeline"][0]["nested"]["deep"]
-            is not pipe["pipeline"][0]["nested"]["deep"]
-        )
+        assert result["pipeline"][0]["nested"]["deep"] is not pipe["pipeline"][0]["nested"]["deep"]
 
     @staticmethod
     @pytest.mark.parametrize("invalid_input", [None, [], "string", 42])
@@ -798,9 +793,7 @@ class TestExpandLoopsInPipeline:
                                         "transformer": "AddLiterals",
                                         # This must become: "name_a", "name_b"
                                         "params": {
-                                            "data": [
-                                                {"value": 2, "alias": "<<names>>"}
-                                            ],
+                                            "data": [{"value": 2, "alias": "<<names>>"}],
                                         },
                                     },
                                     {

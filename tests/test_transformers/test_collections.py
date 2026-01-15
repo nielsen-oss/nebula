@@ -108,11 +108,7 @@ class TestMathOperator:
     @pytest.mark.parametrize("operation", ["add", "sub", "mul", "div", "pow"])
     def test_single_operation(self, df_input, operation: str, col_or_const: str, cast):
         """Test MathOperator with single operation using column or constant."""
-        second = (
-            {"column": "col2"}
-            if col_or_const == "column"
-            else {"constant": self._CONST}
-        )
+        second = {"column": "col2"} if col_or_const == "column" else {"constant": self._CONST}
         strategy = {
             "new_column_name": "result",
             "strategy": [{"column": "col1"}, second],
@@ -126,17 +122,13 @@ class TestMathOperator:
 
         # Build expected dataframe
         expected_col = f"{operation}_{col_or_const}"
-        df_expected = df_input.select(
-            "col1", "col2", pl.col(expected_col).alias("result")
-        )
+        df_expected = df_input.select("col1", "col2", pl.col(expected_col).alias("result"))
         if cast:
             df_expected = df_expected.with_columns(pl.col("result").cast(pl.Float32))
 
         pl.testing.assert_frame_equal(df_result, df_expected)
 
-    @pytest.mark.parametrize(
-        "operations", [["add", "div"], ["mul", "div"], ["pow", "sub"]]
-    )
+    @pytest.mark.parametrize("operations", [["add", "div"], ["mul", "div"], ["pow", "sub"]])
     def test_double_operation(self, df_input, operations: list[str]):
         """Test MathOperator with two sequential operations."""
         strategy = {
@@ -225,9 +217,7 @@ class TestMathOperator:
         # doubled = col1 * 2, tripled = doubled * 1.5 = col1 * 3
         df_expected = df_input.with_columns(tripled=(pl.col("col1") * 3.0))
 
-        pl.testing.assert_frame_equal(
-            df_result.select("tripled"), df_expected.select("tripled")
-        )
+        pl.testing.assert_frame_equal(df_result.select("tripled"), df_expected.select("tripled"))
 
     def test_complex_expression(self, df_input):
         """Test complex multi-operation expression."""
@@ -248,9 +238,7 @@ class TestMathOperator:
 
         # Build expected
         df_expected = df_input.with_columns(
-            complex_result=(((pl.col("col1") + 10) * pl.col("col2")) / 3).cast(
-                pl.Float64
-            )
+            complex_result=(((pl.col("col1") + 10) * pl.col("col2")) / 3).cast(pl.Float64)
         ).select("complex_result")
 
         pl.testing.assert_frame_equal(df_result, df_expected)
@@ -273,9 +261,7 @@ class TestMathOperator:
         df_result = t.transform(df_input).select("all_ops")
 
         # Build expected manually
-        df_expected = df_input.with_columns(
-            all_ops=(((pl.col("col1") + 2) - 1) * 3) / 2
-        ).select("all_ops")
+        df_expected = df_input.with_columns(all_ops=(((pl.col("col1") + 2) - 1) * 3) / 2).select("all_ops")
 
         pl.testing.assert_frame_equal(df_result, df_expected)
 
@@ -314,9 +300,7 @@ class TestMathOperator:
         df_result = t.transform(df_input).select("result")
 
         # Build expected
-        df_expected = df_input.with_columns(
-            result=(pl.col("col1") * 2.5).cast(pl.Int32)
-        ).select("result")
+        df_expected = df_input.with_columns(result=(pl.col("col1") * 2.5).cast(pl.Int32)).select("result")
 
         pl.testing.assert_frame_equal(df_result, df_expected)
 

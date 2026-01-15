@@ -107,12 +107,11 @@ def get_dataframe_type(df) -> str:
             "Install at least one: pip install pandas|polars|pyspark"
         )
 
-    raise TypeError(
-        f"Unknown dataframe type: {type(df)}. Supported types: {', '.join(supported)}"
-    )
+    raise TypeError(f"Unknown dataframe type: {type(df)}. Supported types: {', '.join(supported)}")
 
 
 def is_natively_spark(df) -> tuple[bool, "GenericDataFrame"]:
+    """Check whether the dataframe is natively spark."""
     if HAS_SPARK:
         if isinstance(df, (nw.DataFrame, nw.LazyFrame)):
             df_native = nw.to_native(df)

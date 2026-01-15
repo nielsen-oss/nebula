@@ -9,6 +9,7 @@ import polars as pl
 import pytest
 
 from nebula.transformers.schema import *
+
 from ..auxiliaries import from_pandas
 
 
@@ -411,12 +412,8 @@ class TestCast:
         assert result["list_col"][0].to_list() == [1, 2]
         assert result["nested_list_col"].dtype == pl.List(pl.List(pl.Int64))
         assert result["array_col"].dtype == pl.Array(pl.Int64, 3)
-        assert result["struct_col"].dtype == pl.Struct(
-            [pl.Field("name", pl.String), pl.Field("age", pl.Int64)]
-        )
-        assert result["struct_no_braces_col"].dtype == pl.Struct(
-            [pl.Field("x", pl.Int64), pl.Field("y", pl.Int64)]
-        )
+        assert result["struct_col"].dtype == pl.Struct([pl.Field("name", pl.String), pl.Field("age", pl.Int64)])
+        assert result["struct_no_braces_col"].dtype == pl.Struct([pl.Field("x", pl.Int64), pl.Field("y", pl.Int64)])
         assert result["list_struct_col"].dtype == pl.List(
             pl.Struct([pl.Field("id", pl.Int64), pl.Field("val", pl.Int64)])
         )

@@ -10,11 +10,11 @@ from pyspark.sql.types import (
     ArrayType,
     DataType,
     IntegerType,
+    MapType,
     StringType,
     StructField,
     StructType,
 )
-from pyspark.sql.types import MapType
 
 from nebula.auxiliaries import (
     assert_allowed,
@@ -132,7 +132,7 @@ class CoalescePartitions(_Partitions):
 
 
 class ColumnsToMap(Transformer):
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self,
         *,
         output_column: str,
@@ -166,7 +166,7 @@ class ColumnsToMap(Transformer):
             cast_values (str | DataType | None):
                 If provided, cast the values to the specified type.
                 Defaults to None.
-            drop_input_columns (bool)
+            drop_input_columns (bool):
                 If True, drop the input columns. Defaults to False.
         """
         super().__init__()
@@ -505,9 +505,7 @@ class SparkColumnMethod(Transformer):
                 raise e
             return
 
-        valid_meths = {
-            i for i in all_meths if (not i.startswith("_")) and (not i[0].isupper())
-        }
+        valid_meths = {i for i in all_meths if (not i.startswith("_")) and (not i[0].isupper())}
         if self._meth not in valid_meths:
             raise ValueError(f"'method' must be one of {sorted(valid_meths)}")
 
@@ -601,7 +599,7 @@ class SparkExplode(Transformer):
             n = len(output_cols)
             msg = "If 'output_cols' is an iterable it must "
             msg += "be a 2-element <list> or <tuple> of string."
-            if n != 2:
+            if n != 2:  # noqa: PLR2004
                 raise AssertionError(msg)
             if not all(isinstance(i, str) for i in output_cols):
                 raise AssertionError(msg)
@@ -666,9 +664,7 @@ class SparkSqlFunction(Transformer):
             kwargs (dict(str, any) | None):
                 Keyword arguments of pyspark.sql.function. Defaults to None.
         """
-        valid_funcs = {
-            i for i in dir(F) if (not i.startswith("_")) and (not i[0].isupper())
-        }
+        valid_funcs = {i for i in dir(F) if (not i.startswith("_")) and (not i[0].isupper())}
         assert_allowed(function, valid_funcs, "function")
 
         super().__init__()
@@ -804,8 +800,7 @@ class _Window(Transformer):
         )
 
         self._order_cols: list[F.col] = [
-            F.col(i).asc() if j else F.col(i).desc()
-            for i, j in zip(self._list_order_cols, self._ascending)
+            F.col(i).asc() if j else F.col(i).desc() for i, j in zip(self._list_order_cols, self._ascending)
         ]
 
         self._rows_between: tuple[int, int] | None = None
@@ -874,15 +869,30 @@ class AggregateOverWindow(_Window):
                 sequentially, not in parallel.
             order_cols (str | list(str) | None):
                 Columns to order the partition by. If provided, the partition
-                will be ordered based on these columns. Defaults to None."""
+                will be ordered based on these columns. Defaults to None.
+            ascending (bool) | list(bool)):
+                Ascending or descending ordering of the window.
+            rows_between:
+                Creates a WindowSpec with the frame boundaries defined,
+                from start (inclusive) to end (inclusive).
+                Both start and end are relative positions from the current row.
+                For example, “0” means “current row, while “-1” means the row
+                before the current row, and “5” means the fifth row after the
+                current row.
+            range_between:
+                Creates a WindowSpec with the frame boundaries defined,
+                from start (inclusive) to end (inclusive).
+                Both start and end are relative from the current row.
+                For example, “0” means “current row, while “-1” means
+                one off before the current row, and “5” means the five
+                off after the current row.
+        """
         assert_at_most_one_args(rows_between=rows_between, range_between=range_between)
 
         if isinstance(aggregations, dict):
             aggregations = [aggregations]
 
-        validate_aggregations(
-            aggregations, _ALLOWED_WINDOW_AGG, exact_keys={"agg", "col", "alias"}
-        )
+        validate_aggregations(aggregations, _ALLOWED_WINDOW_AGG, exact_keys={"agg", "col", "alias"})
 
         super().__init__(
             partition_cols=partition_cols,
@@ -923,7 +933,7 @@ class AggregateOverWindow(_Window):
 
 
 class LagOverWindow(_Window):
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self,
         *,
         partition_cols: str | list[str] | None = None,
@@ -934,7 +944,7 @@ class LagOverWindow(_Window):
         ascending: bool | list[bool] = True,
         rows_between: tuple[str | int, str | int] = None,
         range_between: tuple[str | int, str | int] = None,
-    ):  # noqa: D208, D209
+    ):
         """Aggregate over a window.
 
         It returns the original dataframe with attached new columns defined
@@ -949,8 +959,26 @@ class LagOverWindow(_Window):
                 will be ordered based on these columns. Defaults to None.
             lag_col (str):
                 Column to be windowed by the lag defined in the 'lag' parameter.
+            lag (int):
+                Number of rows to lag.
             output_col (str):
                 Name of the output column containing the windowed result.
+            ascending (bool) | list(bool)):
+                Ascending or descending ordering of the window.
+            rows_between:
+                Creates a WindowSpec with the frame boundaries defined,
+                from start (inclusive) to end (inclusive).
+                Both start and end are relative positions from the current row.
+                For example, “0” means “current row, while “-1” means the row
+                before the current row, and “5” means the fifth row after the
+                current row.
+            range_between:
+                Creates a WindowSpec with the frame boundaries defined,
+                from start (inclusive) to end (inclusive).
+                Both start and end are relative from the current row.
+                For example, “0” means “current row, while “-1” means
+                one off before the current row, and “5” means the five
+                off after the current row.
         """
         assert_at_most_one_args(rows_between=rows_between, range_between=range_between)
 
@@ -968,14 +996,10 @@ class LagOverWindow(_Window):
 
     def _transform_spark(self, df):
         win = self._get_window
-        return df.withColumn(
-            self._output_col, F.lag(self._lag_col, self._lag).over(win)
-        )
+        return df.withColumn(self._output_col, F.lag(self._lag_col, self._lag).over(win))
 
 
-AggregateOverWindow.__init__.__doc__ = (
-    AggregateOverWindow.__init__.__doc__ + _DOCSTRING_ARGS_WINDOW
-)
+AggregateOverWindow.__init__.__doc__ = AggregateOverWindow.__init__.__doc__ + _DOCSTRING_ARGS_WINDOW
 LagOverWindow.__init__.__doc__ = LagOverWindow.__init__.__doc__ + _DOCSTRING_ARGS_WINDOW
 
 # ----------------------------- ALIASES -----------------------------

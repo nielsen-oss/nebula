@@ -7,7 +7,8 @@ import pandas as pd
 import pytest
 
 from nebula.transformers import *
-from ..auxiliaries import get_expected_columns, from_pandas
+
+from ..auxiliaries import from_pandas, get_expected_columns
 
 _columns_product = [f"{a}{b}" for a, b in product(["c", "d"], range(5))]
 

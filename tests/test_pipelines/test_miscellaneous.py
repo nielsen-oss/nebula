@@ -5,9 +5,10 @@ import pytest
 
 from nebula import TransformerPipeline
 from nebula import nebula_storage as ns
-from nebula.transformers import SelectColumns, AssertNotEmpty, DropNulls
-from .auxiliaries import NoParentClass, CallMe, ThisTransformerIsBroken
+from nebula.transformers import AssertNotEmpty, DropNulls, SelectColumns
+
 from ..auxiliaries import pl_assert_equal
+from .auxiliaries import CallMe, NoParentClass, ThisTransformerIsBroken
 
 
 @pytest.fixture(scope="module", name="df_input")

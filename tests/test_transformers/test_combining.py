@@ -6,6 +6,7 @@ import pytest
 
 from nebula import nebula_storage as ns
 from nebula.transformers import *
+
 from ..auxiliaries import from_pandas, to_pandas
 
 
@@ -81,9 +82,7 @@ class TestJoin:
             }
         )
 
-        df_customers = pl.DataFrame(
-            {"id": [1, 2, 3], "customer_name": ["Alice", "Bob", "Charlie"]}
-        )
+        df_customers = pl.DataFrame({"id": [1, 2, 3], "customer_name": ["Alice", "Bob", "Charlie"]})
 
         ns.set("customers", df_customers)
 
