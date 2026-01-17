@@ -15,6 +15,7 @@ import pytest
 
 from nebula.pipelines.pipeline_loader import load_pipeline
 from nebula.storage import nebula_storage as ns
+
 from .branch_configs import *
 
 
@@ -295,9 +296,7 @@ class TestSparkCoalesceRepartitionToOriginal:
                     "branch": {"end": "append"},
                     "repartition_output_to_original": repartition,
                     "coalesce_output_to_original": coalesce,
-                    "pipeline": [
-                        {"transformer": "Repartition", "params": {"num_partitions": 10}}
-                    ],
+                    "pipeline": [{"transformer": "Repartition", "params": {"num_partitions": 10}}],
                 }
             ]
         }

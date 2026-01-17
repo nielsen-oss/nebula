@@ -1,3 +1,5 @@
+"""Intermediate-representation module."""
+
 from nebula.pipelines.ir.builder import IRBuilder
 from nebula.pipelines.ir.nodes import SequenceNode
 

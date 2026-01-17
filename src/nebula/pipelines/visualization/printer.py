@@ -16,13 +16,13 @@ from ..pipe_cfg import PIPE_CFG
 
 if TYPE_CHECKING:  # pragma: no cover
     from ..ir.nodes import (
+        ForkNode,
+        FunctionNode,
+        MergeNode,
         PipelineNode,
         SequenceNode,
-        TransformerNode,
-        FunctionNode,
         StorageNode,
-        ForkNode,
-        MergeNode,
+        TransformerNode,
     )
 
 __all__ = ["PipelinePrinter", "print_pipeline"]
@@ -119,14 +119,14 @@ class PipelinePrinter:
     ) -> None:
         """Visit a node and add its representation to lines."""
         from ..ir.nodes import (
-            SequenceNode,
-            TransformerNode,
-            FunctionNode,
-            StorageNode,
             ForkNode,
-            MergeNode,
+            FunctionNode,
             InputNode,
+            MergeNode,
             OutputNode,
+            SequenceNode,
+            StorageNode,
+            TransformerNode,
         )
 
         indent = self._indent(level)
@@ -245,7 +245,7 @@ class PipelinePrinter:
             line += f" [{node.id}]"
         lines.append(line)
 
-    def _visit_fork(
+    def _visit_fork(  # noqa: PLR0912
         self,
         node: "ForkNode",
         level: int,
@@ -289,9 +289,7 @@ class PipelinePrinter:
             # Visit splits
             for split_name, branch_steps in node.branches.items():
                 msg_step_count = self._get_msg_step_count(branch_steps)
-                lines.append(
-                    f"{indent}**SPLIT <<< {split_name} >>> ({msg_step_count}):"
-                )
+                lines.append(f"{indent}**SPLIT <<< {split_name} >>> ({msg_step_count}):")
                 for step in branch_steps:
                     self._visit_node(step, level + 1, lines, add_params, add_ids)
 
@@ -355,7 +353,7 @@ class PipelinePrinter:
     @staticmethod
     def _count_transformations(node: "PipelineNode") -> int:
         """Count transformers and functions in a node tree."""
-        from ..ir.nodes import TransformerNode, FunctionNode, ForkNode
+        from ..ir.nodes import ForkNode, FunctionNode, TransformerNode
 
         count = 0
         for n in node.walk():
@@ -387,7 +385,5 @@ def print_pipeline(
         indent_size: Number of spaces per indentation level.
     """
     max_param_length = PIPE_CFG["max_param_length"]
-    printer = PipelinePrinter(
-        ir, max_param_length=max_param_length, indent_size=indent_size
-    )
+    printer = PipelinePrinter(ir, max_param_length=max_param_length, indent_size=indent_size)
     printer.print(add_params=add_params)

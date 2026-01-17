@@ -47,9 +47,7 @@ def udf_ensure_package_in_spark_workers(s: str) -> bool:  # pragma: no cover
 def udf_lib_version_in_spark_workers(s: str) -> str:  # pragma: no cover
     """Try to return the version of the requested package in spark workers."""
 
-    def _look_for_version(
-        _module: ModuleType, _attr: str
-    ) -> Optional[str]:  # pragma: no cover
+    def _look_for_version(_module: ModuleType, _attr: str) -> Optional[str]:  # pragma: no cover
         try:
             version = getattr(_module, _attr)
         except AttributeError:

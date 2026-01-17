@@ -4,13 +4,13 @@ from typing import Iterable
 
 from nebula.auxiliaries import assert_allowed
 from nebula.base import Transformer
-from nebula.nw_util import validate_operation, get_condition, null_cond_to_false
+from nebula.nw_util import get_condition, null_cond_to_false, validate_operation
 
 __all__ = ["DropNulls", "Filter"]
 
 
 class DropNulls(Transformer):
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self,
         *,
         how: str = "any",
@@ -166,9 +166,10 @@ class Filter(Transformer):
                     - is_in/is_not_in: list, tuple, or set (cannot contain None)
                     - is_between: list or tuple of exactly 2 elements [lower, upper]
 
-            compare_col: Name of another column to compare against. Allows column-to-column
-                comparisons (e.g., sales > target). Cannot be used together with value.
-                Not supported for string operations or is_between.
+            compare_col: Name of another column to compare against. Allows
+                column-to-column comparisons (e.g., sales > target). Cannot
+                be used together with value. Not supported for string
+                operations or is_between.
 
             perform: Whether to "keep" or "remove" rows matching the condition.
                 - "keep" (default): Keep rows where condition is True, exclude others
@@ -179,8 +180,9 @@ class Filter(Transformer):
                 negation. Use perform="keep" with the opposite operator instead.
 
         Raises:
-            ValueError: If invalid operator, incompatible parameters, or double negation
-                is attempted (perform="remove" with ne/is_not_in/is_not_null/is_not_nan).
+            ValueError: If invalid operator, incompatible parameters, or
+                double negation is attempted (perform="remove" with
+                ne/is_not_in/is_not_null/is_not_nan).
             TypeError: If value has wrong type for the operator.
 
         Notes:
@@ -199,10 +201,12 @@ class Filter(Transformer):
             - These are distinct: a column can have both null and NaN values
 
             **String Operations with Nulls (Pandas Limitation):**
-            - String operations (contains, starts_with, ends_with) may fail in pandas
-              when the column contains null values, due to NumPy object dtype limitations.
+            - String operations (contains, starts_with, ends_with) may fail
+              in pandas when the column contains null values, due to NumPy
+              object dtype limitations.
             - Error: "Cannot use ignore_nulls=False in all_horizontal..."
-            - Solution: Filter out nulls first with is_not_null, then apply string operation.
+            - Solution: Filter out nulls first with is_not_null, then apply string
+              operation.
             - This is a known pandas/NumPy limitation, not a bug in Nebula.
 
             **Performance:**
@@ -239,7 +243,8 @@ class Filter(Transformer):
 
         Set membership:
             >>> # Keep active or pending users
-            >>> Filter(input_col="status", operator="is_in", value=["active", "pending"])
+            >>> Filter(input_col="status", operator="is_in",
+            >>>     value=["active", "pending"])
 
             >>> # Remove archived or deleted (keeps nulls!)
             >>> Filter(
@@ -267,7 +272,8 @@ class Filter(Transformer):
 
         Avoiding double negation:
             >>> # WRONG - double negation is confusing and disallowed:
-            >>> # Filter(input_col="status", perform="remove", operator="is_not_in", value=["active"])
+            >>> # Filter(input_col="status", perform="remove",
+            >>> #     operator="is_not_in", value=["active"])
             >>>
             >>> # CORRECT - use positive logic:
             >>> Filter(input_col="status", operator="is_in", value=["active"])

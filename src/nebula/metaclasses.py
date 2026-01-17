@@ -5,6 +5,8 @@ from copy import deepcopy
 
 
 class InitParamsStorage(type):
+    """Metaclass for storing the initialization parameters."""
+
     def __call__(cls, *args, **kwargs):
         """Store the initialization parameters."""
         try:
@@ -29,6 +31,8 @@ class InitParamsStorage(type):
 if __name__ == "__main__":  # pragma: no cover
     # Print initialization parameters stored with InitParamsStorage
     class Parent(metaclass=InitParamsStorage):
+        """Class for testing."""
+
         def __init__(self):
             """Emulate the base Transformer class."""
             self._transformer_init_params: dict = {}
@@ -39,6 +43,8 @@ if __name__ == "__main__":  # pragma: no cover
             return deepcopy(self._transformer_init_params)
 
     class Child(Parent):  # pragma: no cover
+        """Class for testing."""
+
         def __init__(self, *, my_param):
             """Emulate a generic Transformer class."""
             super().__init__()

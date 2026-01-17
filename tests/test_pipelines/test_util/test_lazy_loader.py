@@ -182,7 +182,6 @@ class TestPipelineLoaderLazyResolution:
 
     def test_deeply_nested_markers(self):
         """Markers at arbitrary depth should be converted."""
-
         params = {
             "level1": {
                 "level2": [
@@ -214,15 +213,16 @@ class TestFullLazyFlow:
     def setup_method():
         ns.clear()
 
-    def test_yaml_to_runtime_resolution(self):
-        """
+    def test_text_to_runtime_resolution(self):
+        """Ensure text loading.
+
         Simulate the full flow:
         1. YAML config with __ns__ markers
         2. Converted to (ns, key) tuples by pipeline_loader
         3. Resolved to actual values by LazyWrapper at transform time
         """
-        # Step 1: Simulate YAML config
-        yaml_params = {
+        # Step 1: Simulate YAML/JSON config
+        params = {
             "data": [
                 {"alias": "static_col", "value": "hello"},
                 {"alias": "dynamic_col", "value": "__ns__runtime_value"},
@@ -230,7 +230,7 @@ class TestFullLazyFlow:
         }
 
         # Step 2: Pipeline loader converts markers to tuples
-        loader_result = extract_lazy_params_text(yaml_params)
+        loader_result = extract_lazy_params_text(params)
 
         # Verify intermediate state
         assert loader_result["data"][1]["value"] == (ns, "runtime_value")
@@ -250,8 +250,7 @@ class TestFullLazyFlow:
         }
 
     def test_add_literals_use_case(self):
-        """
-        Test the specific AddLiterals use case that motivated this change.
+        """Test the specific AddLiterals use case that motivated this change.
 
         YAML:
         - transformer: "AddLiterals"

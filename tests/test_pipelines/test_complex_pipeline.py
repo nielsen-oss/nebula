@@ -4,14 +4,15 @@ import narwhals as nw
 import polars as pl
 import pytest
 
+from nebula import TransformerPipeline
 from nebula.base import Transformer
 from nebula.nw_util import null_cond_to_false
 from nebula.pipelines.pipeline_loader import load_pipeline
-from nebula import TransformerPipeline
 from nebula.storage import nebula_storage as ns
 from nebula.transformers import *
-from .auxiliaries import *
+
 from ..auxiliaries import pl_assert_equal
+from .auxiliaries import *
 
 _TRANSFORMERS = [Distinct()]
 _INTERLEAVED = [AssertNotEmpty()]
@@ -80,8 +81,8 @@ def _get_df_exp(df_input, trf_hi):
         if isinstance(t, Transformer):  # skip the storage request
             df_hi = t.transform(df_hi)
 
-    # Store the partial dataframe as requested before applying _APPLY_BEFORE_APPENDING
-    df_hi = df_hi
+    # Store the partial dataframe as requested before applying
+    # _APPLY_BEFORE_APPENDING
     df_hi_stored = df_hi
 
     for t in [_APPLY_BEFORE_APPENDING]:

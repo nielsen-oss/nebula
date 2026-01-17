@@ -28,19 +28,19 @@ from __future__ import annotations
 from typing import Any, Callable, Iterable, Union
 
 from nebula.auxiliaries import assert_at_most_one_args
-from nebula.base import Transformer, LazyWrapper
+from nebula.base import LazyWrapper, Transformer
 from nebula.pipelines._checks import *
 from nebula.pipelines.execution import (
+    LoggingHooks,
+    NoOpHooks,
     PipelineExecutor,
     PipelineHooks,
-    NoOpHooks,
-    LoggingHooks,
 )
 from nebula.pipelines.ir import IRBuilder, SequenceNode
 from nebula.pipelines.pipe_aux import (
+    PIPELINE_KEYWORDS,
     is_keyword_request,
     is_split_pipeline,
-    PIPELINE_KEYWORDS,
 )
 from nebula.pipelines.pipe_cfg import PIPE_CFG
 from nebula.pipelines.visualization import PipelinePrinter
@@ -107,7 +107,7 @@ class TransformerPipeline:
         )
     """
 
-    def __init__(
+    def __init__(  # noqa: PLR0912, PLR0913
         self,
         data: PipeType | dict[str, PipeType],
         *,
@@ -182,7 +182,7 @@ class TransformerPipeline:
                 If provided, 'split_order' must contain exactly the same keys
                 listed in 'data', otherwise it throws a 'KeyError'.
                 Defaults to None.
-            interleaved (Transformer | list(Transformer) | None)
+            interleaved (Transformer | list(Transformer) | None):
                 If specified, you can provide a Transformer or a list of
                 pre-initialized Transformers. These transformers will be
                 inserted between each of the primary transformers.
@@ -205,7 +205,7 @@ class TransformerPipeline:
                 executing the single split pipeline.
                 Ignored when it is a linear pipeline.
                 Defaults to None.
-            split_apply_before_appending (Transformer | list(Transformer) | None)
+            split_apply_before_appending (Transformer | list(Transformer) | None):
                 A pipeline to be applied after each split, before re-merging
                 them back. Ignored when it is a linear pipeline.
                 Defaults to None.
@@ -270,7 +270,7 @@ class TransformerPipeline:
                         "left_on": ...,
                         "how": ...,
                         "suffix": ...,  (for polars / narwhals)
-                        "broadcast" (bool | None): for end="join" only with spark backend
+                        "broadcast" (bool | None): for end="join" & spark backend
                     }:
                     the dataframe will be joined to the primary one using the
                     provided 'on' and 'how' parameters.
@@ -311,8 +311,8 @@ class TransformerPipeline:
                     - "ge":             greater equal
                     - "gt":             greater than
                     - "isin":           iterable of valid values
-                    - "array_contains": has at least one instance of <value> in an array column
-                    - "contains":       has at least one instance of <value> in a string column
+                    - "array_contains": has at least one <value> in an array column
+                    - "contains":       has at least one <value> in a string column
                     - "startswith":     The row value starts with <value> in a string column
                     - "endswith":       The row value ends with <value> in a string column
                     - "between":        is between 2 values, lower and upper bound inclusive
@@ -372,16 +372,12 @@ class TransformerPipeline:
 
         if split_function is not None:
             if not callable(split_function):
-                raise TypeError(
-                    "If provided, the 'split_function' must be "
-                    f"a callable, found {type(split_function)}"
-                )
+                raise TypeError(f"If provided, the 'split_function' must be a callable, found {type(split_function)}")
 
         if is_split_pipeline(data, split_function):
             if not callable(split_function):  # pragma: no cover
                 raise TypeError(
-                    "For split-pipelines, the 'split_function' "
-                    f"must be callable, found {type(split_function)}"
+                    f"For split-pipelines, the 'split_function' must be callable, found {type(split_function)}"
                 )
 
             ensure_no_branch_or_apply_to_rows_in_split_pipeline(branch, apply_to_rows)
@@ -390,22 +386,17 @@ class TransformerPipeline:
                 assert_split_order(data, split_order)
 
             # Normalize splits_no_merge and splits_skip_if_empty to sets
-            splits_no_merge = set_split_options(
-                data, splits_no_merge, "splits_no_merge"
-            )
-            splits_skip_if_empty = set_split_options(
-                data, splits_skip_if_empty, "splits_skip_if_empty"
-            )
+            splits_no_merge = set_split_options(data, splits_no_merge, "splits_no_merge")
+            splits_skip_if_empty = set_split_options(data, splits_skip_if_empty, "splits_skip_if_empty")
 
-        else:
-            if isinstance(data, dict) and not is_keyword_request(data):
-                raise ValueError(
-                    "Unknown input, For split-pipelines the "
-                    "number of splits must be > 1, found "
-                    f"{len(data)}, key-word operations the dictionary "
-                    "must be single key-value pair with a valid key"
-                    f"{PIPELINE_KEYWORDS}"
-                )
+        elif isinstance(data, dict) and not is_keyword_request(data):
+            raise ValueError(
+                "Unknown input, For split-pipelines the "
+                "number of splits must be > 1, found "
+                f"{len(data)}, key-word operations the dictionary "
+                "must be single key-value pair with a valid key"
+                f"{PIPELINE_KEYWORDS}"
+            )
 
         self.name = name
 
@@ -507,9 +498,7 @@ class TransformerPipeline:
         """
         # Default to logging hooks for backward compatibility
         if hooks is None:
-            hooks = LoggingHooks(
-                max_param_length=PIPE_CFG["max_param_length"], show_params=show_params
-            )
+            hooks = LoggingHooks(max_param_length=PIPE_CFG["max_param_length"], show_params=show_params)
 
         executor = PipelineExecutor(
             ir=self._ir,
@@ -554,9 +543,7 @@ class TransformerPipeline:
         Returns:
             Multi-line string representation.
         """
-        printer = PipelinePrinter(
-            self._ir, max_param_length=PIPE_CFG["max_param_length"]
-        )
+        printer = PipelinePrinter(self._ir, max_param_length=PIPE_CFG["max_param_length"])
         return printer.to_string(add_params=add_params)
 
     def plot(
@@ -579,13 +566,10 @@ class TransformerPipeline:
             dot.render('pipeline', format='png')
             dot  # Display in Jupyter
         """
-        from .visualization import GraphvizRenderer, HAS_GRAPHVIZ, HAS_PYYAML
+        from .visualization import HAS_GRAPHVIZ, HAS_PYYAML, GraphvizRenderer
 
         if (not HAS_GRAPHVIZ) or (not HAS_PYYAML):
-            raise ImportError(
-                "graphviz and pyyaml package not installed."
-                " Install with: 'pip install graphviz pyyaml'"
-            )
+            raise ImportError("graphviz and pyyaml package not installed. Install with: 'pip install graphviz pyyaml'")
 
         renderer = GraphvizRenderer(self._ir)
 
@@ -616,8 +600,9 @@ class TransformerPipeline:
 
 
 def _example_flat_pipeline():  # pragma: no cover
-    from nebula.transformers import SelectColumns
     import polars as pl
+
+    from nebula.transformers import SelectColumns
 
     def my_function(_df):
         print(f"my function print -> this is a: {type(_df)}")

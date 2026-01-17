@@ -12,6 +12,7 @@ from nebula.base import Transformer
 from nebula.pipelines.pipe_aux import *
 from nebula.pipelines.pipe_aux import PIPELINE_KEYWORDS
 from nebula.transformers import *
+
 from ...auxiliaries import from_pandas, to_pandas
 
 
@@ -128,10 +129,7 @@ class TestIsEligibleFunction:
 
     def test_tuple_with_args_kwargs_and_description(self):
         """A 4-tuple (func, args, kwargs, desc) should be eligible."""
-        assert (
-            is_eligible_function((function_with_args, [1, 2], {"c": 3}, "description"))
-            is True
-        )
+        assert is_eligible_function((function_with_args, [1, 2], {"c": 3}, "description")) is True
         assert is_eligible_function((function_with_args, [], {}, "")) is True
 
     def test_tuple_invalid_args_type(self):
@@ -174,7 +172,7 @@ class TestIsEligibleFunction:
         assert is_eligible_function({}) is False
 
     def test_transformer_is_not_eligible_function(self):
-        """Transformers should not be eligible as functions (use is_eligible_transformer)."""
+        """Transformers should not be eligible as functions. (use is_eligible_transformer)."""
         trf = DummyTransformer()
         result = is_eligible_function(trf)
         assert result is False
@@ -384,13 +382,9 @@ class TestToSchema:
 
     @pytest.fixture(scope="class", name="list_dfs")
     def _get_list_dfs(self) -> list[pd.DataFrame]:
-        df1 = pd.DataFrame(
-            {"id": [1, 2, 3], "value": [10.5, 20.5, 30.5], "name": ["a", "b", "c"]}
-        )
+        df1 = pd.DataFrame({"id": [1, 2, 3], "value": [10.5, 20.5, 30.5], "name": ["a", "b", "c"]})
 
-        df2 = pd.DataFrame(
-            {"id": [1, 2, 3], "value": [10, 20, 30], "name": ["a", "b", "c"]}
-        )
+        df2 = pd.DataFrame({"id": [1, 2, 3], "value": [10, 20, 30], "name": ["a", "b", "c"]})
 
         df3 = pd.DataFrame(
             {
@@ -418,9 +412,7 @@ class TestToSchema:
         dataframes = list_dfs[:n]
         expected = [i.astype(dtypes) for i in dataframes]
 
-        dataframes = [
-            from_pandas(i, backend, to_nw=False, spark=None) for i in dataframes
-        ]
+        dataframes = [from_pandas(i, backend, to_nw=False, spark=None) for i in dataframes]
 
         if to_nw == 1:
             dataframes[1] = nw.from_native(dataframes[1])
@@ -541,11 +533,7 @@ class TestSanitizeSteps:
 
     def test_flat_list_of_keyword_requests(self):
         """A flat list of keyword requests should be returned as-is."""
-        keywords = (
-            list(PIPELINE_KEYWORDS)[:2]
-            if len(PIPELINE_KEYWORDS) >= 2
-            else list(PIPELINE_KEYWORDS)
-        )
+        keywords = list(PIPELINE_KEYWORDS)[:2] if len(PIPELINE_KEYWORDS) >= 2 else list(PIPELINE_KEYWORDS)
         requests = [{kw: f"key_{i}"} for i, kw in enumerate(keywords)]
 
         result = sanitize_steps(requests)

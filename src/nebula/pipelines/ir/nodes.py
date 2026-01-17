@@ -17,13 +17,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum, auto
-from typing import Any, Callable, Literal, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Callable, Literal
 
 from nebula.auxiliaries import truncate_long_string
 from nebula.pipelines.pipe_aux import get_transformer_name
 
 if TYPE_CHECKING:  # pragma: no cover
-    from nebula.base import Transformer, LazyWrapper
+    from nebula.base import LazyWrapper, Transformer
 
 __all__ = [
     "NodeType",
@@ -92,7 +92,7 @@ class InputNode(PipelineNode):
 
     name: str = "DF input"
 
-    def __post_init__(self):
+    def __post_init__(self):  # noqa: D105
         self.node_type = NodeType.INPUT
         if not self.metadata.get("name"):
             self.metadata["name"] = self.name
@@ -104,7 +104,7 @@ class OutputNode(PipelineNode):
 
     name: str = "DF output"
 
-    def __post_init__(self):
+    def __post_init__(self):  # noqa: D105
         self.node_type = NodeType.OUTPUT
         if not self.metadata.get("name"):
             self.metadata["name"] = self.name
@@ -124,6 +124,7 @@ class TransformerNode(PipelineNode):
     params_for_print: str | None = None
 
     def __post_init__(self):
+        """Add the description to the transformer."""
         self.node_type = NodeType.TRANSFORMER
         if self.description:
             self.metadata["description"] = self.description
@@ -139,10 +140,9 @@ class TransformerNode(PipelineNode):
         return self.transformer.__class__.__name__
 
     def get_params_for_print(self, max_param_length: int):
+        """Get the params for print to terminal."""
         if self.params_for_print is None:
-            self.params_for_print = get_transformer_name(
-                self.transformer, add_params=True, max_len=max_param_length
-            )
+            self.params_for_print = get_transformer_name(self.transformer, add_params=True, max_len=max_param_length)
         return self.params_for_print
 
 
@@ -168,7 +168,7 @@ class FunctionNode(PipelineNode):
     description: str | None = None
     params_for_print: str | None = None
 
-    def __post_init__(self):
+    def __post_init__(self):  # noqa: D105
         self.node_type = NodeType.FUNCTION
 
     @property
@@ -179,6 +179,7 @@ class FunctionNode(PipelineNode):
         return getattr(self.func, "__name__", str(self.func))
 
     def get_params_for_print(self, max_param_length: int):
+        """Get the params to print to terminal."""
         if self.params_for_print is None:
             params_parts = []
             if self.args:
@@ -210,7 +211,7 @@ class StorageNode(PipelineNode):
     key: str = ""
     debug_value: bool | None = None
 
-    def __post_init__(self):
+    def __post_init__(self):  # noqa: D105
         self.node_type = NodeType.STORAGE
 
     @property
@@ -251,7 +252,7 @@ class ForkNode(PipelineNode):
     otherwise: list[PipelineNode] | None = None
     split_function: Callable | None = None
 
-    def __post_init__(self):
+    def __post_init__(self):  # noqa: D105
         self.node_type = NodeType.FORK
 
 
@@ -272,7 +273,7 @@ class MergeNode(PipelineNode):
     merge_type: Literal["append", "join", "dead-end"] = "append"
     config: dict[str, Any] = field(default_factory=dict)
 
-    def __post_init__(self):
+    def __post_init__(self):  # noqa: D105
         self.node_type = NodeType.MERGE
 
 
@@ -291,7 +292,7 @@ class SequenceNode(PipelineNode):
     steps: list[PipelineNode] = field(default_factory=list)
     name: str | None = None
 
-    def __post_init__(self):
+    def __post_init__(self):  # noqa: D105
         self.node_type = NodeType.SEQUENCE
         # Steps are also children for uniform traversal
         self.children = self.steps

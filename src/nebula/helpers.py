@@ -26,9 +26,7 @@ def __all_elements_are_hashable(s: pd.Series) -> None:
         raise AssertionError(f"Column {name} contains not hashable elements")
 
 
-def _get_cols_to_json(
-    df, deep: bool
-) -> tuple[list[str], list[str], list[str], list[str]]:
+def _get_cols_to_json(df, deep: bool) -> tuple[list[str], list[str], list[str], list[str]]:
     """Get 4 lists indicating which columns must be dumped to JSON."""
     ret_dict: list[str] = []  # dictionaries
     ret_list: list[str] = []  # lists
@@ -98,11 +96,7 @@ def __ar_to_orjson(s: pd.Series) -> pd.Series:
 
 def __ar_to_orjson_serialized(s: pd.Series) -> pd.Series:
     # Do not sort it
-    return s.apply(
-        lambda x: b"null"
-        if x is None
-        else orjson.dumps(x, option=orjson.OPT_SERIALIZE_NUMPY)
-    )
+    return s.apply(lambda x: b"null" if x is None else orjson.dumps(x, option=orjson.OPT_SERIALIZE_NUMPY))
 
 
 def _hash_df(
@@ -207,9 +201,7 @@ def assert_pandas_df_equal(
     if set(df1.columns) != set(df2.columns):
         raise AssertionError("Different columns")
 
-    dict_to_json, list_to_json, set_to_json, ar_to_json = _get_cols_to_json(
-        df1, assert_not_deep
-    )
+    dict_to_json, list_to_json, set_to_json, ar_to_json = _get_cols_to_json(df1, assert_not_deep)
 
     sorted_cols = df1.columns.tolist()
     ar_1 = _hash_df(
@@ -278,9 +270,7 @@ def hash_complex_type_pandas_dataframe(
     Returns (np.ndarray):
         1-d int64 array containing the hashes
     """
-    dict_to_json, list_to_json, set_to_json, ar_to_json = _get_cols_to_json(
-        df, assert_not_deep
-    )
+    dict_to_json, list_to_json, set_to_json, ar_to_json = _get_cols_to_json(df, assert_not_deep)
     return _hash_df(
         df,
         dict_to_json,

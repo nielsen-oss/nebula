@@ -11,7 +11,7 @@ Dependencies:
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Iterable, Any
+from typing import TYPE_CHECKING, Any, Iterable
 
 from nebula.auxiliaries import split_string_in_chunks
 from nebula.pipelines.pipe_aux import get_transformer_name
@@ -34,15 +34,15 @@ except ImportError:  # pragma: no cover
 
 if TYPE_CHECKING:
     from ..ir.nodes import (
+        ForkNode,
+        FunctionNode,
+        InputNode,
+        MergeNode,
+        OutputNode,
         PipelineNode,
         SequenceNode,
-        TransformerNode,
-        FunctionNode,
         StorageNode,
-        ForkNode,
-        MergeNode,
-        InputNode,
-        OutputNode,
+        TransformerNode,
     )
 
 __all__ = ["HAS_GRAPHVIZ", "HAS_PYYAML", "GraphvizRenderer", "render_pipeline"]
@@ -228,9 +228,7 @@ class GraphvizRenderer:  # pragma: no cover
             max_param_length: Max length for parameter strings (-1 = no limit).
         """
         if not HAS_GRAPHVIZ:
-            raise ImportError(
-                "graphviz package not installed. Install with: pip install graphviz"
-            )
+            raise ImportError("graphviz package not installed. Install with: pip install graphviz")
 
         self.ir = ir
         self.max_param_length = max_param_length
@@ -270,7 +268,7 @@ class GraphvizRenderer:  # pragma: no cover
             self._node_counter += 1
         return self._node_ids[ir_node_id]
 
-    def _render_node(
+    def _render_node(  # noqa: PLR0911
         self,
         node: "PipelineNode",
         dot: "Digraph",
@@ -280,34 +278,26 @@ class GraphvizRenderer:  # pragma: no cover
     ) -> str | None:
         """Render a node and return its graphviz node name."""
         from ..ir.nodes import (
-            SequenceNode,
-            TransformerNode,
-            FunctionNode,
-            StorageNode,
             ForkNode,
-            MergeNode,
+            FunctionNode,
             InputNode,
+            MergeNode,
             OutputNode,
+            SequenceNode,
+            StorageNode,
+            TransformerNode,
         )
 
         if isinstance(node, SequenceNode):
-            return self._render_sequence(
-                node, dot, add_params, add_description, parent_gv_name
-            )
+            return self._render_sequence(node, dot, add_params, add_description, parent_gv_name)
         elif isinstance(node, TransformerNode):
-            return self._render_transformer(
-                node, dot, add_params, add_description, parent_gv_name
-            )
+            return self._render_transformer(node, dot, add_params, add_description, parent_gv_name)
         elif isinstance(node, FunctionNode):
-            return self._render_function(
-                node, dot, add_params, add_description, parent_gv_name
-            )
+            return self._render_function(node, dot, add_params, add_description, parent_gv_name)
         elif isinstance(node, StorageNode):
             return self._render_storage(node, dot, parent_gv_name)
         elif isinstance(node, ForkNode):
-            return self._render_fork(
-                node, dot, add_params, add_description, parent_gv_name
-            )
+            return self._render_fork(node, dot, add_params, add_description, parent_gv_name)
         elif isinstance(node, MergeNode):
             return self._render_merge(node, dot, add_params)
         elif isinstance(node, InputNode):
@@ -348,9 +338,7 @@ class GraphvizRenderer:  # pragma: no cover
         last_gv_name = parent_gv_name
 
         for step in node.steps:
-            last_gv_name = self._render_node(
-                step, dot, add_params, add_description, last_gv_name
-            )
+            last_gv_name = self._render_node(step, dot, add_params, add_description, last_gv_name)
 
         return last_gv_name
 
@@ -367,9 +355,7 @@ class GraphvizRenderer:  # pragma: no cover
 
         params = None
         if add_params:
-            params = get_transformer_name(
-                node.transformer, add_params=True, as_list=True, max_len=-1
-            )
+            params = get_transformer_name(node.transformer, add_params=True, as_list=True, max_len=-1)
             if params:
                 params = _transformer_params_to_yaml_format(params)
 
@@ -397,9 +383,7 @@ class GraphvizRenderer:  # pragma: no cover
         bold: bool = add_params or add_description
         if add_params and (node.args or node.kwargs):
             params = _function_params_to_yaml_format(node.args, node.kwargs)
-            label = self._build_html_label(
-                name, params=params, description=node.description
-            )
+            label = self._build_html_label(name, params=params, description=node.description)
         else:
             label = f"<<B>{name}</B>>" if bold else name
         return self._add_node(dot, node, label, "function", parent_gv_name)
@@ -425,7 +409,7 @@ class GraphvizRenderer:  # pragma: no cover
 
         return self._add_node(dot, node, label, style_key, parent_gv_name)
 
-    def _render_fork(
+    def _render_fork(  # noqa: PLR0912
         self,
         node: "ForkNode",
         dot: "Digraph",
@@ -471,9 +455,7 @@ class GraphvizRenderer:  # pragma: no cover
             # Render branch steps
             last_gv_name = branch_label_gv
             for step in branch_steps:
-                last_gv_name = self._render_node(
-                    step, dot, add_params, add_description, last_gv_name
-                )
+                last_gv_name = self._render_node(step, dot, add_params, add_description, last_gv_name)
 
             if last_gv_name:
                 branch_end_names.append(last_gv_name)
@@ -486,9 +468,7 @@ class GraphvizRenderer:  # pragma: no cover
 
             last_gv_name = otherwise_label_gv
             for step in node.otherwise:
-                last_gv_name = self._render_node(
-                    step, dot, add_params, add_description, last_gv_name
-                )
+                last_gv_name = self._render_node(step, dot, add_params, add_description, last_gv_name)
 
             if last_gv_name:
                 branch_end_names.append(last_gv_name)
@@ -611,9 +591,8 @@ class GraphvizRenderer:  # pragma: no cover
 
         if description:
             parts.append(f"<br/>{self._get_description(description)}")
-        else:
-            if params:
-                parts.append("<br/>")
+        elif params:
+            parts.append("<br/>")
 
         if params:
             parts.append(params)

@@ -10,8 +10,9 @@ from pyspark.sql.types import DoubleType, StringType, StructField, StructType
 from nebula import TransformerPipeline
 from nebula.storage import nebula_storage as ns
 from nebula.transformers import AddLiterals, AssertNotEmpty, Cast
-from .auxiliaries import *
+
 from ..auxiliaries import pl_assert_equal
+from .auxiliaries import *
 
 _nan = float("nan")
 
@@ -182,9 +183,7 @@ class TestSplitPipeline:
         df_exp = pl.concat([df_low, df_hi], how="diagonal")
         pl_assert_equal(df_chk.sort(df_chk.columns), df_exp.sort(df_exp.columns))
 
-    @pytest.mark.parametrize(
-        "splits_skip_if_empty", [None, "hi", {"hi"}, {"hi", "low"}]
-    )
+    @pytest.mark.parametrize("splits_skip_if_empty", [None, "hi", {"hi"}, {"hi", "low"}])
     def test_skip_if_empty(self, df_input: pl.DataFrame, splits_skip_if_empty):
         """Test with splits_skip_if_empty argument."""
 
@@ -235,9 +234,7 @@ class TestSplitPipeline:
         pipe.show(add_params=True)
         df_chk = pipe.run(df_input)
 
-        df_exp = df_input.filter(
-            pl.col("c1").is_not_null() & pl.col("c1").is_not_nan()
-        ).unique()
+        df_exp = df_input.filter(pl.col("c1").is_not_null() & pl.col("c1").is_not_nan()).unique()
 
         if interleaved:
             n_chk = ns.get("_call_me_")
@@ -285,9 +282,7 @@ class TestSplitPipelineApplyTransformerBeforeAndAfter:
 
         # The expected result is distinct rows from the splits
         split_dfs = _split_function(df_input)
-        df_exp = pl.concat(
-            [split_dfs["low"].unique(), split_dfs["hi"].unique()], how="diagonal"
-        )
+        df_exp = pl.concat([split_dfs["low"].unique(), split_dfs["hi"].unique()], how="diagonal")
         pl_assert_equal(df_chk.sort(df_chk.columns), df_exp.sort(df_exp.columns))
 
     @pytest.mark.parametrize(
@@ -334,14 +329,10 @@ class TestSplitPipelineDeadEnd:
 
         pipe.show(add_params=True)
         df_chk = pipe.run(df_input)
-        df_exp = df_input.filter(
-            (pl.col("c1") < 10) | pl.col("c1").is_null() | pl.col("c1").is_nan()
-        )
+        df_exp = df_input.filter((pl.col("c1") < 10) | pl.col("c1").is_null() | pl.col("c1").is_nan())
         pl_assert_equal(df_chk, df_exp, ["c1"])
 
-    @pytest.mark.parametrize(
-        "splits_no_merge", [["hi"], ["hi", "null"], ["low", "hi", "null"]]
-    )
+    @pytest.mark.parametrize("splits_no_merge", [["hi"], ["hi", "null"], ["low", "hi", "null"]])
     def test_dead_end(self, df_input: pl.DataFrame, splits_no_merge: list):
         """Test with 'splits_no_merge'."""
         ns.clear()
@@ -374,9 +365,7 @@ class TestSplitPipelineDeadEnd:
         li_exp_df = [full_splits[k] for k in list_splits_to_merge]
         if li_exp_df:
             df_out_exp = pl.concat(li_exp_df, how="diagonal")
-            pl_assert_equal(
-                df_out.sort(df_out.columns), df_out_exp.sort(df_out_exp.columns)
-            )
+            pl_assert_equal(df_out.sort(df_out.columns), df_out_exp.sort(df_out_exp.columns))
 
         # Check the dead-end splits that are stored in nebula storage.
         for dead_end_split in splits_no_merge:

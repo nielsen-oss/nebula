@@ -101,7 +101,7 @@ def _get_merge_content(merge_type: str, config: dict) -> str:
     return f"merge:{merge_type}:{config_str}"
 
 
-def generate_node_id(
+def generate_node_id(  # noqa: PLR0913
     node_type: str,
     position: tuple[int | str, ...],
     *,
@@ -196,32 +196,26 @@ def assign_ids_to_tree(root: "PipelineNode") -> None:
     _assign_ids_recursive(root, ())
 
 
-def _assign_ids_recursive(
-    node: "PipelineNode", position: tuple[int | str, ...]
-) -> None:
+def _assign_ids_recursive(node: "PipelineNode", position: tuple[int | str, ...]) -> None:
     """Recursively assign IDs based on position."""
     from .nodes import (
-        TransformerNode,
-        FunctionNode,
-        StorageNode,
         ForkNode,
-        MergeNode,
-        SequenceNode,
+        FunctionNode,
         InputNode,
+        MergeNode,
         OutputNode,
+        SequenceNode,
+        StorageNode,
+        TransformerNode,
     )
 
     node.position = position
 
     # Generate ID based on node type
     if isinstance(node, TransformerNode):
-        node.id = generate_node_id(
-            "transformer", position, transformer=node.transformer
-        )
+        node.id = generate_node_id("transformer", position, transformer=node.transformer)
     elif isinstance(node, FunctionNode):
-        node.id = generate_node_id(
-            "function", position, func=node.func, args=node.args, kwargs=node.kwargs
-        )
+        node.id = generate_node_id("function", position, func=node.func, args=node.args, kwargs=node.kwargs)
     elif isinstance(node, StorageNode):
         node.id = generate_node_id(
             "storage",
@@ -231,9 +225,7 @@ def _assign_ids_recursive(
             debug_value=node.debug_value,
         )
     elif isinstance(node, ForkNode):
-        node.id = generate_node_id(
-            "fork", position, fork_type=node.fork_type, config=node.config
-        )
+        node.id = generate_node_id("fork", position, fork_type=node.fork_type, config=node.config)
         # Process branches
         for branch_name, branch_nodes in node.branches.items():
             for i, child in enumerate(branch_nodes):
@@ -247,9 +239,7 @@ def _assign_ids_recursive(
         return  # Don't process children normally for ForkNode
 
     elif isinstance(node, MergeNode):
-        node.id = generate_node_id(
-            "merge", position, merge_type=node.merge_type, config=node.config
-        )
+        node.id = generate_node_id("merge", position, merge_type=node.merge_type, config=node.config)
     elif isinstance(node, SequenceNode):
         node.id = generate_node_id("sequence", position, name=node.name)
     elif isinstance(node, InputNode):

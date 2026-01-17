@@ -13,8 +13,9 @@ from nebula.base import Transformer
 from nebula.pipelines.exceptions import raise_pipeline_error
 from nebula.spark_util import get_spark_session
 from nebula.transformers import *
-from .auxiliaries import *
+
 from ..auxiliaries import pl_assert_equal
+from .auxiliaries import *
 
 _MSG = "this custom message"
 

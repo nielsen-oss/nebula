@@ -51,9 +51,7 @@ class TestCastToSchema:
         ]
         return spark.createDataFrame(data, schema=self.schema_orig)
 
-    @pytest.mark.parametrize(
-        "schema, collect", [(schema_orig, False), (schema_cast, False)]
-    )
+    @pytest.mark.parametrize("schema, collect", [(schema_orig, False), (schema_cast, False)])
     def test_cast_to_schema_shuffle_columns(self, df_input, schema, collect: bool):
         """Test the 'cast_to_schema' function with shuffled columns."""
         df = df_input.select("col_array", "col_string", "col_map")
@@ -154,9 +152,7 @@ class TestCompareDFs:
         data2 = [("Alice", 1), ("Charlie", 3)]  # Alice matches, Bob/David vs Charlie
         df2 = spark.createDataFrame(data2, columns)
 
-        df1_diff, df2_diff = compare_dfs(
-            df1, df2, raise_if_row_number_mismatch=False, return_mismatched_rows=True
-        )
+        df1_diff, df2_diff = compare_dfs(df1, df2, raise_if_row_number_mismatch=False, return_mismatched_rows=True)
 
         # Check df1_diff: should contain rows ("Bob", 2), ("David", 4)
         assert df1_diff is not None
@@ -164,9 +160,7 @@ class TestCompareDFs:
         df1_diff_pd = df1_diff.toPandas().sort_values("name").reset_index(drop=True)
         assert df1_diff_pd.shape[0] == 2
 
-        df1_diff_exp = pd.DataFrame(
-            [{"name": "Bob", "age": 2}, {"name": "David", "age": 4}]
-        )
+        df1_diff_exp = pd.DataFrame([{"name": "Bob", "age": 2}, {"name": "David", "age": 4}])
         pd.testing.assert_frame_equal(df1_diff_pd, df1_diff_exp)
 
         # Check df2_diff: should contain row ("Charlie", 3)
@@ -184,9 +178,7 @@ class TestCompareDFs:
         df2 = spark.createDataFrame(data2, ["name", "age", "country"])
 
         columns_to_compare = ["name", "age"]
-        df1_diff, df2_diff = compare_dfs(
-            df1, df2, columns=columns_to_compare, return_mismatched_rows=True
-        )
+        df1_diff, df2_diff = compare_dfs(df1, df2, columns=columns_to_compare, return_mismatched_rows=True)
 
         # Check df1_diff: should contain row ("Bob", 2) based on name/age columns
         assert df1_diff is not None
@@ -324,9 +316,7 @@ class TestFunctionHashDataFrame:
     def test_hash_dataframe(df_input, hash_name):
         """Test with different hash types."""
         df1 = hash_dataframe(df_input, hash_name, new_col="hashed")
-        df2 = hash_dataframe(
-            df_input.repartition(20).sort("c1"), hash_name, new_col="hashed"
-        )
+        df2 = hash_dataframe(df_input.repartition(20).sort("c1"), hash_name, new_col="hashed")
 
         assert_df_equality(
             df1,
@@ -341,9 +331,7 @@ class TestFunctionHashDataFrame:
         """Test with 'return_func' True."""
         hashed_col = hash_dataframe(df_input, "md5", return_func=True)
         df1 = df_input.withColumn("hashed", hashed_col)
-        df2 = hash_dataframe(
-            df_input.repartition(20).sort("c1"), "md5", new_col="hashed"
-        )
+        df2 = hash_dataframe(df_input.repartition(20).sort("c1"), "md5", new_col="hashed")
 
         assert_df_equality(
             df1,

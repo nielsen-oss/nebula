@@ -1,12 +1,12 @@
 """Generic transformers."""
 
 import operator as py_operator
-from typing import Callable, Any
+from typing import Any, Callable
 
 import narwhals as nw
 
 from nebula.base import Transformer
-from nebula.nw_util import validate_operation, get_condition
+from nebula.nw_util import get_condition, validate_operation
 from nebula.transformers._constants import NW_TYPES
 
 __all__ = ["MathOperator", "When"]
@@ -100,9 +100,7 @@ class MathOperator(Transformer):
         if isinstance(strategy, dict):
             strategy = [strategy]
         elif not isinstance(strategy, (list, tuple)):
-            raise TypeError(
-                f'"strategy" must be dict or list, found {type(strategy).__name__}'
-            )
+            raise TypeError(f'"strategy" must be dict or list, found {type(strategy).__name__}')
 
         super().__init__()
         self._strategy: list[dict] = strategy
@@ -129,9 +127,7 @@ class MathOperator(Transformer):
         """
         dtype_lower = dtype_str.lower()
         if dtype_lower not in NW_TYPES:
-            raise ValueError(
-                f"Unknown type '{dtype_str}'. Must be one of: {sorted(NW_TYPES.keys())}"
-            )
+            raise ValueError(f"Unknown type '{dtype_str}'. Must be one of: {sorted(NW_TYPES.keys())}")
         return NW_TYPES[dtype_lower]
 
     def _get_constant_or_col(self, operand: dict):
@@ -146,20 +142,16 @@ class MathOperator(Transformer):
         Raises:
             ValueError: If operand dict structure is invalid
         """
-        if len(operand) > 2:
+        if len(operand) > 2:  # noqa: PLR2004
             raise ValueError(
-                f"Operand dict can have at most 2 keys (column/constant + cast), "
-                f"found {len(operand)}: {operand}"
+                f"Operand dict can have at most 2 keys (column/constant + cast), found {len(operand)}: {operand}"
             )
 
         has_col = "column" in operand
         has_const = "constant" in operand
 
         if has_col == has_const:  # Both True or both False
-            raise ValueError(
-                f"Must specify exactly one of 'column' or 'constant'. "
-                f"Found keys: {list(operand.keys())}"
-            )
+            raise ValueError(f"Must specify exactly one of 'column' or 'constant'. Found keys: {list(operand.keys())}")
 
         # Create base expression
         if has_col:
@@ -187,10 +179,7 @@ class MathOperator(Transformer):
             ValueError: If operator name is not recognized
         """
         if op_name not in self._operators_map:
-            raise ValueError(
-                f"Operator must be one of {set(self._operators_map.keys())}, "
-                f"found '{op_name}'"
-            )
+            raise ValueError(f"Operator must be one of {set(self._operators_map.keys())}, found '{op_name}'")
         return self._operators_map[op_name]
 
     def _build_expression(self, strat_dict: dict):
@@ -299,11 +288,13 @@ class When(Transformer):
                 Cannot be used with otherwise_constant. If both are provided,
                 otherwise_col takes precedence.
 
-            cast_output: Cast the output column to this dtype (e.g., "Int64", "Float64",
-                "String"). Applied to all outputs (condition outputs and otherwise value).
+            cast_output: Cast the output column to this dtype (e.g., "Int64",
+                "Float64", "String"). Applied to all outputs (condition
+                outputs and otherwise value).
 
         Raises:
-            ValueError: If conditions have invalid operators or parameter combinations.
+            ValueError: If conditions have invalid operators or parameter
+                combinations.
             TypeError: If condition values have wrong types.
 
         Notes:
@@ -430,15 +421,11 @@ class When(Transformer):
             has_output_col = "output_col" in cond or "output_column" in cond
 
             if not (has_output_constant or has_output_col):
-                raise ValueError(
-                    f"Condition {i} must specify either 'output_constant' or 'output_col'"
-                )
+                raise ValueError(f"Condition {i} must specify either 'output_constant' or 'output_col'")
 
         # Validate otherwise clause
         if otherwise_constant is None and otherwise_col is None:
-            raise ValueError(
-                "Must specify either 'otherwise_constant' or 'otherwise_col'"
-            )
+            raise ValueError("Must specify either 'otherwise_constant' or 'otherwise_col'")
 
         self._output_col: str = output_col
         self._conditions = conditions
@@ -453,7 +440,6 @@ class When(Transformer):
         We build from the inside out (reversed conditions) so that the
         first condition in the list is evaluated first.
         """
-
         # Start with the otherwise clause (innermost)
         if self._otherwise_col:
             result_expr = nw.col(self._otherwise_col)

@@ -8,6 +8,7 @@ import polars as pl
 import pytest
 
 from nebula.transformers import *
+
 from ..auxiliaries import from_pandas, to_pandas
 from ..constants import TEST_BACKENDS
 
@@ -37,9 +38,7 @@ class TestGroupBy:
     def test_multiple_groupby_selections_disallowed(self, df_input):
         """Test that only one groupby selection method can be used."""
         with pytest.raises(AssertionError):
-            GroupBy(
-                aggregations={"sum": ["c1"]}, groupby_columns="c0", groupby_regex="^c"
-            )
+            GroupBy(aggregations={"sum": ["c1"]}, groupby_columns="c0", groupby_regex="^c")
 
     @staticmethod
     @pytest.fixture(scope="class")
@@ -81,9 +80,7 @@ class TestGroupBy:
         ],
     )
     @pytest.mark.parametrize("groupby_cols", [["c2"], ["c1", "c2"]])
-    def test_multiple_aggregations(
-        self, spark, backend, to_nw, df_input, aggregations, groupby_cols
-    ):
+    def test_multiple_aggregations(self, spark, backend, to_nw, df_input, aggregations, groupby_cols):
         """Test multiple aggregations with and without aliases."""
         t = GroupBy(aggregations=aggregations, groupby_columns=groupby_cols)
         df_result = t.transform(from_pandas(df_input, backend, to_nw, spark=spark))
@@ -104,27 +101,21 @@ class TestGroupBy:
     @pytest.mark.parametrize("backend", TEST_BACKENDS)
     @pytest.mark.parametrize("to_nw", [True, False])
     @pytest.mark.parametrize("groupby_columns", [["c1"], ["c1", "c2"]])
-    def test_single_dict_aggregation(
-        self, spark, backend, to_nw, df_input, groupby_columns
-    ):
+    def test_single_dict_aggregation(self, spark, backend, to_nw, df_input, groupby_columns):
         """Test a single aggregation provided as a dict."""
         aggregations = {"col": "c3", "agg": "sum", "alias": "result"}
         t = GroupBy(aggregations=aggregations, groupby_columns=groupby_columns)
         df_result = t.transform(df_input)
 
         df_nw = nw.from_native(df_input)
-        df_nw_exp = df_nw.group_by(groupby_columns).agg(
-            nw.col("c3").sum().alias("result")
-        )
+        df_nw_exp = df_nw.group_by(groupby_columns).agg(nw.col("c3").sum().alias("result"))
         self._compare(df_result, df_nw_exp)
 
     @pytest.mark.parametrize("backend", ["pandas", "polars"])
     @pytest.mark.parametrize("to_nw", [True, False])
     @pytest.mark.parametrize("prefix", ["pre_", ""])
     @pytest.mark.parametrize("suffix", ["_post", ""])
-    def test_single_aggregation_multiple_columns(
-        self, spark, backend, to_nw, df_input, prefix: str, suffix: str
-    ):
+    def test_single_aggregation_multiple_columns(self, spark, backend, to_nw, df_input, prefix: str, suffix: str):
         """Test single aggregation on multiple columns with prefix/suffix."""
         t = GroupBy(
             aggregations={"sum": ["c2", "c3"]},
@@ -135,9 +126,7 @@ class TestGroupBy:
         df_result = t.transform(from_pandas(df_input, backend, to_nw, spark=spark))
 
         df_nw = nw.from_native(df_input)
-        agg_exprs = [
-            nw.col(col).sum().alias(f"{prefix}{col}{suffix}") for col in ["c2", "c3"]
-        ]
+        agg_exprs = [nw.col(col).sum().alias(f"{prefix}{col}{suffix}") for col in ["c2", "c3"]]
         df_nw_exp = df_nw.group_by("c1").agg(agg_exprs)
         self._compare(df_result, df_nw_exp)
 
@@ -163,17 +152,13 @@ class TestGroupBy:
         df_modified = df_input.copy()
         df_modified["other"] = df_modified["c0"].copy()
 
-        t = GroupBy(
-            aggregations={"count": ["c0"]}, groupby_startswith="c", suffix="_count"
-        )
+        t = GroupBy(aggregations={"count": ["c0"]}, groupby_startswith="c", suffix="_count")
         df_result = t.transform(from_pandas(df_modified, backend, to_nw, spark=spark))
 
         # Should group by all columns starting with 'c'
         groupby_cols = [c for c in df_modified.columns if c.startswith("c")]
         df_nw = nw.from_native(df_input)
-        df_nw_exp = df_nw.group_by(groupby_cols).agg(
-            nw.col("c0").count().alias("c0_count")
-        )
+        df_nw_exp = df_nw.group_by(groupby_cols).agg(nw.col("c0").count().alias("c0_count"))
         self._compare(df_result, df_nw_exp)
 
     @pytest.mark.parametrize("backend", ["pandas", "polars"])
@@ -184,9 +169,7 @@ class TestGroupBy:
     )
     def test_various_aggregations(self, spark, backend, to_nw, df_input, agg_func):
         """Test that various common aggregation functions work."""
-        t = GroupBy(
-            aggregations={agg_func: ["c3"]}, groupby_columns="c1", suffix=f"_{agg_func}"
-        )
+        t = GroupBy(aggregations={agg_func: ["c3"]}, groupby_columns="c1", suffix=f"_{agg_func}")
         df_result = t.transform(from_pandas(df_input, backend, to_nw, spark=spark))
 
         # Just verify it runs without error and produces expected column

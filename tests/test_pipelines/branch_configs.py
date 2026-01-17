@@ -9,7 +9,7 @@ Branch creates a secondary pipeline that:
 """
 
 from nebula import TransformerPipeline
-from nebula.transformers import DropColumns, AddLiterals
+from nebula.transformers import AddLiterals, DropColumns
 
 __all__ = [
     # Dead-end variants

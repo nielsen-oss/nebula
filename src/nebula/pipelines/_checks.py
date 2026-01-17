@@ -17,7 +17,6 @@ __all__ = [
 
 from nebula.base import Transformer
 from nebula.nw_util import assert_join_params
-
 from nebula.pipelines.transformer_type_util import is_transformer
 
 
@@ -47,15 +46,11 @@ def assert_apply_to_rows_inputs(o: dict[str, str | bool | None]) -> None:
     value = o.get("value")
     comparison_column = o.get("comparison_column")
     if (value is not None) and (comparison_column is not None):
-        raise ValueError(
-            "Only one of 'value' or 'comparison_column' can be set for 'apply_to_rows'"
-        )
+        raise ValueError("Only one of 'value' or 'comparison_column' can be set for 'apply_to_rows'")
 
     input_col = o["input_col"]
     if input_col == comparison_column:
-        raise ValueError(
-            "'input_col' and 'comparison_column' cannot have the same value"
-        )
+        raise ValueError("'input_col' and 'comparison_column' cannot have the same value")
 
     skip_if_empty = o.get("skip_if_empty", False)
     if skip_if_empty not in [True, False]:
@@ -105,9 +100,7 @@ def assert_branch_inputs(o: dict) -> None:
                 "perform",
             },
         )
-        assert_join_params(
-            o.get("how"), o.get("on"), o.get("left_on"), o.get("right_on")
-        )
+        assert_join_params(o.get("how"), o.get("on"), o.get("left_on"), o.get("right_on"))
 
     elif end_value in {"dead-end", "append"}:
         validate_keys(
@@ -189,10 +182,7 @@ def set_split_options(main_data, split_options, name: str) -> set[str]:
 
     if isinstance(split_options, str):
         if split_options not in main_data:
-            raise KeyError(
-                f'{name} "{split_options}" not found '
-                f"in the split-pipeline: {set(main_data)}"
-            )
+            raise KeyError(f'{name} "{split_options}" not found in the split-pipeline: {set(main_data)}')
         return {split_options}
 
     ret = set(split_options)
@@ -217,9 +207,7 @@ def validate_skip_perform(skip: bool | None, perform: bool | None) -> None:
     """Return True if operation should be skipped."""
     if isinstance(skip, bool) and isinstance(perform, bool):
         if skip == perform:  # Both True or both False = contradiction
-            raise ValueError(
-                "'skip' and 'perform' cannot both be True or both be False"
-            )
+            raise ValueError("'skip' and 'perform' cannot both be True or both be False")
 
 
 def to_list_of_transformations(data, name: str) -> list[Transformer | Callable] | None:
@@ -231,8 +219,4 @@ def to_list_of_transformations(data, name: str) -> list[Transformer | Callable] 
         return data
     if isinstance(data, tuple):
         return list(data)
-    raise TypeError(
-        f"{name} must be a callable | "
-        "transformer | iterable[callable | "
-        f"transformer], found ({type(data)})"
-    )
+    raise TypeError(f"{name} must be a callable | transformer | iterable[callable | transformer], found ({type(data)})")

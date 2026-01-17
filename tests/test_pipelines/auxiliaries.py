@@ -75,9 +75,7 @@ class RoundValues(Transformer):
         self._precision = precision
 
     def _transform_nw(self, df):
-        return df.with_columns(
-            nw.col(self._col).round(self._precision).alias(self._col)
-        )
+        return df.with_columns(nw.col(self._col).round(self._precision).alias(self._col))
 
 
 class ThisTransformerIsBroken(Transformer):

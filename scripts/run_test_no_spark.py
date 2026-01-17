@@ -14,9 +14,7 @@ if __name__ == "__main__":
 
     path_test = Path("..") / "tests"
 
-    paths_tests_no_spark = [
-        i for i in path_test.rglob("test_*.py") if "spark" not in i.stem
-    ]
+    paths_tests_no_spark = [i for i in path_test.rglob("test_*.py") if "spark" not in i.stem]
 
     assert paths_tests_no_spark
 
@@ -32,6 +30,9 @@ if __name__ == "__main__":
     result = subprocess.run(
         pytest_args,
         cwd=cwd,
-        capture_output=False,  # Set to True to capture output as string, False to print directly
-        check=False,  # Don't raise an exception for non-zero exit codes (let pytest report failures)
+        # Set to True to capture output as string, False to print directly
+        capture_output=False,
+        # Don't raise an exception for non-zero exit codes (let pytest
+        # report failures)
+        check=False,
     )

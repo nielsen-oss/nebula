@@ -14,9 +14,7 @@ def is_transformer(o) -> bool:
     return isinstance(o, Transformer) or is_duck_typed_transformer(o)
 
 
-def _check_multiple_args(
-    param_names: list[str], params: Mapping[str, Parameter]
-) -> bool:
+def _check_multiple_args(param_names: list[str], params: Mapping[str, Parameter]) -> bool:
     """Check if additional parameters (after 'df') have default values.
 
     There are other parameters apart from 'df'.

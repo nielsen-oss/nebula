@@ -149,9 +149,7 @@ class TestEnsureNoBranchOrApplyToRowsOtherwise:
     def test_invalid_cases(self, branch, apply_to_rows, otherwise):
         """Test invalid cases."""
         with pytest.raises(ValueError):
-            ensure_no_branch_or_apply_to_rows_otherwise(
-                branch, apply_to_rows, otherwise
-            )
+            ensure_no_branch_or_apply_to_rows_otherwise(branch, apply_to_rows, otherwise)
 
 
 def test_ensure_no_branch_or_apply_to_rows_in_split_pipeline():
@@ -160,9 +158,7 @@ def test_ensure_no_branch_or_apply_to_rows_in_split_pipeline():
         ensure_no_branch_or_apply_to_rows_in_split_pipeline({"end": "some-end"}, None)
 
     with pytest.raises(ValueError):
-        ensure_no_branch_or_apply_to_rows_in_split_pipeline(
-            None, {"input_col": "x", "operator": "eq"}
-        )
+        ensure_no_branch_or_apply_to_rows_in_split_pipeline(None, {"input_col": "x", "operator": "eq"})
 
     # This should not raise an exception
     ensure_no_branch_or_apply_to_rows_in_split_pipeline(None, None)

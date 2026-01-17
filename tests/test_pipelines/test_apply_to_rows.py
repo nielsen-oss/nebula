@@ -16,9 +16,10 @@ import pytest
 
 from nebula import load_pipeline
 from nebula.storage import nebula_storage as ns
+
+from ..auxiliaries import pl_assert_equal
 from .apply_to_rows_configs import *
 from .auxiliaries import CallMe
-from ..auxiliaries import pl_assert_equal
 
 
 @pytest.fixture(scope="module")
@@ -48,9 +49,7 @@ class TestApplyToRowsBasic:
         """Rows where idx > 5 get modified, others pass through unchanged."""
         pipe = pipe_apply_to_rows_basic()
         pipe.show(add_params=True)
-        df_out = pipe.run(
-            df_input, show_params=True, force_interleaved_transformer=CallMe()
-        )
+        df_out = pipe.run(df_input, show_params=True, force_interleaved_transformer=CallMe())
 
         assert ns.get("_call_me_") == 2
 
@@ -113,11 +112,7 @@ class TestApplyToRowsOtherwise:
 
         index = np.arange(n_rows)
         ar_exp = np.where(index > 5, "matched", "not_matched")
-        df_exp = (
-            df_input.drop("c1")
-            .with_columns(pl.Series(name="c1", values=ar_exp))
-            .select(df_input.columns)
-        )
+        df_exp = df_input.drop("c1").with_columns(pl.Series(name="c1", values=ar_exp)).select(df_input.columns)
 
         pl_assert_equal(df_out, df_exp, sort=["idx"])
 
@@ -209,9 +204,7 @@ class TestSparkCoalesceRepartitionToOriginal:
                     },
                     "repartition_output_to_original": repartition,
                     "coalesce_output_to_original": coalesce,
-                    "pipeline": [
-                        {"transformer": "Repartition", "params": {"num_partitions": 10}}
-                    ],
+                    "pipeline": [{"transformer": "Repartition", "params": {"num_partitions": 10}}],
                 }
             ]
         }

@@ -232,9 +232,7 @@ def process_loop(loop_dict: dict) -> list[dict]:
         params = {k: v[i] for k, v in values.items()}
 
         # Create a copy of loop_dict without the loop-specific keys
-        loop_content = {
-            k: v for k, v in loop_dict.items() if k not in {"loop", "values"}
-        }
+        loop_content = {k: v for k, v in loop_dict.items() if k not in {"loop", "values"}}
 
         # Substitute parameters in the copy
         expanded_dict: dict = substitute_params(loop_content, params)

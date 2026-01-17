@@ -133,9 +133,7 @@ class RenameColumns(Transformer):
         super().__init__()
 
         if bool(regex_pattern) != bool(regex_replacement):
-            raise ValueError(
-                "'replacement' must be provided when 'regex_pattern' is used."
-            )
+            raise ValueError("'replacement' must be provided when 'regex_pattern' is used.")
         self._regex_pattern: str | None = regex_pattern
         self._regex_repl: str | None = regex_replacement
         self._fail_on_missing_columns: bool = fail_on_missing_columns
@@ -146,14 +144,10 @@ class RenameColumns(Transformer):
         columns: list[str] = ensure_flat_list(columns)
         columns_renamed: list[str] = ensure_flat_list(columns_renamed)
         if len(columns) != len(columns_renamed):
-            raise ValueError(
-                f"len(columns)={len(columns)} != len(columns_renamed)={len(columns_renamed)}"
-            )
+            raise ValueError(f"len(columns)={len(columns)} != len(columns_renamed)={len(columns_renamed)}")
 
         mapping = mapping if mapping else {}
-        self._map_rename: dict[str, str] = (
-            {**mapping, **dict(zip(columns, columns_renamed))} if columns else mapping
-        )
+        self._map_rename: dict[str, str] = {**mapping, **dict(zip(columns, columns_renamed))} if columns else mapping
 
     def _check_diff(self, df):
         diff = set(self._map_rename.keys()) - set(df.columns)
@@ -163,9 +157,7 @@ class RenameColumns(Transformer):
             raise ValueError(msg)
 
     def _get_regex_mapping(self, nw_df) -> dict[str, str]:
-        return {
-            c: re.sub(self._regex_pattern, self._regex_repl, c) for c in nw_df.columns
-        }
+        return {c: re.sub(self._regex_pattern, self._regex_repl, c) for c in nw_df.columns}
 
     def _transform_nw(self, nw_df):
         self._check_diff(nw_df)

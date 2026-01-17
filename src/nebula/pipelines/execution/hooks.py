@@ -23,11 +23,11 @@ from __future__ import annotations
 from typing import Protocol
 
 from ..ir.nodes import (
+    ForkNode,
+    FunctionNode,
     PipelineNode,
     StorageNode,
-    ForkNode,
     TransformerNode,
-    FunctionNode,
 )
 
 __all__ = ["PipelineHooks", "NoOpHooks", "LoggingHooks"]
@@ -58,9 +58,7 @@ class PipelineHooks(Protocol):
         """
         ...
 
-    def on_pipeline_end(
-        self, root_node: "PipelineNode", duration_ms: float, context: dict
-    ) -> None:
+    def on_pipeline_end(self, root_node: "PipelineNode", duration_ms: float, context: dict) -> None:
         """Called when pipeline execution completes successfully.
 
         Args:
@@ -79,9 +77,7 @@ class PipelineHooks(Protocol):
         """
         ...
 
-    def on_node_end(
-        self, node: "PipelineNode", duration_ms: float, context: dict
-    ) -> None:
+    def on_node_end(self, node: "PipelineNode", duration_ms: float, context: dict) -> None:
         """Called after a node completes successfully.
 
         Args:
@@ -139,17 +135,13 @@ class NoOpHooks:
     def on_pipeline_start(self, root_node: "PipelineNode", context: dict) -> None:
         pass
 
-    def on_pipeline_end(
-        self, root_node: "PipelineNode", duration_ms: float, context: dict
-    ) -> None:
+    def on_pipeline_end(self, root_node: "PipelineNode", duration_ms: float, context: dict) -> None:
         pass
 
     def on_node_start(self, node: "PipelineNode", context: dict) -> None:
         pass
 
-    def on_node_end(
-        self, node: "PipelineNode", duration_ms: float, context: dict
-    ) -> None:
+    def on_node_end(self, node: "PipelineNode", duration_ms: float, context: dict) -> None:
         pass
 
     def on_error(self, node: "PipelineNode", error: Exception, context: dict) -> None:
@@ -173,7 +165,12 @@ class LoggingHooks(NoOpHooks):
         """Initialize with optional custom logger.
 
         Args:
-            logger: Logger instance. Defaults to nebula.logger.logger.
+            max_param_length:
+                Max string length of the parameters converted to string.
+            show_params:
+                Whether printing parameters in the terminal.
+            logger:
+                Logger instance. Defaults to nebula.logger.logger.
         """
         if logger is None:
             from nebula.logger import logger as nebula_logger
@@ -185,12 +182,14 @@ class LoggingHooks(NoOpHooks):
         self.show_params: bool = show_params
         self.max_param_length: int = max_param_length
 
-    def on_pipeline_start(self, root_node: "PipelineNode", context: dict) -> None:
+    def on_pipeline_start(  # noqa: D102
+        self, root_node: "PipelineNode", context: dict
+    ) -> None:
         name = root_node.metadata.get("name")
         msg = "Starting pipeline" + (f" '{name}'" if name else "")
         self.logger.info(msg)
 
-    def on_pipeline_end(
+    def on_pipeline_end(  # noqa: D102
         self, root_node: "PipelineNode", duration_ms: float, context: dict
     ) -> None:
         name = root_node.metadata.get("name")
@@ -220,20 +219,20 @@ class LoggingHooks(NoOpHooks):
                 msg += f": {cfg_log}"
             self.logger.info(msg)
 
-    def on_node_end(
+    def on_node_end(  # noqa: D102
         self, node: "PipelineNode", duration_ms: float, context: dict
     ) -> None:
         if isinstance(node, (TransformerNode, FunctionNode)):
-            name = (
-                node.transformer_name
-                if isinstance(node, TransformerNode)
-                else node.func_name
-            )
+            name = node.transformer_name if isinstance(node, TransformerNode) else node.func_name
             duration_sec = duration_ms / 1000
             self.logger.info(f"Completed '{name}' in {duration_sec:.1f}s")
 
-    def on_error(self, node: "PipelineNode", error: Exception, context: dict) -> None:
+    def on_error(  # noqa: D102
+        self, node: "PipelineNode", error: Exception, context: dict
+    ) -> None:
         self.logger.error(f"Error at node {node.id}: {error}")
 
-    def on_skip(self, node: "PipelineNode", reason: str, context: dict) -> None:
+    def on_skip(  # noqa: D102
+        self, node: "PipelineNode", reason: str, context: dict
+    ) -> None:
         self.logger.info(f"Skipping node {node.id}: {reason}")

@@ -259,14 +259,11 @@ def _extract_function(li: list[Callable], name: str) -> Callable:
     return d[name]
 
 
-def _load_pipeline(o, *, extra_funcs) -> TransformerPipeline:
+def _load_pipeline(o, *, extra_funcs) -> TransformerPipeline:  # noqa: PLR0915
     provided_keys = set(o.keys())
     if not provided_keys.issubset(_allowed_kws_pipeline):
         diff = provided_keys.difference(_allowed_kws_pipeline)
-        msg = (
-            f"Unknown kwargs {diff} (provided keys={provided_keys}). "
-            f"Allowed arguments: {_allowed_kws_pipeline}"
-        )
+        msg = f"Unknown kwargs {diff} (provided keys={provided_keys}). Allowed arguments: {_allowed_kws_pipeline}"
         raise AssertionError(msg)
 
     pipeline_name: str = o.get("name")

@@ -17,19 +17,20 @@ from copy import deepcopy
 from typing import Any, Callable
 
 from nebula.pipelines.pipe_aux import is_split_pipeline, sanitize_steps
+
+from .. import transformer_type_util
 from .node_id import assign_ids_to_tree
 from .nodes import (
+    ForkNode,
+    FunctionNode,
+    InputNode,
+    MergeNode,
+    OutputNode,
     PipelineNode,
     SequenceNode,
-    TransformerNode,
-    FunctionNode,
     StorageNode,
-    ForkNode,
-    MergeNode,
-    InputNode,
-    OutputNode,
+    TransformerNode,
 )
-from .. import transformer_type_util
 
 __all__ = ["IRBuilder", "build_ir"]
 
@@ -79,6 +80,7 @@ class IRBuilder:
         repartition_output_to_original: bool = False,
         coalesce_output_to_original: bool = False,
     ):
+        """Initialize the intermediate-representation."""
         self.data = data
         self.name = name
         self.df_input_name = df_input_name
@@ -348,9 +350,9 @@ class IRBuilder:
 
             # Add interleaved after each transformer (not after storage ops)
             is_last = i == len(data) - 1
-            should_add_interleaved = isinstance(
-                node, (TransformerNode, FunctionNode)
-            ) and (not is_last or self.append_interleaved)
+            should_add_interleaved = isinstance(node, (TransformerNode, FunctionNode)) and (
+                not is_last or self.append_interleaved
+            )
 
             if should_add_interleaved:
                 for trf in self.interleaved:
@@ -436,8 +438,7 @@ class IRBuilder:
             # This shouldn't normally happen at this stage,
             # but handle it gracefully
             raise TypeError(
-                f"Unexpected dict in pipeline data: {item}. "
-                "Storage requests should have been parsed already."
+                f"Unexpected dict in pipeline data: {item}. Storage requests should have been parsed already."
             )
 
         raise TypeError(f"Unknown item type in pipeline: {type(item)}: {item}")
