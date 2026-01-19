@@ -2,7 +2,7 @@
 
 import operator as py_operator
 from functools import partial, reduce
-from typing import Iterable
+from typing import Iterable, Literal, get_args
 
 import narwhals as nw
 
@@ -22,32 +22,74 @@ __all__ = [
     "null_cond_to_false",
     "to_native_dataframes",
     "validate_operation",
+    # Type aliases
+    "ComparisonOperator",
+    "NullOperator",
+    "StringOperator",
+    "MembershipOperator",
+    "FilterOperator",
+    "JoinHow",
+    # Runtime sets
+    "ALLOWED_FILTER_OPERATORS",
+    "ALLOWED_JOIN_HOW",
 ]
 
-COMPARISON_OPERATORS = {"eq", "ne", "le", "lt", "ge", "gt"}
-NULL_OPERATORS = {"is_null", "is_not_null", "is_nan", "is_not_nan"}
-STRING_OPERATORS = {"contains", "starts_with", "ends_with"}
-MEMBERSHIP_OPERATORS = {"is_between", "is_in", "is_not_in"}
-_allowed_operators = COMPARISON_OPERATORS | NULL_OPERATORS | STRING_OPERATORS | MEMBERSHIP_OPERATORS
+# Type aliases for IDE autocomplete and type checking
+ComparisonOperator = Literal["eq", "ne", "le", "lt", "ge", "gt"]
+NullOperator = Literal["is_null", "is_not_null", "is_nan", "is_not_nan"]
+StringOperator = Literal["contains", "starts_with", "ends_with"]
+MembershipOperator = Literal["is_between", "is_in", "is_not_in"]
+FilterOperator = Literal[
+    "eq",
+    "ne",
+    "le",
+    "lt",
+    "ge",
+    "gt",
+    "is_null",
+    "is_not_null",
+    "is_nan",
+    "is_not_nan",
+    "contains",
+    "starts_with",
+    "ends_with",
+    "is_between",
+    "is_in",
+    "is_not_in",
+]
+
+JoinHow = Literal[
+    "inner",
+    "left",
+    "right",
+    "full",
+    "cross",
+    "semi",
+    "anti",
+    "rightsemi",
+    "right_semi",
+    "rightanti",
+    "right_anti",
+]
+
+# Runtime sets derived from Literal types
+COMPARISON_OPERATORS = set(get_args(ComparisonOperator))
+NULL_OPERATORS = set(get_args(NullOperator))
+STRING_OPERATORS = set(get_args(StringOperator))
+MEMBERSHIP_OPERATORS = set(get_args(MembershipOperator))
+ALLOWED_FILTER_OPERATORS = COMPARISON_OPERATORS | NULL_OPERATORS | STRING_OPERATORS | MEMBERSHIP_OPERATORS
+
+ALLOWED_JOIN_HOW = set(get_args(JoinHow))
 
 
-def assert_join_params(how: str, on: str | None, left_on: str | None, right_on: str | None) -> None:
+def assert_join_params(
+    how: JoinHow,
+    on: list[str] | str | None,
+    left_on: list[str] | str | None,
+    right_on: list[str] | str | None,
+) -> None:
     """Assert join parameters validity."""
-    allowed_how = {
-        "inner",
-        "cross",
-        "full",
-        "left",
-        "semi",
-        "anti",
-        # not narwhals
-        "right",
-        "rightsemi",
-        "right_semi",
-        "rightanti",
-        "right_anti",
-    }
-    assert_allowed(how, allowed_how, "how")
+    assert_allowed(how, ALLOWED_JOIN_HOW, "how")
 
     if how == "cross":
         if on or left_on or right_on:
@@ -267,13 +309,12 @@ def append_dataframes(
         import polars as pl
 
         if allow_missing_cols:
-            how = "diagonal"
+            concat_how = "diagonal_relaxed" if relax else "diagonal"
         else:
             cols = native_dataframes[0].columns
             native_dataframes = [df.select(cols) for df in native_dataframes]
-            how = "vertical"
-        how += "_relaxed" if relax else ""
-        ret = pl.concat(native_dataframes, rechunk=rechunk, how=how)
+            concat_how = "vertical_relaxed" if relax else "vertical"
+        ret = pl.concat(native_dataframes, rechunk=rechunk, how=concat_how)  # type: ignore[arg-type]
 
     elif native_backend == "spark":
         from pyspark.sql import DataFrame
@@ -295,15 +336,15 @@ def df_is_empty(df_input) -> bool:
         df = df_input
     df_type_name: str = get_dataframe_type(df)
     if df_type_name == "pandas":
-        return df.empty
+        return bool(df.empty)
     elif df_type_name == "polars":
         import polars as pl
 
         if isinstance(df, pl.LazyFrame):
-            return df.limit(1).collect().is_empty()
-        return df.is_empty()
+            return bool(df.limit(1).collect().is_empty())
+        return bool(df.is_empty())
     elif df_type_name == "spark":
-        return df.isEmpty()
+        return bool(df.isEmpty())
     else:  # pragma: no cover
         raise ValueError(f"Unsupported dataframe type: {df_type_name}")
 
@@ -327,7 +368,7 @@ def join_dataframes(
     df,
     df_to_join,
     *,
-    how: str,
+    how: JoinHow,
     on: list[str] | str | None = None,
     left_on: str | list[str] | None = None,
     right_on: str | list[str] | None = None,
@@ -420,7 +461,7 @@ def join_dataframes(
     right_on = ensure_flat_list(right_on) if right_on else None
 
     # Map right-side joins to left-side by swapping dataframes
-    swap_map = {
+    swap_map: dict[JoinHow, JoinHow] = {
         "right": "left",
         "rightsemi": "semi",
         "right_semi": "semi",
@@ -442,7 +483,7 @@ def join_dataframes(
     if how == "cross":
         return left.join(right, how="cross", suffix=suffix)
 
-    join_kwargs = {"how": how, "suffix": suffix}
+    join_kwargs: dict[str, object] = {"how": how, "suffix": suffix}
 
     if on:
         join_kwargs["on"] = on
@@ -467,7 +508,7 @@ def join_dataframes(
 
 
 def validate_operation(
-    operator: str,
+    operator: FilterOperator,
     value=None,
     compare_col: str | None = None,
 ) -> None:
@@ -494,7 +535,7 @@ def validate_operation(
         ValueError: If operator is invalid or incompatible args are provided.
         TypeError: If value has wrong type for the operator.
     """
-    assert_allowed(operator, _allowed_operators, "operator")
+    assert_allowed(operator, ALLOWED_FILTER_OPERATORS, "operator")
 
     # Null/NaN operators don't need value or compare_col
     if operator in NULL_OPERATORS:
@@ -540,7 +581,7 @@ def validate_operation(
 
 def get_condition(
     col_name: str,
-    operator: str,
+    operator: FilterOperator,
     *,
     value=None,
     compare_col: str | None = None,
@@ -626,4 +667,5 @@ def get_condition(
     # Get what we're comparing against (value or column)
     comparator = nw.col(compare_col) if compare_col else value
 
-    return getattr(py_operator, operator)(col, comparator)
+    result: nw.Expr = getattr(py_operator, operator)(col, comparator)
+    return result
