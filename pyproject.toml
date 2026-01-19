@@ -112,6 +112,7 @@ ignore = [
     "F403",  # unable to detect undefined names
     "F405",  # may be undefined, or defined from star imports
     "E741",  # Ambiguous variable name: `l`
+    "PLC0415", # `import` should be at the top-level of a file
     "PLR0911", # Too many return statements
     "PLR0912", # Too many branches
     "PLR0913", # Too many arguments in function definition
@@ -170,3 +171,14 @@ exclude_lines = [
     "if __name__ == .__main__.:",
     "raise NotImplementedError",
 ]
+fail_under = 80
+show_missing = true
+
+# --- Mypy configuration ---
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+ignore_missing_imports = true
+exclude = ["tests/", "venv/", "scripts/", "example_notebooks/"]

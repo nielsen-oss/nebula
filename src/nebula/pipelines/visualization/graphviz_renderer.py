@@ -501,10 +501,10 @@ class GraphvizRenderer:  # pragma: no cover
             label = f"Merge: {node.merge_type}"
 
         if add_params:
-            params = {k: v for k, v in node.config.items() if v}
-            if params:
-                params = _generic_flat_params_to_yaml_format(params)
-                label = self._build_html_label(label, params=params)
+            dict_params = {k: v for k, v in node.config.items() if v}
+            if dict_params:
+                str_params: str = _generic_flat_params_to_yaml_format(dict_params)
+                label = self._build_html_label(label, params=str_params)
             else:
                 label = f"<<B>{label}</B>>"
 
