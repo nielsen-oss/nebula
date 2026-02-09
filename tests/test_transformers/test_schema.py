@@ -97,7 +97,7 @@ class TestAddLiterals:
         else:
             assert df_out_native["int_col"].dtype == "int32"
             assert df_out_native["float_col"].dtype == "float64"
-            assert df_out_native["str_col"].dtype == object
+            assert pd.api.types.is_string_dtype(df_out_native["str_col"])
 
     @staticmethod
     @pytest.mark.parametrize("backend", ["pandas", "polars"])
@@ -319,7 +319,7 @@ class TestCast:
 
         assert result["int_col"].dtype == "int64"
         assert result["float_col"].dtype == "float64"
-        assert result["str_col"].dtype == "object"
+        assert pd.api.types.is_string_dtype(result["str_col"])
         assert result["bool_col"].dtype == "bool"
         assert pd.api.types.is_datetime64_any_dtype(result["date_col"])
 

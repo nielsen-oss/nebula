@@ -38,13 +38,13 @@ Issues = "https://github.com/nielsen-oss/nebula/issues"
 # Backend support
 pandas = ["pandas>=1.2.5"]
 polars = ["polars>=1.34.0"]
-spark = ["pyspark>=3.5.0"]
+spark = ["pyspark>=3.5.0,<4.0.0"]
 
 # All backends
 all = [
     "pandas>=1.2.5",
     "polars>=1.34.0",
-    "pyspark>=3.5.0",
+    "pyspark>=3.5.0,<4.0.0",
 ]
 
 # Development dependencies
@@ -52,7 +52,7 @@ dev = [
     # All backends
     "pandas>=1.2.5",
     "polars>=1.34.0",
-    "pyspark>=3.5.6",  # Pin specific version for CI consistency
+    "pyspark>=3.5.6,<4.0.0",  # Pin specific version for CI consistency
     # Testing
     "pytest>=7.4.4",
     "pytest-cov",
@@ -98,6 +98,10 @@ addopts = "--cov=nebula --cov-report=term-missing"
 line-length = 120
 fix = true
 src = ["src", "tests"]
+exclude = [
+    "*.ipynb",
+    "notebooks/",
+]
 
 [tool.ruff.lint]
 # Enable all the rule sets you were using before:
@@ -106,21 +110,16 @@ src = ["src", "tests"]
 # D: pydocstyle
 # PL: pylint
 select = ["E", "F", "I", "D", "PL"]
-
 ignore = [
     "E731",  # Do not assign a `lambda` expression, use a `def`
     "F403",  # unable to detect undefined names
     "F405",  # may be undefined, or defined from star imports
     "E741",  # Ambiguous variable name: `l`
+    "PLC0415", # `import` should be at the top-level of a file
     "PLR0911", # Too many return statements
     "PLR0912", # Too many branches
     "PLR0913", # Too many arguments in function definition
     "PLR2004", # Magic value used in comparison
-]
-
-exclude = [
-    "*.ipynb",
-    "notebooks/",
 ]
 
 # --- Pydocstyle configuration ---
@@ -133,11 +132,6 @@ max-args = 6
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"
-
-exclude = [
-    "*.ipynb",
-    "notebooks/",
-]
 
 [tool.ruff.lint.extend-per-file-ignores]
 "src/nebula/pipelines/execution/hooks.py" = [
@@ -162,9 +156,10 @@ exclude = [
 # --- Coverage configuration ---
 [tool.coverage.run]
 source = ["src/nebula"]
-branch = true
+branch = false
 
 [tool.coverage.report]
+show_missing = true
 exclude_lines = [
     "pragma: no cover",
     "if __name__ == .__main__.:",

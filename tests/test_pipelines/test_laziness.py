@@ -18,7 +18,7 @@ def _get_df_input():
         [1, "b"],  # duplicate
         [1, "b"],
     ]
-    return pl.DataFrame(data, schema=["c1", "c2"])
+    return pl.DataFrame(data, schema=["c1", "c2"], orient="row")
 
 
 def _get_expected_output() -> pl.DataFrame:

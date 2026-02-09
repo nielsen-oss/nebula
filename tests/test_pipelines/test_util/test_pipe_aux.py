@@ -10,7 +10,11 @@ from pyspark.sql.types import FloatType, LongType, StringType, StructField, Stru
 
 from nebula.base import Transformer
 from nebula.pipelines.pipe_aux import *
-from nebula.pipelines.pipe_aux import PIPELINE_KEYWORDS
+from nebula.pipelines.pipe_aux import (
+    PIPELINE_KEYWORDS,
+    PIPELINE_KEYWORDS_DICT,
+    PIPELINE_KEYWORDS_STRING,
+)
 from nebula.transformers import *
 
 from ...auxiliaries import from_pandas, to_pandas
@@ -181,10 +185,15 @@ class TestIsEligibleFunction:
 class TestIsKeywordRequest:
     """Tests for is_keyword_request function."""
 
-    def test_all_pipeline_keywords(self):
-        """All defined pipeline keywords should be recognized."""
-        for keyword in PIPELINE_KEYWORDS:
+    def test_all_dict_pipeline_keywords(self):
+        """All defined dict pipeline keywords should be recognized."""
+        for keyword in PIPELINE_KEYWORDS_DICT:
             assert is_keyword_request({keyword: "some_value"}) is True
+
+    def test_all_string_pipeline_keywords(self):
+        """All defined string pipeline keywords should be recognized."""
+        for keyword in PIPELINE_KEYWORDS_STRING:
+            assert is_keyword_request(keyword) is True
 
     def test_unknown_keyword(self):
         """A dict with unknown key should be invalid."""
@@ -201,9 +210,10 @@ class TestIsKeywordRequest:
         assert is_keyword_request({}) is False
 
     def test_non_dict_types(self):
-        """Non-dict types should be invalid."""
+        """Non-dict/non-string-keyword types should be invalid."""
         assert is_keyword_request(None) is False
-        assert is_keyword_request("store") is False
+        assert is_keyword_request("store") is False  # "store" is not a string keyword
+        assert is_keyword_request("unknown_string") is False
         assert is_keyword_request(["store", "key"]) is False
         assert is_keyword_request(("store", "key")) is False
         assert is_keyword_request({"store", "key"}) is False  # set, not dict
@@ -486,7 +496,7 @@ class TestSanitizeSteps:
 
     def test_single_keyword_request(self):
         """A single keyword request should be wrapped in a list."""
-        keyword = list(PIPELINE_KEYWORDS)[0]  # Get first valid keyword
+        keyword = list(PIPELINE_KEYWORDS_DICT)[0]  # Get first valid keyword
         request = {keyword: "test_key"}
         result = sanitize_steps(request)
         assert result == [request]
@@ -533,17 +543,22 @@ class TestSanitizeSteps:
 
     def test_flat_list_of_keyword_requests(self):
         """A flat list of keyword requests should be returned as-is."""
-        keywords = list(PIPELINE_KEYWORDS)[:2] if len(PIPELINE_KEYWORDS) >= 2 else list(PIPELINE_KEYWORDS)
-        requests = [{kw: f"key_{i}"} for i, kw in enumerate(keywords)]
+        # Test dict keywords
+        keywords = list(PIPELINE_KEYWORDS_DICT)[:2]
+        dict_requests = [{kw: f"key_{i}"} for i, kw in enumerate(keywords)]
+        result = sanitize_steps(dict_requests)
+        assert result == dict_requests
 
-        result = sanitize_steps(requests)
-        assert result == requests
+        # Test string keywords
+        string_keywords = list(PIPELINE_KEYWORDS_STRING)
+        result = sanitize_steps(string_keywords)
+        assert result == string_keywords
 
     def test_flat_list_mixed_types(self):
         """A flat list with mixed valid types should be returned as-is."""
         trf = DummyTransformer()
         fn = dummy_function
-        keyword = list(PIPELINE_KEYWORDS)[0]
+        keyword = list(PIPELINE_KEYWORDS_DICT)[0]
         request = {keyword: "test_key"}
         trf_with_desc = (AnotherTransformer(), "description")
         fn_with_args = (function_with_args, [1], {"c": 2}, "fn desc")
@@ -581,7 +596,7 @@ class TestSanitizeSteps:
         """Nested lists with mixed types should be flattened correctly."""
         trf = DummyTransformer()
         fn = dummy_function
-        keyword = list(PIPELINE_KEYWORDS)[0]
+        keyword = list(PIPELINE_KEYWORDS_DICT)[0]
         request = {keyword: "nested_key"}
 
         steps = [
@@ -637,7 +652,7 @@ class TestSanitizeSteps:
         trf2 = DummyTransformer("select_columns")
         trf3 = DummyTransformer("assert_not_empty")
 
-        keyword = list(PIPELINE_KEYWORDS)[0]
+        keyword = list(PIPELINE_KEYWORDS_DICT)[0]
 
         steps = [
             trf1,
@@ -834,7 +849,7 @@ class TestSanitizeSteps:
 
     def test_multiple_keyword_requests_in_sequence(self):
         """Multiple keyword requests in sequence should work."""
-        keyword = list(PIPELINE_KEYWORDS)[0]
+        keyword = list(PIPELINE_KEYWORDS_DICT)[0]
         requests = [
             {keyword: "first"},
             {keyword: "second"},

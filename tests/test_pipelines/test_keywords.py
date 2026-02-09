@@ -13,12 +13,12 @@ from ..auxiliaries import pl_assert_equal
 
 
 @pytest.mark.parametrize("source", ["python", "yaml"])
-def test_replace_with_stored_df(source: str):
-    """Test 'replace_with_stored_df' functionality."""
+def test_from_store(source: str):
+    """Test 'from_store' functionality."""
     df_input = pl.DataFrame({"c1": np.arange(20)})
     ns.clear()
     df2 = pl.concat([df_input, df_input], how="vertical")
-    store_data = {"replace_with_stored_df": "df2"}
+    store_data = {"from_store": "df2"}
 
     if source == "python":
         pipe = TransformerPipeline([store_data])
