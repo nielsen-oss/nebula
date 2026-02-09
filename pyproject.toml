@@ -159,7 +159,7 @@ source = ["src/nebula"]
 branch = false
 
 [tool.coverage.report]
-missing = true
+show_missing = true
 exclude_lines = [
     "pragma: no cover",
     "if __name__ == .__main__.:",
