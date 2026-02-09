@@ -451,7 +451,7 @@ class IRBuilder:
         - {"store": "key"}
         - {"store_debug": "key"}
         - {"storage_debug_mode": True/False}
-        - {"replace_with_stored_df": "key"}
+        - {"from_store": "key"}
         """
         if not isinstance(item, dict):
             return None
@@ -476,9 +476,9 @@ class IRBuilder:
                 raise TypeError("'storage_debug_mode' value must be bool")
             return StorageNode(operation="toggle_debug", debug_value=value)
 
-        elif key == "replace_with_stored_df":
+        elif key == "from_store":
             if not isinstance(value, str):  # pragma: no cover
-                raise TypeError("'replace_with_stored_df' value must be string")
+                raise TypeError("'from_store' value must be string")
             return StorageNode(operation="load", key=value)
 
         return None

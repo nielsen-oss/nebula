@@ -28,7 +28,7 @@ PIPELINE_KEYWORDS: set[str] = {
     "store",
     "store_debug",
     "storage_debug_mode",
-    "replace_with_stored_df",
+    "from_store",
 }
 
 

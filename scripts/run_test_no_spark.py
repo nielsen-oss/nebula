@@ -10,9 +10,10 @@ from pathlib import Path
 if __name__ == "__main__":
     os.environ["TESTS_NO_SPARK"] = "true"
     cwd = Path(__file__).parent.resolve().absolute()
-    print(cwd)
+    print(f"{cwd=}")
 
-    path_test = Path("..") / "tests"
+    path_test = cwd.parent / "tests"
+    print(f"{path_test=}")
 
     paths_tests_no_spark = [i for i in path_test.rglob("test_*.py") if "spark" not in i.stem]
 
