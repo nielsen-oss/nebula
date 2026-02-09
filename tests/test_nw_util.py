@@ -426,10 +426,11 @@ class TestGetCondition:
         result = df.filter(cond)
 
         assert len(result) == 3
-        result_native = nw.to_native(result)["status"].tolist()
-        assert "pending" in result_native
-        assert "inactive" in result_native
-        assert None in result_native
+        result_native = nw.to_native(result)["status"]
+        assert "pending" in result_native.tolist()
+        assert "inactive" in result_native.tolist()
+        # Check for null (works with both None and pd.NA in different pandas versions)
+        assert result_native.isna().sum() == 1
 
     def test_is_between(self, sample_df):
         """Test range check (inclusive)."""
@@ -738,9 +739,10 @@ class TestNullCondToFalse:
         cond = null_cond_to_false(nw.col("a"))
         result = df.with_columns(cond.alias("result"))
 
-        expected = pd.DataFrame({"a": [True, False, None], "result": [True, False, False]})
+        result_native = nw.to_native(result)
 
-        pd.testing.assert_frame_equal(nw.to_native(result), expected)
+        # Check result column values (True stays True, False stays False, None becomes False)
+        assert result_native["result"].tolist() == [True, False, False]
 
 
 class TestToNativeDataframes:

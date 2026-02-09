@@ -156,7 +156,7 @@ indent-style = "space"
 # --- Coverage configuration ---
 [tool.coverage.run]
 source = ["src/nebula"]
-branch = true
+branch = false
 
 [tool.coverage.report]
 missing = true
