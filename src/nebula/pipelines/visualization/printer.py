@@ -16,6 +16,7 @@ from ..pipe_cfg import PIPE_CFG
 
 if TYPE_CHECKING:  # pragma: no cover
     from ..ir.nodes import (
+        ConversionNode,
         ForkNode,
         FunctionNode,
         MergeNode,
@@ -119,6 +120,7 @@ class PipelinePrinter:
     ) -> None:
         """Visit a node and add its representation to lines."""
         from ..ir.nodes import (
+            ConversionNode,
             ForkNode,
             FunctionNode,
             InputNode,
@@ -139,6 +141,8 @@ class PipelinePrinter:
             self._visit_function(node, level, lines, add_params, add_ids)
         elif isinstance(node, StorageNode):
             self._visit_storage(node, level, lines, add_ids)
+        elif isinstance(node, ConversionNode):
+            self._visit_conversion(node, level, lines, add_ids)
         elif isinstance(node, ForkNode):
             self._visit_fork(node, level, lines, add_params, add_ids)
         elif isinstance(node, MergeNode):
@@ -239,6 +243,20 @@ class PipelinePrinter:
         add_ids: bool,
     ) -> None:
         """Visit a storage node."""
+        indent = self._indent(level)
+        line = f"{indent}   --> {node.display_message}"
+        if add_ids:
+            line += f" [{node.id}]"
+        lines.append(line)
+
+    def _visit_conversion(
+        self,
+        node: "ConversionNode",
+        level: int,
+        lines: list[str],
+        add_ids: bool,
+    ) -> None:
+        """Visit a conversion node."""
         indent = self._indent(level)
         line = f"{indent}   --> {node.display_message}"
         if add_ids:

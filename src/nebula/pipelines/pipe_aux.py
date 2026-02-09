@@ -11,6 +11,9 @@ from nebula.nw_util import get_condition, null_cond_to_false, to_native_datafram
 from nebula.pipelines.transformer_type_util import is_transformer
 
 __all__ = [
+    "PIPELINE_KEYWORDS",
+    "PIPELINE_KEYWORDS_DICT",
+    "PIPELINE_KEYWORDS_STRING",
     "create_dict_extra_functions",
     "get_native_schema",
     "get_transformer_name",
@@ -24,12 +27,19 @@ __all__ = [
     "split_df",
 ]
 
-PIPELINE_KEYWORDS: set[str] = {
+PIPELINE_KEYWORDS_DICT: set[str] = {
     "store",
     "store_debug",
     "storage_debug_mode",
     "from_store",
 }
+
+PIPELINE_KEYWORDS_STRING: set[str] = {
+    "to_native",
+    "from_native",
+}
+
+PIPELINE_KEYWORDS: set[str] = PIPELINE_KEYWORDS_DICT | PIPELINE_KEYWORDS_STRING
 
 
 def create_dict_extra_functions(
@@ -168,11 +178,18 @@ def is_eligible_function(o) -> bool:  # noqa: PLR0911
     return False
 
 
-def is_keyword_request(d: dict) -> bool:
-    """Check whether the input dictionary represents a known requests."""
+def is_keyword_request(d: dict | str) -> bool:
+    """Check whether the input represents a known pipeline keyword.
+
+    Supports two formats:
+    - Dict keywords: {"store": "key"}, {"from_store": "key"}, etc.
+    - String keywords: "to_native", "from_native"
+    """
+    if isinstance(d, str):
+        return d in PIPELINE_KEYWORDS_STRING
     if isinstance(d, dict):
         if len(d) == 1:
-            return set(d).issubset(PIPELINE_KEYWORDS)
+            return set(d).issubset(PIPELINE_KEYWORDS_DICT)
     return False
 
 

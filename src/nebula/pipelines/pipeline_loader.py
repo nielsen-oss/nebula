@@ -28,6 +28,8 @@ _NOT_ALLOWED_SPLIT_NAMES: set[str] = {
     "storage_debug_mode",
     "from_store",
     "transformer",
+    "to_native",
+    "from_native",
 }
 
 # ... extract the kwarg name from "TransformerPipeline" ...

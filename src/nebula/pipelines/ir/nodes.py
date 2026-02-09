@@ -31,6 +31,7 @@ __all__ = [
     "TransformerNode",
     "FunctionNode",
     "StorageNode",
+    "ConversionNode",
     "ForkNode",
     "MergeNode",
     "SequenceNode",
@@ -47,6 +48,7 @@ class NodeType(Enum):
     TRANSFORMER = auto()
     FUNCTION = auto()
     STORAGE = auto()
+    CONVERSION = auto()
     FORK = auto()
     MERGE = auto()
     SEQUENCE = auto()
@@ -226,6 +228,36 @@ class StorageNode(PipelineNode):
         elif self.operation == "toggle_debug":
             action = "Activate" if self.debug_value else "Deactivate"
             return f"{action} storage debug mode"
+        return f"Unknown operation: {self.operation}"  # pragma: no cover
+
+
+@dataclass
+class ConversionNode(PipelineNode):
+    """DataFrame format conversion operations.
+
+    Operations:
+    - 'to_native': Convert Narwhals DataFrame to native (pandas/polars/spark)
+    - 'from_native': Convert native DataFrame to Narwhals
+
+    These are safe operations that are no-ops if the dataframe is already
+    in the target format.
+
+    Attributes:
+        operation: The conversion operation type.
+    """
+
+    operation: Literal["to_native", "from_native"] = "to_native"
+
+    def __post_init__(self):  # noqa: D105
+        self.node_type = NodeType.CONVERSION
+
+    @property
+    def display_message(self) -> str:
+        """Human-readable description of the operation."""
+        if self.operation == "to_native":
+            return "Convert to native DataFrame"
+        elif self.operation == "from_native":
+            return "Convert to Narwhals DataFrame"
         return f"Unknown operation: {self.operation}"  # pragma: no cover
 
 

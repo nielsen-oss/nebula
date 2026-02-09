@@ -14,6 +14,8 @@ from nebula.auxiliaries import (
 from nebula.df_types import get_dataframe_type
 
 __all__ = [
+    "safe_from_native",
+    "safe_to_native",
     "append_dataframes",
     "assert_join_params",
     "df_is_empty",
@@ -66,6 +68,59 @@ def assert_join_params(how: str, on: str | None, left_on: str | None, right_on: 
 
 def _is_nw_df(df) -> bool:
     return isinstance(df, (nw.DataFrame, nw.LazyFrame))
+
+
+def safe_to_native(df):
+    """Convert a dataframe to native format, no-op if already native.
+
+    This function safely converts Narwhals DataFrames/LazyFrames to their
+    native backend (pandas, Polars, Spark). If the input is already a native
+    dataframe, it returns it unchanged.
+
+    Args:
+        df: A dataframe, either Narwhals-wrapped or native.
+
+    Returns:
+        The native dataframe (pandas DataFrame, Polars DataFrame/LazyFrame,
+        or Spark DataFrame).
+
+    Example:
+        >>> import narwhals as nw
+        >>> import pandas as pd
+        >>> pdf = pd.DataFrame({"a": [1, 2, 3]})
+        >>> nw_df = nw.from_native(pdf)
+        >>> safe_to_native(nw_df)  # Returns pandas DataFrame
+        >>> safe_to_native(pdf)    # Returns same pandas DataFrame (no-op)
+    """
+    if _is_nw_df(df):
+        return nw.to_native(df)
+    return df
+
+
+def safe_from_native(df):
+    """Convert a dataframe to Narwhals format, no-op if already Narwhals.
+
+    This function safely converts native dataframes (pandas, Polars, Spark)
+    to Narwhals DataFrames/LazyFrames. If the input is already a Narwhals
+    dataframe, it returns it unchanged.
+
+    Args:
+        df: A dataframe, either native or Narwhals-wrapped.
+
+    Returns:
+        A Narwhals DataFrame or LazyFrame.
+
+    Example:
+        >>> import narwhals as nw
+        >>> import pandas as pd
+        >>> pdf = pd.DataFrame({"a": [1, 2, 3]})
+        >>> safe_from_native(pdf)     # Returns nw.DataFrame
+        >>> nw_df = nw.from_native(pdf)
+        >>> safe_from_native(nw_df)   # Returns same nw.DataFrame (no-op)
+    """
+    if _is_nw_df(df):
+        return df
+    return nw.from_native(df)
 
 
 def broadcast_spark(df):

@@ -3,6 +3,7 @@
 import os
 
 import narwhals as nw
+import numpy as np
 import pandas as pd
 import polars as pl
 import pytest
@@ -602,6 +603,9 @@ class TestJoinDataframes:
         df_exp = df_left_pd.merge(df_right_pd, on="user_id", how=how)
         assert set(out_cols) == set(df_exp.columns.tolist())
         df_exp = df_exp[out_cols].sort_values("user_id").reset_index(drop=True)
+        # Normalize null values to avoid FutureWarning about None vs nan mismatch
+        df_chk = df_chk.fillna(np.nan)
+        df_exp = df_exp.fillna(np.nan)
         pd.testing.assert_frame_equal(df_chk, df_exp)
 
     @pytest.mark.parametrize("coalesce_keys", [True, False])

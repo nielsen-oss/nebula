@@ -21,6 +21,7 @@ from nebula.pipelines.pipe_aux import is_split_pipeline, sanitize_steps
 from .. import transformer_type_util
 from .node_id import assign_ids_to_tree
 from .nodes import (
+    ConversionNode,
     ForkNode,
     FunctionNode,
     InputNode,
@@ -380,6 +381,11 @@ class IRBuilder:
         if storage_op:
             return storage_op
 
+        # Check for conversion request (string keywords)
+        conversion_op = self._parse_conversion_request(item)
+        if conversion_op:
+            return conversion_op
+
         # Handle Transformer or LazyWrapper
         if transformer_type_util.is_transformer(item):
             description = None
@@ -480,6 +486,24 @@ class IRBuilder:
             if not isinstance(value, str):  # pragma: no cover
                 raise TypeError("'from_store' value must be string")
             return StorageNode(operation="load", key=value)
+
+        return None
+
+    @staticmethod
+    def _parse_conversion_request(item) -> ConversionNode | None:
+        """Parse a conversion request string into a ConversionNode.
+
+        Conversion request formats:
+        - "to_native"
+        - "from_native"
+        """
+        if not isinstance(item, str):
+            return None
+
+        if item == "to_native":
+            return ConversionNode(operation="to_native")
+        elif item == "from_native":
+            return ConversionNode(operation="from_native")
 
         return None
 

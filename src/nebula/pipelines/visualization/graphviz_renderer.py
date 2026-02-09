@@ -34,6 +34,7 @@ except ImportError:  # pragma: no cover
 
 if TYPE_CHECKING:
     from ..ir.nodes import (
+        ConversionNode,
         ForkNode,
         FunctionNode,
         InputNode,
@@ -92,6 +93,10 @@ _STYLES = {
     "storage_toggle": {
         "shape": "cylinder",
         "color": "green",
+    },
+    "conversion": {
+        "shape": "parallelogram",
+        "color": "darkviolet",
     },
     "fork_split": {
         "shape": "house",
@@ -278,6 +283,7 @@ class GraphvizRenderer:  # pragma: no cover
     ) -> str | None:
         """Render a node and return its graphviz node name."""
         from ..ir.nodes import (
+            ConversionNode,
             ForkNode,
             FunctionNode,
             InputNode,
@@ -296,6 +302,8 @@ class GraphvizRenderer:  # pragma: no cover
             return self._render_function(node, dot, add_params, add_description, parent_gv_name)
         elif isinstance(node, StorageNode):
             return self._render_storage(node, dot, parent_gv_name)
+        elif isinstance(node, ConversionNode):
+            return self._render_conversion(node, dot, parent_gv_name)
         elif isinstance(node, ForkNode):
             return self._render_fork(node, dot, add_params, add_description, parent_gv_name)
         elif isinstance(node, MergeNode):
@@ -408,6 +416,16 @@ class GraphvizRenderer:  # pragma: no cover
             style_key = "storage_toggle"
 
         return self._add_node(dot, node, label, style_key, parent_gv_name)
+
+    def _render_conversion(
+        self,
+        node: "ConversionNode",
+        dot: "Digraph",
+        parent_gv_name: str | None,
+    ) -> str:
+        """Render a conversion node."""
+        label = node.display_message
+        return self._add_node(dot, node, label, "conversion", parent_gv_name)
 
     def _render_fork(  # noqa: PLR0912
         self,

@@ -42,7 +42,7 @@ def _get_df_input():
         [14, _nan, None],
         [15, _nan, _nan],
     ]
-    return pl.DataFrame(data, schema=["idx", "c1", "c2"])
+    return pl.DataFrame(data, schema=["idx", "c1", "c2"], orient="row")
 
 
 @pytest.fixture(scope="module", name="df_exp")

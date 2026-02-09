@@ -24,12 +24,19 @@ import narwhals as nw
 
 from nebula.base import Transformer
 from nebula.df_types import GenericDataFrame, is_natively_spark
-from nebula.nw_util import append_dataframes, df_is_empty, join_dataframes
+from nebula.nw_util import (
+    append_dataframes,
+    df_is_empty,
+    join_dataframes,
+    safe_from_native,
+    safe_to_native,
+)
 from nebula.pipelines.pipe_aux import get_native_schema, split_df, to_schema
 from nebula.storage import nebula_storage as ns
 
 from ..exceptions import raise_pipeline_error
 from ..ir.nodes import (
+    ConversionNode,
     ForkNode,
     FunctionNode,
     InputNode,
@@ -170,6 +177,8 @@ class PipelineExecutor:
             return self._execute_function(node, ctx)
         elif isinstance(node, StorageNode):
             return self._execute_storage(node, ctx)
+        elif isinstance(node, ConversionNode):
+            return self._execute_conversion(node, ctx)
         elif isinstance(node, ForkNode):
             return self._execute_fork(node, ctx)
         elif isinstance(node, MergeNode):
@@ -253,6 +262,21 @@ class PipelineExecutor:
 
         elif node.operation == "toggle_debug":
             ns.allow_debug(node.debug_value)
+
+        duration = ctx.end_node(node.id)
+        self.hooks.on_node_end(node, duration, {"df": ctx.df})
+
+        return ctx
+
+    def _execute_conversion(self, node: "ConversionNode", ctx: ExecutionContext) -> ExecutionContext:
+        """Execute a conversion operation."""
+        ctx.start_node(node.id)
+        self.hooks.on_node_start(node, {"df": ctx.df})
+
+        if node.operation == "to_native":
+            ctx.df = safe_to_native(ctx.df)
+        elif node.operation == "from_native":
+            ctx.df = safe_from_native(ctx.df)
 
         duration = ctx.end_node(node.id)
         self.hooks.on_node_end(node, duration, {"df": ctx.df})
