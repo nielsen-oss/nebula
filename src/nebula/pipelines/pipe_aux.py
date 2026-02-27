@@ -37,6 +37,8 @@ PIPELINE_KEYWORDS_DICT: set[str] = {
 PIPELINE_KEYWORDS_STRING: set[str] = {
     "to_native",
     "from_native",
+    "collect",
+    "to_lazy",
 }
 
 PIPELINE_KEYWORDS: set[str] = PIPELINE_KEYWORDS_DICT | PIPELINE_KEYWORDS_STRING

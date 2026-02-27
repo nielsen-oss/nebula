@@ -14,14 +14,17 @@ from nebula.auxiliaries import (
 from nebula.df_types import get_dataframe_type
 
 __all__ = [
-    "safe_from_native",
-    "safe_to_native",
     "append_dataframes",
     "assert_join_params",
+    "assert_same_frame_eagerness",
+    "collect_dataframe",
     "df_is_empty",
     "get_condition",
     "join_dataframes",
     "null_cond_to_false",
+    "safe_from_native",
+    "safe_to_native",
+    "to_lazy_dataframe",
     "to_native_dataframes",
     "validate_operation",
 ]
@@ -31,6 +34,53 @@ NULL_OPERATORS = {"is_null", "is_not_null", "is_nan", "is_not_nan"}
 STRING_OPERATORS = {"contains", "starts_with", "ends_with"}
 MEMBERSHIP_OPERATORS = {"is_between", "is_in", "is_not_in"}
 _allowed_operators = COMPARISON_OPERATORS | NULL_OPERATORS | STRING_OPERATORS | MEMBERSHIP_OPERATORS
+
+_COLLECT_SUPPORTED_BACKENDS: frozenset[str] = frozenset({"polars"})
+_COLLECT_SUPPORTED_NW_TYPES: str = "nw.DataFrame, nw.LazyFrame (polars-backed)"
+
+
+def _classify_eagerness(df) -> str:
+    """Return 'eager' or 'lazy' for any supported frame type."""
+    # Narwhals wrappers -> check first, they're most common in the pipeline
+    if isinstance(df, nw.DataFrame):
+        return "eager"
+    if isinstance(df, nw.LazyFrame):
+        return "lazy"
+    # Native frames
+    df_module = type(df).__module__
+    if "polars" in df_module:
+        import polars as pl
+
+        return "lazy" if isinstance(df, pl.LazyFrame) else "eager"
+    if "pyspark" in df_module:
+        return "lazy"  # spark is always lazy
+    return "eager"  # pandas is always eager
+
+
+def assert_same_frame_eagerness(dataframes: list, operation: str) -> None:
+    """Raise a clear error if eager and lazy frames are mixed.
+
+    Args:
+        dataframes: Frames to validate (native or Narwhals).
+        operation: Human-readable name for the error message ('append' / 'join').
+
+    Raises:
+        TypeError: If the list contains a mix of eager and lazy frames.
+    """
+    classified = [(df, _classify_eagerness(df)) for df in dataframes]
+    eager = [type(df).__name__ for df, kind in classified if kind == "eager"]
+    lazy = [type(df).__name__ for df, kind in classified if kind == "lazy"]
+
+    if eager and lazy:
+        raise TypeError(
+            f"Cannot {operation} DataFrames with mixed eagerness.\n"
+            f"  Eager frames : {eager}\n"
+            f"  Lazy  frames : {lazy}\n"
+            "All DataFrames passed to a merge/join/append must be either all eager "
+            "(pandas.DataFrame, polars.DataFrame, nw.DataFrame) or all lazy "
+            "(polars.LazyFrame, pyspark.sql.DataFrame, nw.LazyFrame).\n"
+            "Tip: use the functions / keyword 'collect' and 'to_lazy'."
+        )
 
 
 def assert_join_params(how: str, on: str | None, left_on: str | None, right_on: str | None) -> None:
@@ -64,6 +114,53 @@ def assert_join_params(how: str, on: str | None, left_on: str | None, right_on: 
 
     if (left_on and not right_on) or (right_on and not left_on):
         raise ValueError("Must specify both 'left_on' and 'right_on' together, not just one.")
+
+
+def collect_dataframe(df):
+    """Collect a lazy narwhals / Polars DataFrame into an eager one.
+
+    This is a no-op when the frame is already eager. Only narwhals-wrapped
+    and native Polars frames are supported; pandas and Spark frames raise a
+    clear ``TypeError`` because the operation has no meaningful definition for
+    them (pandas is always eager; collecting Spark requires a dedicated step).
+
+    Args:
+        df: Input frame — ``nw.DataFrame``, ``nw.LazyFrame``, ``pl.DataFrame``,
+            or ``pl.LazyFrame``.
+
+    Returns:
+        An eager ``nw.DataFrame`` (if input was narwhals) or ``pl.DataFrame``
+        (if input was a native Polars frame).
+
+    Raises:
+        TypeError: If the frame is pandas- or Spark-backed.
+
+    Examples:
+        >>> result = collect_dataframe(nw_lazy_frame)   # nw.LazyFrame → nw.DataFrame
+        >>> result = collect_dataframe(nw_eager_frame)  # already eager, no-op
+        >>> result = collect_dataframe(pl_lazy_frame)   # pl.LazyFrame → pl.DataFrame
+    """
+    is_nw = _is_nw_df(df)
+    native = nw.to_native(df) if is_nw else df
+    backend = get_dataframe_type(native)
+
+    if backend not in _COLLECT_SUPPORTED_BACKENDS:
+        raise TypeError(
+            f"'collect' is only supported for narwhals / Polars frames, "
+            f"got a {backend!r} frame.\n"
+            "  - pandas DataFrames are always eager — 'collect' is a no-op for them.\n"
+            "  - Spark DataFrames require an explicit collect step outside of Nebula\n"
+            "    (collecting Spark triggers a full job and returns to the driver)."
+        )
+
+    import polars as pl
+
+    if isinstance(native, pl.LazyFrame):
+        collected = native.collect()
+        return nw.from_native(collected) if is_nw else collected
+
+    # Already eager — return unchanged so the pipeline stays idempotent
+    return df
 
 
 def _is_nw_df(df) -> bool:
@@ -151,6 +248,9 @@ def to_native_dataframes(dataframes) -> tuple[list, str, bool]:
     """
     if not dataframes:
         raise ValueError("Cannot append empty list of dataframes")
+
+    # fail fast with a clear message before touching native APIs
+    assert_same_frame_eagerness(dataframes, operation="merge")
 
     ret = []
     narwhals_found = False
@@ -519,6 +619,51 @@ def join_dataframes(
             ret = ret.with_columns(*exprs).drop(*keys_to_drop)
 
     return ret if nw_found else nw.to_native(ret)
+
+
+def to_lazy_dataframe(df):
+    """Convert an eager narwhals / Polars DataFrame into a lazy one.
+
+    This is a no-op when the frame is already lazy. Only narwhals-wrapped
+    and native Polars frames are supported; pandas and Spark frames raise a
+    clear ``TypeError``.
+
+    Args:
+        df: Input frame — ``nw.DataFrame``, ``nw.LazyFrame``, ``pl.DataFrame``,
+            or ``pl.LazyFrame``.
+
+    Returns:
+        A lazy ``nw.LazyFrame`` (if input was narwhals) or ``pl.LazyFrame``
+        (if input was a native Polars frame).
+
+    Raises:
+        TypeError: If the frame is pandas- or Spark-backed.
+
+    Examples:
+        >>> result = to_lazy_dataframe(nw_eager_frame)  # nw.DataFrame → nw.LazyFrame
+        >>> result = to_lazy_dataframe(nw_lazy_frame)   # already lazy, no-op
+        >>> result = to_lazy_dataframe(pl_eager_frame)  # pl.DataFrame → pl.LazyFrame
+    """
+    is_nw = _is_nw_df(df)
+    native = nw.to_native(df) if is_nw else df
+    backend = get_dataframe_type(native)
+
+    if backend not in _COLLECT_SUPPORTED_BACKENDS:
+        raise TypeError(
+            f"'to_lazy' is only supported for narwhals / Polars frames, "
+            f"got a {backend!r} frame.\n"
+            "  - pandas does not have a lazy execution mode.\n"
+            "  - Spark DataFrames are always lazy — 'to_lazy' is meaningless for them."
+        )
+
+    import polars as pl
+
+    if isinstance(native, pl.DataFrame):
+        lazy = native.lazy()
+        return nw.from_native(lazy) if is_nw else lazy
+
+    # Already lazy — return unchanged so the pipeline stays idempotent
+    return df
 
 
 def validate_operation(

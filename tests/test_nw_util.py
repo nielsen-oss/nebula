@@ -9,111 +9,65 @@ import polars as pl
 import pytest
 
 from nebula.nw_util import *
-from nebula.nw_util import COMPARISON_OPERATORS, NULL_OPERATORS, assert_join_params
+from nebula.nw_util import (
+    COMPARISON_OPERATORS,
+    NULL_OPERATORS,
+    _classify_eagerness,
+    assert_join_params,
+)
 
 from .auxiliaries import from_pandas, to_pandas
 from .constants import TEST_BACKENDS
 
 
-class TestAssertJoinParams:
-    def test_cross_join_with_no_keys_allowed(self):
-        # should not raise
-        assert_join_params(
-            how="cross",
-            on=None,
-            left_on=None,
-            right_on=None,
-        )
+@pytest.mark.parametrize("to_nw", [True, False])
+class TestClassifyEagerness:
+    """Unit tests for _classify_eagerness."""
 
-    def test_cross_join_with_on_raises(self):
-        with pytest.raises(ValueError, match="cross join"):
-            assert_join_params(
-                how="cross",
-                on="id",
-                left_on=None,
-                right_on=None,
-            )
+    @pytest.mark.parametrize("df", [pd.DataFrame(), pl.DataFrame()])
+    def test_eager(self, df, to_nw: bool):
+        df = nw.from_native(df) if to_nw else df
+        assert _classify_eagerness(df) == "eager"
 
-    def test_cross_join_with_left_on_raises(self):
-        with pytest.raises(ValueError, match="cross join"):
-            assert_join_params(
-                how="cross",
-                on=None,
-                left_on="id",
-                right_on=None,
-            )
+    def test_lazy(self, to_nw: bool):
+        df = pl.LazyFrame()
+        df = nw.from_native(df) if to_nw else df
+        assert _classify_eagerness(df) == "lazy"
 
-    def test_cross_join_with_right_on_raises(self):
-        with pytest.raises(ValueError, match="cross join"):
-            assert_join_params(
-                how="cross",
-                on=None,
-                left_on=None,
-                right_on="id",
-            )
 
-    def test_on_with_left_on_raises(self):
-        with pytest.raises(ValueError, match="Cannot specify both"):
-            assert_join_params(
-                how="inner",
-                on="id",
-                left_on="id",
-                right_on="id",
-            )
+@pytest.mark.parametrize("to_nw", [True, False])
+class TestAssertSameFrameEagerness:
+    """Unit tests for assert_same_frame_eagerness."""
 
-    def test_on_with_right_on_raises(self):
-        with pytest.raises(ValueError, match="Cannot specify both"):
-            assert_join_params(
-                how="inner",
-                on="id",
-                left_on=None,
-                right_on="id",
-            )
+    @pytest.mark.parametrize("df", [pd.DataFrame(), pl.DataFrame()])
+    def test_all_eager(self, df, to_nw: bool):
+        df = nw.from_native(df) if to_nw else df
+        assert_same_frame_eagerness([df, df], "join")
 
-    def test_left_on_without_right_on_raises(self):
-        with pytest.raises(ValueError, match="Must specify both"):
-            assert_join_params(
-                how="inner",
-                on=None,
-                left_on="id",
-                right_on=None,
-            )
+    def test_all_nw_lazy_ok(self, to_nw: bool):
+        df = pl.LazyFrame()
+        df = nw.from_native(df) if to_nw else df
+        assert_same_frame_eagerness([df, df], "append")
 
-    def test_right_on_without_left_on_raises(self):
-        with pytest.raises(ValueError, match="Must specify both"):
-            assert_join_params(
-                how="inner",
-                on=None,
-                left_on=None,
-                right_on="id",
-            )
+    @pytest.mark.parametrize("df", [pd.DataFrame(), pl.DataFrame(), pl.LazyFrame()])
+    def test_single_frame_never_raises(self, df, to_nw: bool):
+        df = nw.from_native(df) if to_nw else df
+        assert_same_frame_eagerness([df], "append")
 
-    def test_on_only_is_valid(self):
-        # should not raise
-        assert_join_params(
-            how="inner",
-            on="id",
-            left_on=None,
-            right_on=None,
-        )
+    def test_polars_eager_and_polars_lazy_raises(self, to_nw: bool):
+        df_eager = pl.DataFrame()
+        df_lazy = pl.LazyFrame()
+        df_eager = nw.from_native(df_eager) if to_nw else df_eager
+        df_lazy = nw.from_native(df_lazy) if to_nw else df_lazy
+        with pytest.raises(TypeError):
+            assert_same_frame_eagerness([df_eager, df_lazy], "append")
 
-    def test_left_and_right_on_is_valid(self):
-        # should not raise
-        assert_join_params(
-            how="inner",
-            on=None,
-            left_on="left_id",
-            right_on="right_id",
-        )
+    def test_empty_list_does_not_raise(self, to_nw):
+        """Empty list has no mixing — guard should stay silent.
 
-    def test_no_keys_is_valid_for_non_cross(self):
-        # should not raise
-        assert_join_params(
-            how="left",
-            on=None,
-            left_on=None,
-            right_on=None,
-        )
+        Caller function "to_native_dataframes" handles the empty-list error separately.
+        """
+        assert_same_frame_eagerness([], "append")
 
 
 class TestAppendDataframes:
@@ -234,6 +188,213 @@ class TestAppendDataframes:
         # pandas concat preserves first df's column order
         expected = pd.concat([df1_pd, df2_pd], axis=0).reset_index(drop=True)
         pd.testing.assert_frame_equal(result_pd, expected)
+
+
+class TestAssertJoinParams:
+    def test_cross_join_with_no_keys_allowed(self):
+        # should not raise
+        assert_join_params(
+            how="cross",
+            on=None,
+            left_on=None,
+            right_on=None,
+        )
+
+    def test_cross_join_with_on_raises(self):
+        with pytest.raises(ValueError, match="cross join"):
+            assert_join_params(
+                how="cross",
+                on="id",
+                left_on=None,
+                right_on=None,
+            )
+
+    def test_cross_join_with_left_on_raises(self):
+        with pytest.raises(ValueError, match="cross join"):
+            assert_join_params(
+                how="cross",
+                on=None,
+                left_on="id",
+                right_on=None,
+            )
+
+    def test_cross_join_with_right_on_raises(self):
+        with pytest.raises(ValueError, match="cross join"):
+            assert_join_params(
+                how="cross",
+                on=None,
+                left_on=None,
+                right_on="id",
+            )
+
+    def test_on_with_left_on_raises(self):
+        with pytest.raises(ValueError, match="Cannot specify both"):
+            assert_join_params(
+                how="inner",
+                on="id",
+                left_on="id",
+                right_on="id",
+            )
+
+    def test_on_with_right_on_raises(self):
+        with pytest.raises(ValueError, match="Cannot specify both"):
+            assert_join_params(
+                how="inner",
+                on="id",
+                left_on=None,
+                right_on="id",
+            )
+
+    def test_left_on_without_right_on_raises(self):
+        with pytest.raises(ValueError, match="Must specify both"):
+            assert_join_params(
+                how="inner",
+                on=None,
+                left_on="id",
+                right_on=None,
+            )
+
+    def test_right_on_without_left_on_raises(self):
+        with pytest.raises(ValueError, match="Must specify both"):
+            assert_join_params(
+                how="inner",
+                on=None,
+                left_on=None,
+                right_on="id",
+            )
+
+    def test_on_only_is_valid(self):
+        # should not raise
+        assert_join_params(
+            how="inner",
+            on="id",
+            left_on=None,
+            right_on=None,
+        )
+
+    def test_left_and_right_on_is_valid(self):
+        # should not raise
+        assert_join_params(
+            how="inner",
+            on=None,
+            left_on="left_id",
+            right_on="right_id",
+        )
+
+    def test_no_keys_is_valid_for_non_cross(self):
+        # should not raise
+        assert_join_params(
+            how="left",
+            on=None,
+            left_on=None,
+            right_on=None,
+        )
+
+
+def _make_eager(to_nw: bool) -> pl.DataFrame | nw.DataFrame:
+    df = pl.DataFrame({"x": [1, 2]})
+    return nw.from_native(df) if to_nw else df
+
+
+def _make_lazy(to_nw: bool) -> pl.LazyFrame | nw.LazyFrame:
+    lf = pl.LazyFrame({"x": [1, 2]})
+    return nw.from_native(lf) if to_nw else lf
+
+
+@pytest.mark.parametrize("to_nw", [True, False])
+class TestCollectDataFrame:
+    """Unit tests for collect_dataframe."""
+
+    # ── lazy → eager (the actual conversion) ─────────────────────────────────
+
+    def test_lazy_becomes_eager(self, to_nw: bool):
+        result = collect_dataframe(_make_lazy(to_nw))
+        native = nw.to_native(result) if isinstance(result, (nw.DataFrame, nw.LazyFrame)) else result
+        assert isinstance(native, pl.DataFrame)
+
+    def test_lazy_result_is_not_lazyframe(self, to_nw: bool):
+        result = collect_dataframe(_make_lazy(to_nw))
+        native = nw.to_native(result) if isinstance(result, (nw.DataFrame, nw.LazyFrame)) else result
+        assert not isinstance(native, pl.LazyFrame)
+
+    def test_lazy_preserves_nw_wrapping(self, to_nw: bool):
+        result = collect_dataframe(_make_lazy(to_nw))
+        assert isinstance(result, nw.DataFrame) == to_nw
+
+    def test_lazy_data_is_preserved(self, to_nw: bool):
+        result = collect_dataframe(_make_lazy(to_nw))
+        native = nw.to_native(result) if isinstance(result, (nw.DataFrame, nw.LazyFrame)) else result
+        assert native.to_dict(as_series=False) == {"x": [1, 2]}
+
+    # ── eager → eager (no-op) ─────────────────────────────────────────────────
+
+    def test_eager_is_noop(self, to_nw: bool):
+        df = _make_eager(to_nw)
+        result = collect_dataframe(df)
+        assert result is df  # exact same object — no copy made
+
+    def test_eager_stays_eager(self, to_nw: bool):
+        result = collect_dataframe(_make_eager(to_nw))
+        native = nw.to_native(result) if isinstance(result, (nw.DataFrame, nw.LazyFrame)) else result
+        assert isinstance(native, pl.DataFrame)
+
+    # ── unsupported backends ──────────────────────────────────────────────────
+
+    def test_pandas_raises_type_error(self, to_nw: bool):
+        with pytest.raises(TypeError, match="collect"):
+            collect_dataframe(pd.DataFrame({"x": [1]}))
+
+    def test_pandas_error_message_explains_why(self, to_nw: bool):
+        with pytest.raises(TypeError, match="always eager"):
+            collect_dataframe(pd.DataFrame({"x": [1]}))
+
+
+@pytest.mark.parametrize("to_nw", [True, False])
+class TestToLazyDataFrame:
+    """Unit tests for to_lazy_dataframe."""
+
+    # ── eager → lazy (the actual conversion) ─────────────────────────────────
+
+    def test_eager_becomes_lazy(self, to_nw: bool):
+        result = to_lazy_dataframe(_make_eager(to_nw))
+        native = nw.to_native(result) if isinstance(result, (nw.DataFrame, nw.LazyFrame)) else result
+        assert isinstance(native, pl.LazyFrame)
+
+    def test_eager_result_is_not_dataframe(self, to_nw: bool):
+        result = to_lazy_dataframe(_make_eager(to_nw))
+        native = nw.to_native(result) if isinstance(result, (nw.DataFrame, nw.LazyFrame)) else result
+        assert not isinstance(native, pl.DataFrame)
+
+    def test_eager_preserves_nw_wrapping(self, to_nw: bool):
+        result = to_lazy_dataframe(_make_eager(to_nw))
+        assert isinstance(result, nw.LazyFrame) == to_nw
+
+    def test_eager_data_is_preserved(self, to_nw: bool):
+        result = to_lazy_dataframe(_make_eager(to_nw))
+        native = nw.to_native(result) if isinstance(result, (nw.DataFrame, nw.LazyFrame)) else result
+        assert native.collect().to_dict(as_series=False) == {"x": [1, 2]}
+
+    # ── lazy → lazy (no-op) ───────────────────────────────────────────────────
+
+    def test_lazy_is_noop(self, to_nw: bool):
+        lf = _make_lazy(to_nw)
+        result = to_lazy_dataframe(lf)
+        assert result is lf  # exact same object — no copy made
+
+    def test_lazy_stays_lazy(self, to_nw: bool):
+        result = to_lazy_dataframe(_make_lazy(to_nw))
+        native = nw.to_native(result) if isinstance(result, (nw.DataFrame, nw.LazyFrame)) else result
+        assert isinstance(native, pl.LazyFrame)
+
+    # ── unsupported backends ──────────────────────────────────────────────────
+
+    def test_pandas_raises_type_error(self, to_nw: bool):
+        with pytest.raises(TypeError, match="to_lazy"):
+            to_lazy_dataframe(pd.DataFrame({"x": [1]}))
+
+    def test_pandas_error_message_explains_why(self, to_nw: bool):
+        with pytest.raises(TypeError, match="lazy execution"):
+            to_lazy_dataframe(pd.DataFrame({"x": [1]}))
 
 
 class TestDfIsEmpty:
