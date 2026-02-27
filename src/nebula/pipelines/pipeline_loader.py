@@ -31,6 +31,8 @@ _NOT_ALLOWED_SPLIT_NAMES: set[str] = {
     "function",
     "to_native",
     "from_native",
+    "collect",
+    "to_lazy",
 }
 
 # ... extract the kwarg name from "TransformerPipeline" ...

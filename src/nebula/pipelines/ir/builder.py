@@ -496,6 +496,8 @@ class IRBuilder:
         Conversion request formats:
         - "to_native"
         - "from_native"
+        - "collect"
+        - "to_lazy"
         """
         if not isinstance(item, str):
             return None
@@ -504,6 +506,10 @@ class IRBuilder:
             return ConversionNode(operation="to_native")
         elif item == "from_native":
             return ConversionNode(operation="from_native")
+        elif item == "collect":
+            return ConversionNode(operation="collect")
+        elif item == "to_lazy":
+            return ConversionNode(operation="to_lazy")
 
         return None
 

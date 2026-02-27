@@ -26,10 +26,12 @@ from nebula.base import Transformer
 from nebula.df_types import GenericDataFrame, is_natively_spark
 from nebula.nw_util import (
     append_dataframes,
+    collect_dataframe,
     df_is_empty,
     join_dataframes,
     safe_from_native,
     safe_to_native,
+    to_lazy_dataframe,
 )
 from nebula.pipelines.pipe_aux import get_native_schema, split_df, to_schema
 from nebula.storage import nebula_storage as ns
@@ -277,6 +279,10 @@ class PipelineExecutor:
             ctx.df = safe_to_native(ctx.df)
         elif node.operation == "from_native":
             ctx.df = safe_from_native(ctx.df)
+        elif node.operation == "collect":
+            ctx.df = collect_dataframe(ctx.df)
+        elif node.operation == "to_lazy":
+            ctx.df = to_lazy_dataframe(ctx.df)
 
         duration = ctx.end_node(node.id)
         self.hooks.on_node_end(node, duration, {"df": ctx.df})

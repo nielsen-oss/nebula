@@ -246,7 +246,7 @@ class ConversionNode(PipelineNode):
         operation: The conversion operation type.
     """
 
-    operation: Literal["to_native", "from_native"] = "to_native"
+    operation: Literal["to_native", "from_native", "collect", "to_lazy"] = "to_native"
 
     def __post_init__(self):  # noqa: D105
         self.node_type = NodeType.CONVERSION
@@ -258,6 +258,10 @@ class ConversionNode(PipelineNode):
             return "Convert to native DataFrame"
         elif self.operation == "from_native":
             return "Convert to Narwhals DataFrame"
+        elif self.operation == "collect":
+            return "Collect lazy frame into eager DataFrame (Polars only)"
+        elif self.operation == "to_lazy":
+            return "Convert eager DataFrame to lazy frame (Polars only)"
         return f"Unknown operation: {self.operation}"  # pragma: no cover
 
 
