@@ -28,6 +28,7 @@ _NOT_ALLOWED_SPLIT_NAMES: set[str] = {
     "storage_debug_mode",
     "from_store",
     "transformer",
+    "function",
     "to_native",
     "from_native",
 }
@@ -220,16 +221,86 @@ def _load_transformer(d: dict) -> Transformer | None:
         raise type(e)(msg)
 
 
-def _load_generic(o, **kwargs) -> TransformerPipeline | Transformer | dict:
+def _load_function(d: dict, *, extra_funcs: dict) -> tuple | None:
+    """Parse a function dict into the tuple format understood by the pipeline executor.
+
+    The dict shape is::
+
+        {
+            "function": <callable | str>,   # required
+            "args":     [...],              # optional positional args (after df)
+            "kwargs":   {...},              # optional keyword args
+            "description": "...",          # optional label shown in pipeline.show()
+            "skip":     true,              # optional – skip this step
+            "perform":  false,             # alternative skip flag
+        }
+
+    When ``function`` is a **string**, it is looked up by name inside
+    ``extra_funcs`` (the same registry used for split functions).
+    When ``function`` is already a **callable**, it is used directly – useful
+    when building pipelines from Python dicts rather than YAML.
+
+    Returns a tuple compatible with ``is_eligible_function``:
+        - ``(func,)``                    – no extra args/kwargs
+        - ``(func, args)``               – positional args only
+        - ``(func, args, kwargs)``        – args + kwargs
+        - ``(func, args, kwargs, desc)``  – args + kwargs + description
+
+    Returns ``None`` when the step is skipped via ``skip``/``perform``.
+    """
+    if d.get("skip") or (d.get("perform") is False):
+        return None
+
+    func_ref = d["function"]
+
+    # Resolve string name → callable via extra_funcs registry
+    if isinstance(func_ref, str):
+        if func_ref not in extra_funcs:
+            available = sorted(extra_funcs)
+            raise NameError(f'Unknown function "{func_ref}". Available extra_functions: {available}')
+        func = extra_funcs[func_ref]
+    elif callable(func_ref):
+        func = func_ref
+    else:
+        raise TypeError(f'"function" must be a callable or a string name. Got {type(func_ref)}: {func_ref!r}')
+
+    args = d.get("args")
+    kwargs = d.get("kwargs")
+    description = d.get("description")
+
+    # Normalise args / kwargs so we always pass lists / dicts downstream
+    if args is not None and not isinstance(args, (list, tuple)):
+        raise TypeError(f'"args" must be a list or tuple. Got {type(args)}')
+    if kwargs is not None and not isinstance(kwargs, dict):
+        raise TypeError(f'"kwargs" must be a dict. Got {type(kwargs)}')
+
+    args = list(args) if args is not None else []
+    kwargs = kwargs or {}
+
+    # Build the minimal tuple that is_eligible_function() accepts
+    if description is not None:
+        return func, args, kwargs, str(description)
+    if kwargs:
+        return func, args, kwargs
+    if args:
+        return func, args
+    # Plain callable – return as-is (simplest form)
+    return func
+
+
+def _load_generic(o, **kwargs) -> TransformerPipeline | Transformer | dict | tuple | None:
     if "transformer" in o:
         return _load_transformer(o)
+    elif "function" in o:
+        extra_funcs = kwargs.get("extra_funcs", {})
+        return _load_function(o, extra_funcs=extra_funcs)
     elif "pipeline" in o:
         return _load_pipeline(o, **kwargs)
     elif is_keyword_request(o):
         return o
     else:  # pragma: no cover
         msg = "Not understood. At this stage the loader is looking "
-        msg += f"for 'transformer' or 'branch' or 'pipeline'. Passed {o}."
+        msg += f"for 'transformer', 'function', 'branch', or 'pipeline'. Passed {o}."
         raise TypeError(msg)
 
 
