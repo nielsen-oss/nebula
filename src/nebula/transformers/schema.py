@@ -135,13 +135,13 @@ class Cast(Transformer):
             if col in self._cast:
                 target_type = self._cast[col].lower()
                 if target_type in NW_TYPES:
-                    exprs.append(df[col].cast(NW_TYPES[target_type]).alias(col))
+                    exprs.append(nw.col(col).cast(NW_TYPES[target_type]).alias(col))
                 else:  # pragma: no cover
                     raise ValueError(
                         f"Unknown type '{self._cast[col]}' for column '{col}'. Supported: {list(NW_TYPES.keys())}"
                     )
             else:
-                exprs.append(df[col])
+                exprs.append(nw.col(col))
 
         return df.select(exprs)
 
@@ -153,7 +153,7 @@ class Cast(Transformer):
         return df.select(*cols)
 
     def _parse_polars_dtype(self, dtype_str: str):
-        """Parse a dtype string and return corresponding Polars dtype.
+        """Parse a dtype string and return the corresponding Polars dtype.
 
         Supports:
         - Simple types: 'int64', 'float64', 'str', 'bool', 'date', 'datetime'

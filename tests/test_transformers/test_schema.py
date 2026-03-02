@@ -332,7 +332,8 @@ class TestCast:
         with pytest.raises(ValueError):
             cast.transform(df)
 
-    def test_polars(self):
+    @pytest.mark.parametrize("to_lazy", [True, False])
+    def test_polars(self, to_lazy: bool):
         """Test casting all valid types in Polars."""
         df = pl.DataFrame(
             {
@@ -373,6 +374,8 @@ class TestCast:
             }
         )
 
+        df = df.lazy() if to_lazy else df
+
         cast = Cast(
             cast={
                 # Simple types
@@ -396,6 +399,8 @@ class TestCast:
         )
 
         result = cast.transform(df)
+
+        result = result.collect() if to_lazy else result
 
         # Assert simple types
         assert result["int_col"].dtype == pl.Int64
@@ -422,7 +427,7 @@ class TestCast:
         )
 
         # Assert untouched
-        assert result["untouched"].dtype == df["untouched"].dtype
+        assert result["untouched"].dtype == df.schema["untouched"]
 
     def test_polars_array_invalid_width_raises(self):
         """Test that array without width raises error."""
@@ -627,7 +632,8 @@ class TestCast:
         assert result_pd["int_col"].dtype == "int64"
         assert result_pd["float_col"].dtype == "float64"
 
-    def test_narwhals_polars_simple(self):
+    @pytest.mark.parametrize("to_lazy", [True, False])
+    def test_narwhals_polars_simple(self, to_lazy: bool):
         """Test Cast with narwhals-wrapped Polars DataFrame (simple types)."""
         df_pl = pl.DataFrame(
             {
@@ -635,27 +641,33 @@ class TestCast:
                 "str_col": [1, 2, 3],
             }
         )
+        df_pl = df_pl.lazy() if to_lazy else df_pl
         df_nw = nw.from_native(df_pl)
 
         cast = Cast(cast={"int_col": "int64", "str_col": "str"})
         result_nw = cast.transform(df_nw)
 
-        assert isinstance(result_nw, nw.DataFrame)
+        assert isinstance(result_nw, nw.LazyFrame if to_lazy else nw.DataFrame)
+
+        result_nw = result_nw.collect() if to_lazy else result_nw
 
         result_pl = nw.to_native(result_nw)
         assert result_pl["int_col"].dtype == pl.Int64
         assert result_pl["str_col"].dtype == pl.String
 
-    def test_narwhals_polars_nested(self):
+    @pytest.mark.parametrize("to_lazy", [True, False])
+    def test_narwhals_polars_nested(self, to_lazy: bool):
         """Test Cast with narwhals-wrapped Polars DataFrame (nested types)."""
         df_pl = pl.DataFrame({"col": [["1", "2"], ["3", "4"]]})
+        df_pl = df_pl.lazy() if to_lazy else df_pl
         df_nw = nw.from_native(df_pl)
 
         cast = Cast(cast={"col": "list[int64]"})
         result_nw = cast.transform(df_nw)
 
-        # Should fall back to native and return narwhals
-        assert isinstance(result_nw, nw.DataFrame)
+        assert isinstance(result_nw, nw.LazyFrame if to_lazy else nw.DataFrame)
+
+        result_nw = result_nw.collect() if to_lazy else result_nw
 
         result_pl = nw.to_native(result_nw)
         assert result_pl["col"].dtype == pl.List(pl.Int64)
