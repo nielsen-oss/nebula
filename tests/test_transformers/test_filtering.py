@@ -55,7 +55,8 @@ class TestDropNulls:
         df_exp = df_input_spark.dropna(subset=subset, how=how)
         assert_df_equality(df_chk, df_exp, ignore_row_order=True)
 
-    def test_polars_any_all_columns(self):
+    @pytest.mark.parametrize("to_lazy", [True, False])
+    def test_polars_any_all_columns(self, to_lazy: bool):
         """Test dropping rows with any null/NaN across all columns."""
         df = pl.DataFrame(
             {
@@ -64,15 +65,18 @@ class TestDropNulls:
                 "score": [100.0, 200.0, None, 400.0, 500.0],
             }
         )
+        df = df.lazy() if to_lazy else df
 
         t = DropNulls(how="any", drop_na=True)
         result = t.transform(df)
+        result = result.collect() if to_lazy else result
 
         # Rows 3 (null) and 4 (NaN) are dropped
         assert len(result) == 3
         assert result["user_id"].to_list() == [1, 2, 5]
 
-    def test_polars_all_requires_all_missing(self):
+    @pytest.mark.parametrize("to_lazy", [True, False])
+    def test_polars_all_requires_all_missing(self, to_lazy: bool):
         """Test dropping rows only when ALL values are null/NaN."""
         df = pl.DataFrame(
             {
@@ -81,9 +85,11 @@ class TestDropNulls:
                 "col_c": [100.0, 200.0, None, 400.0],
             }
         )
+        df = df.lazy() if to_lazy else df
 
         t = DropNulls(how="all", drop_na=True)
         result = t.transform(df)
+        result = result.collect() if to_lazy else result
 
         # Only the third row has all nulls
         assert len(result) == 3
@@ -91,7 +97,8 @@ class TestDropNulls:
         assert result["col_a"][1] is None
         assert result["col_a"][2] == 4.0
 
-    def test_polars_subset_columns(self):
+    @pytest.mark.parametrize("to_lazy", [True, False])
+    def test_polars_subset_columns(self, to_lazy: bool):
         """Test dropping rows based on nulls in specific columns only."""
         df = pl.DataFrame(
             {
@@ -101,17 +108,20 @@ class TestDropNulls:
                 "note": [None, "good", None, "excellent"],
             }
         )
+        df = df.lazy() if to_lazy else df
 
         # Only check score columns - ignore note nulls
         t = DropNulls(how="any", columns=["score_primary", "score_secondary"])
         result = t.transform(df)
+        result = result.collect() if to_lazy else result
 
         # Rows 1 and 3 have nulls in BOTH score columns
         # Rows 2 and 4 have at least one score populated
         assert len(result) == 2
         assert result["user_id"].to_list() == [1, 3]
 
-    def test_polars_with_pattern_and_nan_handling(self):
+    @pytest.mark.parametrize("to_lazy", [True, False])
+    def test_polars_with_pattern_and_nan_handling(self, to_lazy: bool):
         """Test dropping rows with NaN vs. null distinction."""
         df = pl.DataFrame(
             {
@@ -121,16 +131,19 @@ class TestDropNulls:
                 "cost_q1": [50.0, 60.0, 70.0, None],
             }
         )
+        df = df.lazy() if to_lazy else df
 
         # Check revenue columns, including NaN
         t = DropNulls(how="any", glob="revenue_*", drop_na=True)
         result = t.transform(df)
+        result = result.collect() if to_lazy else result
 
         # Rows 2 (NaN) and 3 (null) have missing revenue values
         assert len(result) == 2
         assert result["user_id"].to_list() == [1, 4]
 
-    def test_polars_ignore_nan(self):
+    @pytest.mark.parametrize("to_lazy", [True, False])
+    def test_polars_ignore_nan(self, to_lazy: bool):
         """Test ignoring NaN when drop_null=False."""
         df = pl.DataFrame(
             {
@@ -138,10 +151,12 @@ class TestDropNulls:
                 "value": [100.0, float("nan"), None],
             }
         )
+        df = df.lazy() if to_lazy else df
 
         # Only drop actual nulls, not NaN
         t = DropNulls(how="any", drop_na=False)
         result = t.transform(df)
+        result = result.collect() if to_lazy else result
 
         # Row 3 has null, row 2 has NaN (should remain)
         assert len(result) == 2
