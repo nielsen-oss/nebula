@@ -49,7 +49,7 @@ class TestApplyToRowsBasic:
         """Rows where idx > 5 get modified, others pass through unchanged."""
         pipe = pipe_apply_to_rows_basic()
         pipe.show(add_params=True)
-        df_out = pipe.run(df_input, show_params=True, force_interleaved_transformer=CallMe())
+        df_out = pipe.run(df_input, show_params=True, after_each_step=CallMe())
 
         assert ns.get("_call_me_") == 2
 
