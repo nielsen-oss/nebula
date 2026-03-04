@@ -112,6 +112,13 @@ class PipelineExecutor:
         self.checkpoint_storage = checkpoint_storage
         self.force_interleaved = force_interleaved
 
+    def _run_interleaved(self, df: "GenericDataFrame") -> "GenericDataFrame":
+        """Run the forced interleaved transformer or function."""
+        if isinstance(self.force_interleaved, Transformer):
+            return self.force_interleaved.transform(df)
+        # It's a callable (function)
+        return self.force_interleaved(df)
+
     def run(self, df: "GenericDataFrame") -> "GenericDataFrame":
         """Execute the pipeline on input DataFrame.
 
@@ -211,7 +218,7 @@ class PipelineExecutor:
 
             # Run forced interleaved if set
             if self.force_interleaved is not None:
-                ctx.df = self.force_interleaved.transform(ctx.df)
+                ctx.df = self._run_interleaved(ctx.df)
 
         except Exception as e:
             self.hooks.on_error(node, e, {"df": ctx.df})
@@ -236,7 +243,7 @@ class PipelineExecutor:
 
             # Run forced interleaved if set
             if self.force_interleaved is not None:
-                ctx.df = self.force_interleaved.transform(ctx.df)
+                ctx.df = self._run_interleaved(ctx.df)
 
         except Exception as e:
             self.hooks.on_error(node, e, {"df": ctx.df})
@@ -503,7 +510,7 @@ class PipelineExecutor:
         # Run forced interleaved if set
         if self.force_interleaved is not None:
             ctx.cache_for_failure(f"last-interleaved:{node.merge_type}", ctx.df)
-            ctx.df = self.force_interleaved.transform(ctx.df)
+            ctx.df = self._run_interleaved(ctx.df)
             # executed, clear the fail_cache
             ctx.clear_fail_cache()
 
