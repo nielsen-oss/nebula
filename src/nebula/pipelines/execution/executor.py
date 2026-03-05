@@ -405,13 +405,7 @@ class PipelineExecutor:
 
     def _execute_apply_to_rows_fork(self, node: "ForkNode", ctx: ExecutionContext) -> ExecutionContext:
         """Execute apply_to_rows fork - filter, transform, merge back."""
-        # Get condition from config
-        df = ctx.df
-        if not isinstance(df, (nw.DataFrame, nw.LazyFrame)):
-            df = nw.from_native(df)
-
-        # Split DataFrame
-        matched_df, otherwise_df = split_df(df, node.config)
+        matched_df, otherwise_df = split_df(ctx.df, node.config)
 
         # Check skip_if_empty
         matched_result = None
