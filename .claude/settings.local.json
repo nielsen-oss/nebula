@@ -1,7 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(TESTS_NO_SPARK=true python -m pytest tests/test_pipelines/test_miscellaneous.py -v)"
-    ]
-  }
-}
