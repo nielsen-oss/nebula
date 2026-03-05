@@ -30,8 +30,8 @@ def test_transformer_no_parent_class_in_pipeline(df_input):
     pl_assert_equal(df_chk, df_input)
 
 
-def test_forced_transformer(df_input):
-    """Ensure the forced transformer is executed after each transformer."""
+def test_after_each_step_with_transformer(df_input):
+    """Ensure after_each_step transformer is executed after each step."""
     list_trf_1 = [SelectColumns(glob="*")]
     list_trf_2 = [AssertNotEmpty(), DropNulls()]
 
@@ -41,12 +41,29 @@ def test_forced_transformer(df_input):
     pipe.show()
 
     ns.clear()
-    df_chk = pipe.run(df_input, force_interleaved_transformer=CallMe())
+    df_chk = pipe.run(df_input, after_each_step=CallMe())
     n: int = ns.get("_call_me_")
     exp_n = len(list_trf_1) + len(list_trf_2)
     assert n == exp_n
     ns.clear()
 
+    pl_assert_equal(df_chk, df_input)
+
+
+def test_after_each_step_with_function(df_input):
+    """Ensure after_each_step works with a plain function."""
+    call_count = {"n": 0}
+
+    def count_calls(df):
+        call_count["n"] += 1
+        return df
+
+    list_trf = [SelectColumns(glob="*"), AssertNotEmpty(), DropNulls()]
+    pipe = TransformerPipeline(list_trf)
+
+    df_chk = pipe.run(df_input, after_each_step=count_calls)
+
+    assert call_count["n"] == len(list_trf)
     pl_assert_equal(df_chk, df_input)
 
 
@@ -56,5 +73,5 @@ def test_skip_pipeline(df_input):
     pipe_2 = TransformerPipeline(ThisTransformerIsBroken, skip=True)
     pipe = TransformerPipeline([pipe_1, pipe_2])
     pipe.show(add_params=True)
-    df_chk = pipe.run(df_input, force_interleaved_transformer=CallMe())
+    df_chk = pipe.run(df_input, after_each_step=CallMe())
     pl_assert_equal(df_chk, df_input.drop("idx"))

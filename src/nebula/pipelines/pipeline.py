@@ -473,7 +473,7 @@ class TransformerPipeline:
         hooks: PipelineHooks | None = None,
         resume_from: str | None = None,
         show_params: bool = False,
-        force_interleaved_transformer: Any = None,
+        after_each_step: Transformer | Callable | None = None,
     ) -> Any:
         """Execute the pipeline on input DataFrame.
 
@@ -482,7 +482,9 @@ class TransformerPipeline:
             hooks: Optional hooks for monitoring/extensibility.
             resume_from: Node ID to resume from (skip prior nodes).
             show_params: Whether to show the parameter of transformers, function, etc.
-            force_interleaved_transformer: Transformer to run after each step.
+            after_each_step: Transformer or function to run after each step.
+                If a function, it must take a DataFrame and return a DataFrame.
+                Use functools.partial to pass additional arguments.
 
         Returns:
             Transformed DataFrame (same backend as input).
@@ -504,7 +506,7 @@ class TransformerPipeline:
             ir=self._ir,
             hooks=hooks,
             resume_from=resume_from,
-            force_interleaved=force_interleaved_transformer,
+            force_interleaved=after_each_step,
         )
 
         return executor.run(df)
