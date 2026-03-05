@@ -374,9 +374,7 @@ class TestSplitDf:
 
     def test(self, df_input):
         cfg = {"input_col": "score", "operator": "gt", "value": 80}
-        df_1_chk_nw, df_2_chk_nw = split_df(df_input, cfg)
-        df_1_chk = nw.to_native(df_1_chk_nw)
-        df_2_chk = nw.to_native(df_2_chk_nw)
+        df_1_chk, df_2_chk = split_df(df_input, cfg)
 
         # Scores > 80: 85, 91 (2 rows)
         df_1_exp = df_input.filter(pl.col("score") > 80)

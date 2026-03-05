@@ -6,7 +6,7 @@ import narwhals as nw
 
 from nebula.auxiliaries import truncate_long_string
 from nebula.base import LazyWrapper, Transformer, is_ns_lazy_request
-from nebula.df_types import GenericDataFrame, NwDataFrame, get_dataframe_type
+from nebula.df_types import GenericDataFrame, get_dataframe_type
 from nebula.nw_util import get_condition, null_cond_to_false, to_native_dataframes
 from nebula.pipelines.transformer_type_util import is_transformer
 
@@ -457,9 +457,13 @@ def sanitize_steps(data) -> list:  # noqa: PLR0912
     return result
 
 
-def split_df(df, cfg: dict) -> tuple[NwDataFrame, NwDataFrame]:
-    """Split a dataframe according to the given configuration."""
-    if not isinstance(df, (nw.DataFrame, nw.LazyFrame)):
+def split_df(df, cfg: dict):
+    """Split a dataframe according to the given configuration.
+
+    Returns the same dataframe type as the input (narwhals, pandas, polars, spark).
+    """
+    is_native = not isinstance(df, (nw.DataFrame, nw.LazyFrame))
+    if is_native:
         df = nw.from_native(df)
 
     cond = get_condition(
@@ -470,4 +474,8 @@ def split_df(df, cfg: dict) -> tuple[NwDataFrame, NwDataFrame]:
     )
     otherwise_cond = ~null_cond_to_false(cond)
 
-    return df.filter(cond), df.filter(otherwise_cond)
+    df_matched, df_otherwise = df.filter(cond), df.filter(otherwise_cond)
+
+    if is_native:
+        return nw.to_native(df_matched), nw.to_native(df_otherwise)
+    return df_matched, df_otherwise
