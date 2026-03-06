@@ -8,13 +8,15 @@ import polars as pl
 import pytest
 from pyspark.sql.types import FloatType, LongType, StringType, StructField, StructType
 
-from nebula.base import Transformer
+from nebula.base import LazyWrapper, Transformer
 from nebula.pipelines.pipe_aux import *
 from nebula.pipelines.pipe_aux import (
     PIPELINE_KEYWORDS,
     PIPELINE_KEYWORDS_DICT,
     PIPELINE_KEYWORDS_STRING,
+    replace_params_references,
 )
+from nebula.storage import nebula_storage as ns
 from nebula.transformers import *
 
 from ...auxiliaries import from_pandas, to_pandas
@@ -856,3 +858,135 @@ class TestSanitizeSteps:
 
         result = sanitize_steps(requests)
         assert result == requests
+
+
+class TestIsSplitPipeline:
+    """Tests for is_split_pipeline function."""
+
+    def test_true(self):
+        assert is_split_pipeline({"a": 1, "b": 2}, lambda df: df) is True
+
+    def test_false_not_dict(self):
+        assert is_split_pipeline([1, 2], lambda df: df) is False
+
+    def test_false_no_split_function(self):
+        assert is_split_pipeline({"a": 1, "b": 2}, None) is False
+
+    def test_false_single_key(self):
+        assert is_split_pipeline({"a": 1}, lambda df: df) is False
+
+
+class TestSplitDfNarwhals:
+    """Test split_df with narwhals DataFrames (non-native path)."""
+
+    def test_narwhals_input(self):
+        df = nw.from_native(pl.DataFrame({"x": [1, 2, 3, 4], "y": [10, 20, 30, 40]}))
+        cfg = {"input_col": "x", "operator": "gt", "value": 2}
+        df_matched, df_otherwise = split_df(df, cfg)
+        assert isinstance(df_matched, nw.DataFrame)
+        assert isinstance(df_otherwise, nw.DataFrame)
+        assert len(df_matched) == 2
+        assert len(df_otherwise) == 2
+
+
+class TestSanitizeStepsWithPipeline:
+    """Test sanitize_steps accepts TransformerPipeline objects."""
+
+    def test_pipeline_in_list(self):
+        from nebula import TransformerPipeline
+
+        pipe = TransformerPipeline(DummyTransformer())
+        result = sanitize_steps([pipe])
+        assert len(result) == 1
+        assert result[0] is pipe
+
+
+class TestGetTransformerNameNoParams:
+    """Test get_transformer_name for non-lazy transformer with no init params."""
+
+    def test_no_init_params(self):
+        t = AnotherTransformer()
+        result = get_transformer_name(t, add_params=True)
+        assert result in ("", [])
+
+
+class TestReplaceParamsReferences:
+    """Tests for replace_params_references function."""
+
+    def test_ns_lazy_request(self):
+        """A (ns, key) tuple should be replaced by ns.get("key")."""
+        result = replace_params_references((ns, "my_key"))
+        assert result == 'ns.get("my_key")'
+
+    def test_ns_lazy_request_list(self):
+        """A [ns, key] list should be replaced by ns.get("key")."""
+        result = replace_params_references([ns, "my_key"])
+        assert result == 'ns.get("my_key")'
+
+    def test_dict_recursion(self):
+        """Dicts should be recursed into."""
+        data = {"a": 1, "b": (ns, "k1")}
+        result = replace_params_references(data)
+        assert result == {"a": 1, "b": 'ns.get("k1")'}
+
+    def test_list_recursion(self):
+        """Lists should be recursed into."""
+        data = [1, "hello", (ns, "k2")]
+        result = replace_params_references(data)
+        assert result == [1, "hello", 'ns.get("k2")']
+
+    def test_tuple_recursion(self):
+        """Tuples should be recursed into (preserving type)."""
+        data = (1, "hello", (ns, "k3"))
+        result = replace_params_references(data)
+        assert result == (1, "hello", 'ns.get("k3")')
+        assert isinstance(result, tuple)
+
+    def test_nested_dict_list_tuple(self):
+        """Deeply nested structures should be handled."""
+        data = {"outer": [{"inner": (ns, "deep")}]}
+        result = replace_params_references(data)
+        assert result == {"outer": [{"inner": 'ns.get("deep")'}]}
+
+    def test_base_case(self):
+        """Non-container, non-ns values should be returned as-is."""
+        assert replace_params_references(42) == 42
+        assert replace_params_references("plain") == "plain"
+        assert replace_params_references(None) is None
+
+
+class TestGetTransformerNameLazy:
+    """Tests for get_transformer_name with LazyWrapper."""
+
+    def test_lazy_wrapper_with_params(self):
+        """LazyWrapper with kwargs should show params."""
+        lazy = LazyWrapper(SelectColumns, columns=["a", "b"])
+        result = get_transformer_name(lazy, add_params=True)
+        assert isinstance(result, str)
+        assert "columns=" in result
+
+    def test_lazy_wrapper_no_params(self):
+        """LazyWrapper with no kwargs should return empty."""
+        lazy = LazyWrapper(SelectColumns)
+        result = get_transformer_name(lazy, add_params=True)
+        assert result in ("", [])
+
+    def test_lazy_wrapper_with_ns_reference(self):
+        """LazyWrapper with ns reference in kwargs should show ns.get(...)."""
+        lazy = LazyWrapper(SelectColumns, columns=(ns, "my_cols"))
+        result = get_transformer_name(lazy, add_params=True)
+        assert isinstance(result, str)
+        assert 'ns.get("my_cols")' in result
+
+    def test_lazy_wrapper_as_list(self):
+        """LazyWrapper params as list format."""
+        lazy = LazyWrapper(SelectColumns, columns=["a", "b"])
+        result = get_transformer_name(lazy, add_params=True, as_list=True)
+        assert isinstance(result, list)
+        assert len(result) > 0
+
+    def test_lazy_wrapper_wrap_text(self):
+        """LazyWrapper params with wrap_text."""
+        lazy = LazyWrapper(SelectColumns, columns=["a", "b"], glob="*")
+        result = get_transformer_name(lazy, add_params=True, wrap_text=True)
+        assert isinstance(result, str)

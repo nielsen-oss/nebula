@@ -65,6 +65,20 @@ def test_extra_transformers(extra_transformers):
     pl_assert_equal(df_chk.sort("a"), df_exp.sort("a"))
 
 
+def test_pipeline_keyword_as_pipeline():
+    """Test loading a pipeline where the pipeline value is a keyword request dict."""
+    df_input = pl.DataFrame({"a": [1, 2, 3]})
+    df_stored = pl.DataFrame({"a": [10, 20]})
+
+    from nebula.storage import nebula_storage as ns
+
+    ns.set("my_df", df_stored)
+
+    pipe = load_pipeline({"pipeline": {"from_store": "my_df"}})
+    df_chk = pipe.run(df_input)
+    pl_assert_equal(df_chk, df_stored)
+
+
 def test_apply_to_rows_otherwise():
     index = np.arange(10)
     df = pl.DataFrame({"idx": index})
