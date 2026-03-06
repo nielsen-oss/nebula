@@ -24,7 +24,6 @@ def _get_df_input():
 def test_transformer_no_parent_class_in_pipeline(df_input):
     """Test a pipeline with a transformer without a known parent class."""
     pipe = TransformerPipeline(NoParentClass())
-    pipe.show()
 
     df_chk = pipe.run(df_input)
     pl_assert_equal(df_chk, df_input)
@@ -38,15 +37,10 @@ def test_after_each_step_with_transformer(df_input):
     pipe_1 = TransformerPipeline(list_trf_1)
     pipe_2 = TransformerPipeline(list_trf_2)
     pipe = TransformerPipeline([pipe_1, pipe_2])
-    pipe.show()
 
-    ns.clear()
     df_chk = pipe.run(df_input, after_each_step=CallMe())
     n: int = ns.get("_call_me_")
-    exp_n = len(list_trf_1) + len(list_trf_2)
-    assert n == exp_n
-    ns.clear()
-
+    assert n == len(list_trf_1) + len(list_trf_2)
     pl_assert_equal(df_chk, df_input)
 
 
@@ -72,6 +66,5 @@ def test_skip_pipeline(df_input):
     pipe_1 = TransformerPipeline(SelectColumns(glob="c*"))
     pipe_2 = TransformerPipeline(ThisTransformerIsBroken, skip=True)
     pipe = TransformerPipeline([pipe_1, pipe_2])
-    pipe.show(add_params=True)
     df_chk = pipe.run(df_input, after_each_step=CallMe())
     pl_assert_equal(df_chk, df_input.drop("idx"))

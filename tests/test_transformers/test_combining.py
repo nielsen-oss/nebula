@@ -11,22 +11,22 @@ from ..auxiliaries import from_pandas, to_pandas
 
 
 class TestAppendDataFrame:
-    @staticmethod
-    def _set_dfs(backend: str, to_nw: bool):
+    @pytest.fixture(autouse=True)
+    def setup_storage(self, backend, to_nw):
+        """Set up nebula storage with test DataFrames."""
         ns.allow_overwriting()
         df1 = pd.DataFrame({"c1": ["c", "d"], "c2": [3, 4]})
         df2 = pd.DataFrame({"c1": ["a", "b"], "c3": [4.5, 5.5]})
-        df1 = from_pandas(df1, backend, to_nw)
-        df2 = from_pandas(df2, backend, to_nw)
-        ns.set("df1", df1)
-        ns.set("df2", df2)
+        ns.set("df1", from_pandas(df1, backend, to_nw))
+        ns.set("df2", from_pandas(df2, backend, to_nw))
+        yield
+        ns.clear()
 
     @pytest.mark.parametrize("backend", ["pandas", "polars"])
     @pytest.mark.parametrize("to_nw", [True, False])
     @pytest.mark.parametrize("allow_missing", [True, False])
     @pytest.mark.parametrize("store_key", ["df1", "df2"])
     def test(self, backend: str, to_nw: bool, allow_missing: bool, store_key: str):
-        self._set_dfs(backend, to_nw)
         df_pd_in = pd.DataFrame({"c1": ["a", "b"], "c2": [1, 2]})
         df = from_pandas(df_pd_in, backend, to_nw=to_nw)
         t = AppendDataFrame(store_key=store_key, allow_missing_cols=allow_missing)

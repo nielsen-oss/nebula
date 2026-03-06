@@ -6,11 +6,11 @@ import pytest
 from nebula.pipelines.pipeline_loader import load_pipeline
 
 from ..auxiliaries import pl_assert_equal
-from .auxiliaries import *
+from .auxiliaries import ExtraTransformers, load_yaml
 
 
 @pytest.fixture(scope="module", name="df_input")
-def _get_df_input(spark):
+def _get_df_input():
     data = {"join_col": ["A", "B", "C", "C"]}
     return pl.DataFrame(data)
 
@@ -19,8 +19,6 @@ def test_loop_pipeline(df_input):
     """Test a nested for-loop in spark."""
     yaml_data = load_yaml("loop.yml")
     pipe = load_pipeline(yaml_data, extra_transformers=[ExtraTransformers])
-    pipe.show(add_params=True)
-
     df_exp = df_input.unique().with_columns(
         pl.lit(None).alias("name_a"),
         pl.lit(20).alias("ALGO_algo_X_20"),

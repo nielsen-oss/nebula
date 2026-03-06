@@ -8,7 +8,7 @@ import pytest
 from nebula.pipelines.pipeline_loader import load_pipeline
 
 from ..auxiliaries import pl_assert_equal
-from .auxiliaries import *
+from .auxiliaries import DICT_EXTRA_TRANSFORMERS, ExtraTransformers, load_yaml
 
 
 @pytest.mark.parametrize("pipeline_key", ["split-is-none", "split-is-empty-list"])
@@ -37,7 +37,6 @@ def test_mock_pipelines_empty_splits(pipeline_key: str):
     }
 
     pipe = load_pipeline(data, extra_functions=dict_split_functions)
-    pipe.show(add_params=True)
     df_chk = pipe.run(df_input).sort_index()
     pd.testing.assert_frame_equal(df_input, df_chk)
 

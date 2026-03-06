@@ -43,51 +43,37 @@ class TestAssertCount:
         with pytest.raises(AssertionError):
             AssertCount(min_count=10, max_count=5)
 
-    @pytest.mark.parametrize("backend", TEST_BACKENDS)
+    @pytest.mark.parametrize("backend", [*TEST_BACKENDS, "polars_lazy"])
     @pytest.mark.parametrize(
         "expected, min_count, max_count",
         [(5, None, None), (None, 2, None), (None, None, 10), (None, 2, 10)],
     )
     def test_valid(self, spark, backend, expected, min_count, max_count):
         df = pd.DataFrame({"a": [1, 2, 3, 4, 5], "b": ["x", "y", "z", "w", "v"]})
-        df = from_pandas(df, backend, to_nw=False, spark=spark)
+        if backend == "polars_lazy":
+            df = pl.LazyFrame({"a": [1, 2, 3, 4, 5], "b": ["x", "y", "z", "w", "v"]})
+        else:
+            df = from_pandas(df, backend, to_nw=False, spark=spark)
         t = AssertCount(expected=expected, min_count=min_count, max_count=max_count)
         result = t.transform(df)
         assert result is df
 
     @pytest.mark.parametrize("to_nw", [True, False])
-    @pytest.mark.parametrize("backend", ["pandas", "polars"])
+    @pytest.mark.parametrize("backend", ["pandas", "polars", "polars_lazy"])
     @pytest.mark.parametrize(
         "expected, min_count, max_count",
         [(0, None, None), (None, 0, None), (None, None, 5), (None, 0, 5)],
     )
     def test_valid_empty_df(self, backend, to_nw, expected, min_count, max_count):
-        df = pd.DataFrame({"a": [], "b": []})
-        df = from_pandas(df, backend, to_nw=to_nw)
+        if backend == "polars_lazy":
+            df = pl.LazyFrame({"a": [], "b": []})
+        else:
+            df = pd.DataFrame({"a": [], "b": []})
+            df = from_pandas(df, backend, to_nw=to_nw)
         t = AssertCount(expected=expected, min_count=min_count, max_count=max_count)
         result = t.transform(df)
-        if not to_nw:
+        if backend != "polars_lazy" and not to_nw:
             assert result is df
-
-    @pytest.mark.parametrize(
-        "expected, min_count, max_count",
-        [(2, None, None), (None, 1, None), (None, None, 5), (None, 2, 5)],
-    )
-    def test_valid_polars_lazy(self, expected, min_count, max_count):
-        df = pl.LazyFrame({"a": [1, 2], "b": ["x", "y"]})
-        t = AssertCount(expected=expected, min_count=min_count, max_count=max_count)
-        result = t.transform(df)
-        assert result is df
-
-    @pytest.mark.parametrize(
-        "expected, min_count, max_count",
-        [(0, None, None), (None, 0, None), (None, None, 5), (None, 0, 5)],
-    )
-    def test_valid_empty_df_polars_lazy(self, expected, min_count, max_count):
-        df = pl.LazyFrame({"a": [], "b": []})
-        t = AssertCount(expected=expected, min_count=min_count, max_count=max_count)
-        result = t.transform(df)
-        assert result is df
 
     @pytest.mark.parametrize("backend", TEST_BACKENDS)
     @pytest.mark.parametrize(

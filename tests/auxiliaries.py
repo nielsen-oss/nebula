@@ -90,20 +90,18 @@ def pl_assert_equal(df_chk, df_exp, sort: list[str] | None = None) -> None:
 
 
 def to_pandas(df_input) -> pd.DataFrame:
-    # from narwhals to native ...
     if isinstance(df_input, (nw.DataFrame, nw.LazyFrame)):
         df = nw.to_native(df_input)
     else:
         df = df_input
 
-    # ... to pandas
-    if isinstance(df, pl.DataFrame):  # polars
+    if isinstance(df, pl.DataFrame):
         return df.to_pandas()
-    if isinstance(df, pl.LazyFrame):  # polars lazy
+    if isinstance(df, pl.LazyFrame):
         return df.collect().to_pandas()
-    if isinstance(df, pyspark.sql.DataFrame):  # spark
+    if isinstance(df, pyspark.sql.DataFrame):
         return df.toPandas()
-    elif isinstance(df, pd.DataFrame):
+    if isinstance(df, pd.DataFrame):
         return df
 
     raise TypeError(f"Unknown df type: {type(df)}")

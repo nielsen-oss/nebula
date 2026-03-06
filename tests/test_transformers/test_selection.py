@@ -2,7 +2,6 @@
 
 from itertools import product
 
-import numpy as np
 import pandas as pd
 import pytest
 
@@ -13,9 +12,8 @@ from ..auxiliaries import from_pandas, get_expected_columns
 _columns_product = [f"{a}{b}" for a, b in product(["c", "d"], range(5))]
 
 
-def _get_random_int_data(n_rows: int, n_cols: int) -> list[list[int]]:
-    shape: tuple[int, int] = (n_rows, n_cols)  # rows x cols
-    return np.random.randint(0, 100, shape).tolist()
+def _get_fixed_data(n_rows: int, n_cols: int) -> list[list[int]]:
+    return [[i * n_cols + j for j in range(n_cols)] for i in range(n_rows)]
 
 
 class TestDropColumns:
@@ -31,7 +29,7 @@ class TestDropColumns:
     )
     def test_drop_columns(self, backend: str, is_nw: bool, kws):
         """Test several combinations."""
-        data = _get_random_int_data(5, len(_columns_product))
+        data = _get_fixed_data(5, len(_columns_product))
         df_input = pd.DataFrame(data, columns=_columns_product)
         input_columns: list[str] = df_input.columns.tolist()
 
@@ -102,7 +100,7 @@ class TestRenameColumns:
     )
     def test_rename_columns(self, backend, is_nw, kws, expected):
         """Test several combinations."""
-        data = _get_random_int_data(5, len(_columns_product))
+        data = _get_fixed_data(5, len(_columns_product))
         df_input = pd.DataFrame(data, columns=_columns_product)
 
         df_input = from_pandas(df_input, backend, is_nw)
@@ -137,7 +135,7 @@ class TestSelectColumns:
         ],
     )
     def test_select_columns(self, backend: str, is_nw: bool, kws):
-        data = _get_random_int_data(5, len(_columns_product))
+        data = _get_fixed_data(5, len(_columns_product))
         df_input = pd.DataFrame(data, columns=_columns_product)
         input_columns: list[str] = df_input.columns.tolist()
 

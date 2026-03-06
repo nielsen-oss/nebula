@@ -24,6 +24,7 @@ from nebula.spark_util import (
     drop_duplicates_no_randomness,
     get_default_spark_partitions,
 )
+from nebula.transformers import DropNulls
 from nebula.transformers.spark_transformers import *
 from nebula.transformers.spark_transformers import (
     _Partitions,
@@ -762,7 +763,6 @@ class TestSparkExplode:
         base_len, null_len = self._get_expected_len(2)
 
         cols_exp = set(df_input.columns).union(set(self._COL_OUTPUT_MAP))
-        cols_exp.copy()
 
         for kwg in inputs:
             t = SparkExplode(input_col=self._COL_MAP, output_cols=self._COL_OUTPUT_MAP, **kwg)
@@ -806,6 +806,48 @@ class TestSparkSqlFunction:
 
         n_null: int = df_chk.filter(F.col("result").isNull()).count()
         assert n_null == 0
+
+
+class TestDropNullsSpark:
+    """Test DropNulls transformer with Spark."""
+
+    @staticmethod
+    @pytest.fixture(scope="class", name="df_input_spark")
+    def _get_df_input(spark):
+        fields = [
+            StructField("a_1", StringType(), True),
+            StructField("a_2", StringType(), True),
+            StructField("a_3", StringType(), True),
+            StructField("b_1", StringType(), True),
+            StructField("b_2", StringType(), True),
+            StructField("b_3", StringType(), True),
+        ]
+        data = [
+            ("1", "11", None, "4", "41", "411"),
+            ("1", "12", "120", "4", None, "412"),
+            ("1", "12", "120", "4", "41", "412"),
+            (None, None, None, None, None, None),
+            ("1", "12", "120", "4", "41", None),
+            (None, None, None, "4", "41", "412"),
+        ]
+        return spark.createDataFrame(data, schema=StructType(fields)).persist()
+
+    def test_no_subset(self, df_input_spark):
+        """Test DropNulls transformer w/o any subsets."""
+        how = "any"
+        t = DropNulls(how=how)
+        df_chk = t.transform(df_input_spark)
+        df_exp = df_input_spark.dropna(how=how)
+        assert_df_equality(df_chk, df_exp, ignore_row_order=True)
+
+    @pytest.mark.parametrize("how", ["any", "all"])
+    def test_columns_subset(self, df_input_spark, how):
+        """Test DropNulls transformer selecting specific columns."""
+        subset = ["a_1", "b_1"]
+        t = DropNulls(columns=subset, how=how)
+        df_chk = t.transform(df_input_spark)
+        df_exp = df_input_spark.dropna(subset=subset, how=how)
+        assert_df_equality(df_chk, df_exp, ignore_row_order=True)
 
 
 class TestWindow:

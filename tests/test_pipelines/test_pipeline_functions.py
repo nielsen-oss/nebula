@@ -39,7 +39,7 @@ def _multiply_col(df, col, factor=2):
     return df.with_columns((pl.col(col) * factor).alias(col))
 
 
-extra_funcions = {
+extra_functions = {
     "identity": _identity,
     "add_col": _add_col,
     "multiply_col": _multiply_col,
@@ -115,13 +115,13 @@ class TestLoadFunctionStringLookup:
     """_load_function resolves function names from extra_funcs."""
 
     def test_string_name_resolved(self):
-        result = _load_function({"function": "identity"}, extra_funcs=extra_funcions)
+        result = _load_function({"function": "identity"}, extra_funcs=extra_functions)
         assert result is _identity
 
     def test_string_name_with_kwargs(self):
         result = _load_function(
             {"function": "add_col", "kwargs": {"col_name": "z", "value": 5}},
-            extra_funcs=extra_funcions,
+            extra_funcs=extra_functions,
         )
         func, args, kwargs = result
         assert func is _add_col
@@ -129,7 +129,7 @@ class TestLoadFunctionStringLookup:
 
     def test_unknown_string_name_raises_name_error(self):
         with pytest.raises(NameError, match="Unknown function"):
-            _load_function({"function": "nonexistent"}, extra_funcs=extra_funcions)
+            _load_function({"function": "nonexistent"}, extra_funcs=extra_functions)
 
     def test_unknown_string_empty_registry_raises_name_error(self):
         with pytest.raises(NameError, match="Unknown function"):
@@ -140,19 +140,19 @@ class TestLoadFunctionSkip:
     """_load_function respects skip / perform flags."""
 
     def test_skip_true_returns_none(self):
-        result = _load_function({"function": "identity", "skip": True}, extra_funcs=extra_funcions)
+        result = _load_function({"function": "identity", "skip": True}, extra_funcs=extra_functions)
         assert result is None
 
     def test_perform_false_returns_none(self):
-        result = _load_function({"function": "identity", "perform": False}, extra_funcs=extra_funcions)
+        result = _load_function({"function": "identity", "perform": False}, extra_funcs=extra_functions)
         assert result is None
 
     def test_skip_false_not_skipped(self):
-        result = _load_function({"function": "identity", "skip": False}, extra_funcs=extra_funcions)
+        result = _load_function({"function": "identity", "skip": False}, extra_funcs=extra_functions)
         assert result is _identity
 
     def test_perform_true_not_skipped(self):
-        result = _load_function({"function": "identity", "perform": True}, extra_funcs=extra_funcions)
+        result = _load_function({"function": "identity", "perform": True}, extra_funcs=extra_functions)
         assert result is _identity
 
 
@@ -183,7 +183,7 @@ class TestLoadPipelineWithFunctionDict:
     def test_plain_callable_in_pipeline(self, sample_df):
         pipe = load_pipeline(
             [{"function": _identity}],
-            extra_functions=extra_funcions,
+            extra_functions=extra_functions,
         )
         result = pipe.run(sample_df)
         assert result.equals(sample_df)
@@ -191,7 +191,7 @@ class TestLoadPipelineWithFunctionDict:
     def test_string_function_name_in_pipeline(self, sample_df):
         pipe = load_pipeline(
             [{"function": "identity"}],
-            extra_functions=extra_funcions,
+            extra_functions=extra_functions,
         )
         result = pipe.run(sample_df)
         assert result.equals(sample_df)
@@ -199,7 +199,7 @@ class TestLoadPipelineWithFunctionDict:
     def test_function_with_kwargs_executes_correctly(self, sample_df):
         pipe = load_pipeline(
             [{"function": "add_col", "kwargs": {"col_name": "extra", "value": 42}}],
-            extra_functions=extra_funcions,
+            extra_functions=extra_functions,
         )
         result = pipe.run(sample_df)
         assert "extra" in result.columns
@@ -208,7 +208,7 @@ class TestLoadPipelineWithFunctionDict:
     def test_function_with_args_executes_correctly(self, sample_df):
         pipe = load_pipeline(
             [{"function": "add_col", "args": ["my_new_col"]}],
-            extra_functions=extra_funcions,
+            extra_functions=extra_functions,
         )
         result = pipe.run(sample_df)
         assert "my_new_col" in result.columns
@@ -219,7 +219,7 @@ class TestLoadPipelineWithFunctionDict:
                 {"transformer": "SelectColumns", "params": {"columns": ["a", "b"]}},
                 {"function": "multiply_col", "kwargs": {"col": "a", "factor": 10}},
             ],
-            extra_functions=extra_funcions,
+            extra_functions=extra_functions,
         )
         result = pipe.run(sample_df)
         assert result["a"].to_list() == [10, 20, 30]
@@ -230,7 +230,7 @@ class TestLoadPipelineWithFunctionDict:
             [
                 {"function": "add_col", "kwargs": {"col_name": "should_not_exist"}, "skip": True},
             ],
-            extra_functions=extra_funcions,
+            extra_functions=extra_functions,
         )
         result = pipe.run(sample_df)
         assert "should_not_exist" not in result.columns
@@ -240,7 +240,7 @@ class TestLoadPipelineWithFunctionDict:
             [
                 {"function": "add_col", "kwargs": {"col_name": "should_not_exist"}, "perform": False},
             ],
-            extra_functions=extra_funcions,
+            extra_functions=extra_functions,
         )
         result = pipe.run(sample_df)
         assert "should_not_exist" not in result.columns
@@ -251,7 +251,7 @@ class TestLoadPipelineWithFunctionDict:
                 {"function": "add_col", "kwargs": {"col_name": "x", "value": 1}},
                 {"function": "add_col", "kwargs": {"col_name": "y", "value": 2}},
             ],
-            extra_functions=extra_funcions,
+            extra_functions=extra_functions,
         )
         result = pipe.run(sample_df)
         assert "x" in result.columns
@@ -261,14 +261,14 @@ class TestLoadPipelineWithFunctionDict:
         with pytest.raises(NameError, match="Unknown function"):
             load_pipeline(
                 [{"function": "does_not_exist"}],
-                extra_functions=extra_funcions,
+                extra_functions=extra_functions,
             )
 
     def test_function_dict_with_description_runs_correctly(self, sample_df):
         """Description is metadata only – pipeline still executes normally."""
         pipe = load_pipeline(
             [{"function": "identity", "description": "passthrough step"}],
-            extra_functions=extra_funcions,
+            extra_functions=extra_functions,
         )
         result = pipe.run(sample_df)
         assert result.equals(sample_df)
@@ -280,7 +280,7 @@ class TestLoadPipelineWithFunctionDict:
                 {"transformer": "SelectColumns", "params": {"columns": ["a"]}},
                 {"function": "add_col", "kwargs": {"col_name": "tag", "value": 99}},
             ],
-            extra_functions=extra_funcions,
+            extra_functions=extra_functions,
         )
         result = pipe.run(sample_df)
         assert list(result.columns) == ["a", "tag"]
