@@ -117,7 +117,7 @@ class Filter(Transformer):
         self,
         *,
         input_col: str,
-        perform: str,
+        perform: str = "keep",
         operator: str,
         value=None,
         compare_col: str | None = None,

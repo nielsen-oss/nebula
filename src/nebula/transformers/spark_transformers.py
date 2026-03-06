@@ -85,15 +85,12 @@ class _Partitions(Transformer):
         if self._rows_per_part:
             n_rows: int = df.count()
             n_part = max(n_rows // self._rows_per_part, 1)
-            # print(f"{op} to {n_part} partitions ({self._rows_per_part} per row)")
 
         elif self._num_part:
             n_part = self._num_part
-            # print(f"{op} to {n_part} partitions")
 
         else:  # to default partition
             n_part = get_default_spark_partitions(df)
-            # print(f"{op} to default partitions ({n_part})")
 
         return n_part
 
@@ -340,13 +337,13 @@ class MapToColumns(Transformer):
 
         super().__init__()
         self._input_col: str = input_column
-        self.cols: list[tuple[str, str]]
+        self._cols: list[tuple[str, str]]
 
         values: list  # A list created for checks only
 
         if isinstance(output_columns, (list, tuple)):
             if is_list_uniform(output_columns, str):
-                self.cols = [(i, i) for i in output_columns]
+                self._cols = [(i, i) for i in output_columns]
                 # Do not perform further checks
                 return
             else:
@@ -359,11 +356,11 @@ class MapToColumns(Transformer):
                 d = dict(output_columns)
                 # Extract values to perform some checks later
                 values = list(d.values())
-                self.cols = output_columns
+                self._cols = output_columns
 
         elif isinstance(output_columns, dict):
             values = list(output_columns.values())
-            self.cols = list(output_columns.items())
+            self._cols = list(output_columns.items())
 
         else:
             msg = "'output columns' must be a (list(str)) or a "
@@ -383,7 +380,7 @@ class MapToColumns(Transformer):
         if not isinstance(col_data_type, MapType):
             raise TypeError(f"Column '{self._input_col}' is not of MapType.")
 
-        items = [F.col(self._input_col).getItem(i).alias(j) for i, j in self.cols]
+        items = [F.col(self._input_col).getItem(i).alias(j) for i, j in self._cols]
         return df.select(*df.columns, *items)
 
 
@@ -495,9 +492,9 @@ class SparkColumnMethod(Transformer):
         # Use a try-except block because Spark may not be running at this
         # point, making it impossible to guarantee the availability of the
         # requested method.
-        self._assert_col_meth(False)
+        self._validate_col_meth(False)
 
-    def _assert_col_meth(self, raise_err: bool):
+    def _validate_col_meth(self, raise_err: bool):
         try:
             all_meths = dir(F.col(self._input_col))
         except AttributeError as e:  # pragma: no cover
@@ -510,7 +507,7 @@ class SparkColumnMethod(Transformer):
             raise ValueError(f"'method' must be one of {sorted(valid_meths)}")
 
     def _transform_spark(self, df):
-        self._assert_col_meth(True)
+        self._validate_col_meth(True)
         func = getattr(F.col(self._input_col), self._meth)(*self._args, **self._kwargs)
         return df.withColumn(self._output_col, func)
 
@@ -812,7 +809,7 @@ class _Window(Transformer):
             self._range_between = validate_window_frame_boundaries(*range_between)
 
     @property
-    def _get_window(self):
+    def _window(self):
         window = Window
         if self._partition_cols:
             window = window.partitionBy(self._partition_cols)
@@ -926,8 +923,7 @@ class AggregateOverWindow(_Window):
         if ints:
             logger.warning(f"Overlapping column names: {ints} - keeping only the alias")
 
-        win = self._get_window
-        windowed_cols = [c.over(win).alias(alias) for c, alias in list_agg]
+        windowed_cols = [c.over(self._window).alias(alias) for c, alias in list_agg]
 
         return df.select(*return_cols, *windowed_cols)
 
@@ -991,12 +987,11 @@ class LagOverWindow(_Window):
         )
 
         self._lag_col: str = lag_col
-        self._output_col: str = output_col
+        self._out_col: str = output_col
         self._lag: int = lag
 
     def _transform_spark(self, df):
-        win = self._get_window
-        return df.withColumn(self._output_col, F.lag(self._lag_col, self._lag).over(win))
+        return df.withColumn(self._out_col, F.lag(self._lag_col, self._lag).over(self._window))
 
 
 AggregateOverWindow.__init__.__doc__ = AggregateOverWindow.__init__.__doc__ + _DOCSTRING_ARGS_WINDOW

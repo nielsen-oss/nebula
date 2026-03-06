@@ -1,6 +1,7 @@
 """Transformers for debugging."""
 
 from nebula.base import Transformer
+from nebula.logger import logger
 
 __all__ = [
     "PrintSchema",
@@ -8,12 +9,10 @@ __all__ = [
 
 
 class PrintSchema(Transformer):
-    def __init__(self):
-        """Print out the data types of the dataframe."""
-        super().__init__()
+    """Print out the data types of the dataframe."""
 
     @staticmethod
     def _transform_nw(df_nw):
         for k, v in df_nw.schema.items():
-            print(f"{k}: {v}")
+            logger.info(f"{k}: {v}")
         return df_nw
