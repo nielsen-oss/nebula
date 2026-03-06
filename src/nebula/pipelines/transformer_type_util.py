@@ -34,7 +34,7 @@ def _check_multiple_args(param_names: list[str], params: Mapping[str, Parameter]
 
 
 def is_duck_typed_transformer(o) -> bool:
-    """Check if object is a valid transformer via duck-typing.
+    """Check if the object is a valid transformer via duck-typing.
 
     Allows custom transformers that don't inherit from Transformer.
     Must have a transform method with signature: transform(df, *args)
@@ -61,7 +61,10 @@ def is_duck_typed_transformer(o) -> bool:
         >>> is_duck_typed_transformer(MyTransformer())
         True
     """
-    if not hasattr(o, "transform"):
+    try:  # it could fail for very custom __getattr__ method
+        if not hasattr(o, "transform"):
+            return False
+    except:  # noqa
         return False
 
     meth = getattr(o, "transform")
