@@ -1,7 +1,6 @@
 """Test a complex pipeline."""
 
 import narwhals as nw
-import polars as pl
 import pytest
 
 from nebula import TransformerPipeline
@@ -9,10 +8,10 @@ from nebula.base import Transformer
 from nebula.nw_util import null_cond_to_false
 from nebula.pipelines.pipeline_loader import load_pipeline
 from nebula.storage import nebula_storage as ns
-from nebula.transformers import *
+from nebula.transformers import AssertNotEmpty, Cast
 
 from ..auxiliaries import pl_assert_equal
-from .auxiliaries import *
+from .auxiliaries import Distinct, ExtraTransformers, RoundValues, load_yaml
 
 _TRANSFORMERS = [Distinct()]
 _INTERLEAVED = [AssertNotEmpty()]
@@ -26,6 +25,8 @@ def _get_cond():
 
 @pytest.fixture(scope="module", name="df_input")
 def _get_df_input():
+    import polars as pl
+
     data = [
         [0.1234, "a", "b"],
         [0.1234, "a", "b"],
@@ -92,7 +93,6 @@ def _get_df_exp(df_input, trf_hi):
     df_hi = df_hi.with_columns(nw.col("c1").cast(nw.Float64()))
 
     df_ret = nw.concat([df_low, df_hi], how="vertical")
-    # "interleaved" transformers are just for log in this unit-test.
     return df_ret, df_hi_stored
 
 
@@ -153,10 +153,8 @@ def test_complex_pipeline(
     pipe = TransformerPipeline([flat_pipeline, split_pipeline])
     df_exp, df_high_exp = _get_df_exp(df_input, trf_hi)
 
-    pipe.show()
-
     df_chk = pipe.run(df_input)
-    pl_assert_equal(df_chk, df_chk, sort=df_chk.columns)
+    pl_assert_equal(df_chk, df_exp, sort=df_chk.columns)
 
     df_high_chk = ns.get("df_high")
     pl_assert_equal(df_high_chk, df_high_exp, sort=df_high_chk.columns)
@@ -173,8 +171,7 @@ def test_pipeline_loader_with_storage(df_input):
 
     Check if the pipeline returns the same dataframe.
     """
-    file_name = "storage.yml"
-    data = load_yaml(file_name)
+    data = load_yaml("storage.yml")
 
     trf_hi: list = [
         RoundValues(column="c1", precision=1),
@@ -187,21 +184,13 @@ def test_pipeline_loader_with_storage(df_input):
         extra_functions=split_function,
         extra_transformers=[ExtraTransformers],
     )
-    pipe.show(add_params=True)
 
     df_exp, df_high_exp = _get_df_exp(df_input, trf_hi)
 
-    pipe.show()
-
     df_chk = pipe.run(df_input)
 
-    # df_exp = to_polars(df_exp)
-    # df_high_exp = to_polars(df_high_exp)
-    # df_chk = to_polars(df_chk)
-
-    pl_assert_equal(df_chk, df_chk, sort=df_chk.columns)
+    pl_assert_equal(df_chk, df_exp, sort=df_chk.columns)
 
     assert not ns.isin("df_high_debug_false")
     df_high_chk_debug = ns.get("df_high_debug_true")
-    debug_cols = df_high_chk_debug.columns
-    pl_assert_equal(df_high_chk_debug, df_high_exp, sort=debug_cols)
+    pl_assert_equal(df_high_chk_debug, df_high_exp, sort=df_high_chk_debug.columns)

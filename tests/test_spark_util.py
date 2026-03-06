@@ -19,8 +19,6 @@ from pyspark.sql.types import (
 from nebula.nw_util import broadcast_spark
 from nebula.spark_util import *
 
-_nan = float("nan")
-
 
 class TestCastToSchema:
     """Test the 'cast_to_schema' function."""

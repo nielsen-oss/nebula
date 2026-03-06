@@ -9,7 +9,7 @@ from nebula.pipelines.pipeline_loader import load_pipeline
 from nebula.transformers import AddLiterals
 
 from ..auxiliaries import pl_assert_equal
-from .auxiliaries import *
+from .auxiliaries import Distinct, ExtraTransformers, load_yaml
 
 
 def _get_df_input():
@@ -36,7 +36,6 @@ def _get_expected_output() -> pl.DataFrame:
 
 def test_laziness_py():
     """Test laziness capabilities using a python pipeline."""
-    ns.clear()
     df_input: pl.DataFrame = _get_df_input()
     list_trf = [
         Distinct(),
@@ -45,33 +44,21 @@ def test_laziness_py():
         LazyWrapper(AddLiterals, data=({"alias": "c5", "value": (ns, "my_key2")},)),  # as tuple
     ]
     pipe = TransformerPipeline(list_trf)
-    pipe.show(add_params=True)
 
-    try:
-        ns.set("my_key", "lazy-ns")
-        ns.set("my_key2", "lazy-ns")
-        df_chk = pipe.run(df_input)
-        df_exp = _get_expected_output()
-        pl_assert_equal(df_chk, df_exp, sort=["c1"])
-    finally:
-        ns.clear()
+    ns.set("my_key", "lazy-ns")
+    ns.set("my_key2", "lazy-ns")
+    df_chk = pipe.run(df_input)
+    pl_assert_equal(df_chk, _get_expected_output(), sort=["c1"])
 
 
 def test_laziness_yaml():
     """Test laziness capabilities using the YAML file."""
-    ns.clear()
     df_input: pl.DataFrame = _get_df_input()
     data = load_yaml("laziness.yml")
 
-    pipe_kws = dict(extra_transformers=[ExtraTransformers])
-    pipe = load_pipeline(data, **pipe_kws)
-    pipe.show(add_params=True)
+    pipe = load_pipeline(data, extra_transformers=[ExtraTransformers])
 
-    try:
-        ns.set("my_key", "lazy-ns")
-        ns.set("my_key2", "lazy-ns")
-        df_chk = pipe.run(df_input, show_params=True)
-        df_expected = _get_expected_output()
-        pl_assert_equal(df_chk, df_expected, sort=df_chk.columns)
-    finally:
-        ns.clear()
+    ns.set("my_key", "lazy-ns")
+    ns.set("my_key2", "lazy-ns")
+    df_chk = pipe.run(df_input)
+    pl_assert_equal(df_chk, _get_expected_output(), sort=df_chk.columns)

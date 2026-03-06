@@ -1,4 +1,4 @@
-"""Row Filtering Operations."""
+"""DataFrame and column-level operations."""
 
 from typing import Any, Iterable
 
@@ -26,6 +26,18 @@ _NW_FLAT_COL_METHODS: set[str] = _get_public_methods(nw.col())
 _NW_NESTED_COL_METHODS: dict[str, set[str]] = {
     "str": _get_public_methods(nw.col().str),
     "dt": _get_public_methods(nw.col().dt),
+}
+
+_HORIZONTAL_FUNCTIONS: set[str] = {
+    "coalesce",
+    "concat_str",
+    "max_horizontal",
+    "min_horizontal",
+    "mean_horizontal",
+    "sum_horizontal",
+    "all_horizontal",
+    "any_horizontal",
+    "format",
 }
 
 
@@ -176,19 +188,6 @@ class HorizontalFunction(Transformer):
             ... )
         """
         super().__init__()
-
-        # Validate function exists
-        _HORIZONTAL_FUNCTIONS = {
-            "coalesce",
-            "concat_str",
-            "max_horizontal",
-            "min_horizontal",
-            "mean_horizontal",
-            "sum_horizontal",
-            "all_horizontal",
-            "any_horizontal",
-            "format",
-        }
         assert_allowed(function, _HORIZONTAL_FUNCTIONS, "horizontal-function")
 
         self._output_col: str = output_col

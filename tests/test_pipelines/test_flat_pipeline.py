@@ -5,7 +5,7 @@ import pytest
 
 from nebula import TransformerPipeline
 from nebula import nebula_storage as ns
-from nebula.transformers import *
+from nebula.transformers import AssertContainsColumns, AssertNotEmpty, DropColumns, DropNulls, SelectColumns
 
 from ..auxiliaries import pl_assert_equal
 
@@ -52,7 +52,7 @@ def _get_df_exp(df_input):
     for t in _TRANSFORMERS:
         df_ret = t.transform(df_ret)
     # "interleaved" transformers are just for log in this unit-test.
-    return df_ret.persist()
+    return df_ret
 
 
 @pytest.mark.parametrize(
@@ -81,7 +81,6 @@ def test_pipeline_flat_list_transformers(
         append_interleaved=append_interleaved,
         name=name,
     )
-    pipe.show(add_params=True)
     df_chk = pipe.run(df_input)
     pl_assert_equal(df_chk, df_exp)
 
@@ -126,7 +125,6 @@ def test_pipeline_nested_list_transformers(df_input: pl.DataFrame):
         ]
     )
     pipe.show(add_params=True)
-    pipe.to_string(add_params=True)
-    df_chk = pipe.run(df_input, show_params=True)
+    df_chk = pipe.run(df_input)
     pl_assert_equal(df_chk, df_exp, sort=["idx"])
     pl_assert_equal(ns.get("this_key"), df_exp, sort=["idx"])

@@ -1,7 +1,5 @@
 """Test 'skip' / 'perform' pipeline functionalities."""
 
-from copy import deepcopy
-
 import polars as pl
 import pytest
 
@@ -11,40 +9,43 @@ from nebula.transformers import AddLiterals
 
 from ..auxiliaries import pl_assert_equal
 
+_TRF_PY = AddLiterals(data=[{"value": "x", "alias": "c2"}])
+_DF_INPUT = pl.DataFrame({"c1": [1, 2]})
 
-@pytest.mark.parametrize("skip, perform", ([True, None], [None, False]))
-class TestSkipPipeline:
-    trf_py = AddLiterals(data=[{"value": "x", "alias": "c2"}])
-    trf_text = {
+
+def _trf_text():
+    return {
         "transformer": "AddLiterals",
         "params": {"data": {"value": "x", "alias": "c2"}},
     }
-    df_input = pl.DataFrame({"c1": [1, 2]})
 
+
+@pytest.mark.parametrize("skip, perform", ([True, None], [None, False]))
+class TestSkipPipeline:
     def test_py_flat_pipeline(self, skip, perform):
-        pipe = TransformerPipeline(self.trf_py, skip=skip, perform=perform)
-        df_chk = pipe.run(self.df_input)
-        pl_assert_equal(self.df_input, df_chk)
+        pipe = TransformerPipeline(_TRF_PY, skip=skip, perform=perform)
+        df_chk = pipe.run(_DF_INPUT)
+        pl_assert_equal(_DF_INPUT, df_chk)
 
     def test_py_split_pipeline(self, skip, perform):
         pipe = TransformerPipeline(
             {
-                "c_x": self.trf_py,
-                "c_y": self.trf_py,
+                "c_x": _TRF_PY,
+                "c_y": _TRF_PY,
             },
             split_function=lambda x: x,  # not called actually
             skip=skip,
             perform=perform,
         )
-        df_chk = pipe.run(self.df_input)
-        pl_assert_equal(self.df_input, df_chk)
+        df_chk = pipe.run(_DF_INPUT)
+        pl_assert_equal(_DF_INPUT, df_chk)
 
     def test_text_flat_pipeline(self, skip, perform):
-        data = deepcopy(self.trf_text)
+        data = _trf_text()
         data["skip"] = skip
         data["perform"] = perform
-        df_chk = load_pipeline({"pipeline": data}).run(self.df_input)
-        pl_assert_equal(self.df_input, df_chk)
+        df_chk = load_pipeline({"pipeline": data}).run(_DF_INPUT)
+        pl_assert_equal(_DF_INPUT, df_chk)
 
     @pytest.mark.parametrize("data", [{"transformer": "invalid"}, {"wrong_key": "invalid"}])
     def test_text_invalid_arguments(self, data, skip, perform):
@@ -61,15 +62,11 @@ class TestSkipPipeline:
 @pytest.mark.parametrize("skip, perform", ([True, None], [None, False]))
 def test_skip_transformer(skip, perform):
     """Test 'skip' / 'perform' transformer functionality."""
-    data = {
-        "transformer": "AddLiterals",
-        "params": {"data": {"value": "x", "alias": "c2"}},
-    }
+    data = _trf_text()
     if skip is not None:
         data["skip"] = skip
     if perform is not None:
         data["perform"] = perform
 
-    df_input = pl.DataFrame({"c1": [1, 2]})
-    df_chk = load_pipeline({"pipeline": data}).run(df_input)
-    pl_assert_equal(df_input, df_chk)
+    df_chk = load_pipeline({"pipeline": data}).run(_DF_INPUT)
+    pl_assert_equal(_DF_INPUT, df_chk)

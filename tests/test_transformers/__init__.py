@@ -1,1 +1,1 @@
-"""Unit-tests module for spark transformers."""
+"""Unit-tests module for transformers."""

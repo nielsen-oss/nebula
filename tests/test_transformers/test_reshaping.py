@@ -66,16 +66,8 @@ class TestGroupBy:
         "aggregations",
         [
             [
-                {
-                    "col": col,
-                    "agg": agg,
-                    **({"alias": alias} if alias is not None else {}),
-                }
-                for col, agg, alias in zip(
-                    (f"c{i}" for i in range(3, 5)),
-                    ("sum", "count"),
-                    (None, "out"),
-                )
+                {"col": "c3", "agg": "sum"},
+                {"col": "c4", "agg": "count", "alias": "out"},
             ]
         ],
     )

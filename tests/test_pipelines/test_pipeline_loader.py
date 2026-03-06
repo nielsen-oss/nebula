@@ -8,7 +8,7 @@ import pytest
 from nebula.pipelines.pipeline_loader import load_pipeline
 
 from ..auxiliaries import pl_assert_equal
-from .auxiliaries import *
+from .auxiliaries import DICT_EXTRA_TRANSFORMERS, ExtraTransformers, load_yaml
 
 
 @pytest.mark.parametrize("pipeline_key", ["split-is-none", "split-is-empty-list"])
@@ -37,7 +37,6 @@ def test_mock_pipelines_empty_splits(pipeline_key: str):
     }
 
     pipe = load_pipeline(data, extra_functions=dict_split_functions)
-    pipe.show(add_params=True)
     df_chk = pipe.run(df_input).sort_index()
     pd.testing.assert_frame_equal(df_input, df_chk)
 
@@ -64,6 +63,20 @@ def test_extra_transformers(extra_transformers):
     df_chk = pipe.run(df)
     df_exp = df.unique()
     pl_assert_equal(df_chk.sort("a"), df_exp.sort("a"))
+
+
+def test_pipeline_keyword_as_pipeline():
+    """Test loading a pipeline where the pipeline value is a keyword request dict."""
+    df_input = pl.DataFrame({"a": [1, 2, 3]})
+    df_stored = pl.DataFrame({"a": [10, 20]})
+
+    from nebula.storage import nebula_storage as ns
+
+    ns.set("my_df", df_stored)
+
+    pipe = load_pipeline({"pipeline": {"from_store": "my_df"}})
+    df_chk = pipe.run(df_input)
+    pl_assert_equal(df_chk, df_stored)
 
 
 def test_apply_to_rows_otherwise():

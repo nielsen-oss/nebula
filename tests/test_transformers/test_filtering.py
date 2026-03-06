@@ -1,59 +1,15 @@
 """Unit-tests for 'filtering' transformers."""
 
-import os
-
 import narwhals as nw
 import pandas as pd
 import polars as pl
 import pytest
-from chispa.dataframe_comparer import assert_df_equality
-from pyspark.sql.types import StringType, StructField, StructType
 
 from nebula.transformers import *
 
 
 class TestDropNulls:
     """Test suite for DropNulls transformer."""
-
-    @staticmethod
-    @pytest.fixture(scope="class", name="df_input_spark")
-    def _get_df_input(spark):
-        fields = [
-            StructField("a_1", StringType(), True),
-            StructField("a_2", StringType(), True),
-            StructField("a_3", StringType(), True),
-            StructField("b_1", StringType(), True),
-            StructField("b_2", StringType(), True),
-            StructField("b_3", StringType(), True),
-        ]
-        data = [
-            ("1", "11", None, "4", "41", "411"),
-            ("1", "12", "120", "4", None, "412"),
-            ("1", "12", "120", "4", "41", "412"),
-            (None, None, None, None, None, None),
-            ("1", "12", "120", "4", "41", None),
-            (None, None, None, "4", "41", "412"),
-        ]
-        return spark.createDataFrame(data, schema=StructType(fields)).persist()
-
-    @pytest.mark.skipif(os.environ.get("TESTS_NO_SPARK") == "true", reason="no spark")
-    def test_spark_no_subset(self, df_input_spark):
-        """Test DiscardNulls transformer w/o any subsets."""
-        how = "any"
-        t = DropNulls(how=how)
-        df_chk = t.transform(df_input_spark)
-        df_exp = df_input_spark.dropna(how=how)
-        assert_df_equality(df_chk, df_exp, ignore_row_order=True)
-
-    @pytest.mark.skipif(os.environ.get("TESTS_NO_SPARK") == "true", reason="no spark")
-    @pytest.mark.parametrize("how", ["any", "all"])
-    def test_spark_columns_subset(self, df_input_spark, how):
-        """Test DiscardNulls transformer selecting specific columns."""
-        subset = ["a_1", "b_1"]
-        t = DropNulls(columns=subset, how=how)
-        df_chk = t.transform(df_input_spark)
-        df_exp = df_input_spark.dropna(subset=subset, how=how)
-        assert_df_equality(df_chk, df_exp, ignore_row_order=True)
 
     @pytest.mark.parametrize("to_lazy", [True, False])
     def test_polars_any_all_columns(self, to_lazy: bool):

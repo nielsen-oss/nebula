@@ -1,7 +1,5 @@
 """Auxiliaries for testing pipelines."""
 
-import os
-from dataclasses import dataclass
 from pathlib import Path
 
 import narwhals as nw
@@ -22,7 +20,7 @@ __all__ = [
     "DICT_EXTRA_TRANSFORMERS",  # dictionary
 ]
 
-_this_path = Path(os.path.dirname(os.path.realpath(__file__)))
+_this_path = Path(__file__).resolve().parent
 
 
 class AddOne(Transformer):
@@ -84,7 +82,6 @@ class ThisTransformerIsBroken(Transformer):
         raise ValueError("Broken transformer")
 
 
-@dataclass
 class ExtraTransformers:
     AddOne = AddOne
     CallMe = CallMe

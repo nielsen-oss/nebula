@@ -8,6 +8,7 @@ from nebula.auxiliaries import (
     assert_allowed,
     assert_at_least_one_non_null,
     assert_only_one_non_none,
+    select_columns,
 )
 from nebula.base import Transformer
 
@@ -321,16 +322,21 @@ class Pivot(Transformer):
         self._values_startswith = values_startswith
         self._values_endswith = values_endswith
 
+    @staticmethod
+    def _resolve_columns(df_columns, **kwargs) -> list[str]:
+        """Resolve column selection without mutating self."""
+        return select_columns(df_columns, **{k: v for k, v in kwargs.items() if v is not None})
+
     def _transform_nw(self, df):
         # Select id columns
-        self._set_columns_selections(
+        id_cols = self._resolve_columns(
+            list(df.columns),
             columns=self._id_cols,
             regex=self._id_regex,
             glob=self._id_glob,
             startswith=self._id_startswith,
             endswith=self._id_endswith,
         )
-        id_cols: list[str] = self._get_selected_columns(df)
 
         # Select value columns if any selector is specified
         values_cols: list[str] | None = None
@@ -343,14 +349,14 @@ class Pivot(Transformer):
                 self._values_endswith,
             ]
         ):
-            self._set_columns_selections(
+            values_cols = self._resolve_columns(
+                list(df.columns),
                 columns=self._values_cols,
                 regex=self._values_regex,
                 glob=self._values_glob,
                 startswith=self._values_startswith,
                 endswith=self._values_endswith,
             )
-            values_cols = self._get_selected_columns(df)
 
         # Narwhals pivot
         return df.pivot(
@@ -386,27 +392,21 @@ class Unpivot(Transformer):
         assert_at_least_one_non_null(melt_cols=melt_cols, melt_regex=melt_regex)
         super().__init__()
 
-        self._id_cols = id_cols
-        self._id_regex = id_regex
-        self._melt_cols = melt_cols
-        self._melt_regex = melt_regex
-        self._variable_col = variable_col
-        self._value_col = value_col
+        self._id_cols: str | list[str] | None = id_cols
+        self._id_regex: str | None = id_regex
+        self._melt_cols: str | list[str] | None = melt_cols
+        self._melt_regex: str | None = melt_regex
+        self._variable_col: str = variable_col
+        self._value_col: str = value_col
 
     def _transform_nw(self, df):
+        df_columns = list(df.columns)
+
         # Select id columns (to KEEP)
-        self._set_columns_selections(
-            columns=self._id_cols,
-            regex=self._id_regex,
-        )
-        id_cols: list[str] = self._get_selected_columns(df)
+        id_cols = select_columns(df_columns, columns=self._id_cols, regex=self._id_regex)
 
         # Select melt columns (to UNPIVOT)
-        self._set_columns_selections(
-            columns=self._melt_cols,
-            regex=self._melt_regex,
-        )
-        melt_cols: list[str] = self._get_selected_columns(df)
+        melt_cols = select_columns(df_columns, columns=self._melt_cols, regex=self._melt_regex)
 
         # on = columns to melt
         # index = columns to keep as identifiers

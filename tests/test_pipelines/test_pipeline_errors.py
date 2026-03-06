@@ -12,10 +12,10 @@ from nebula import nebula_storage as ns
 from nebula.base import Transformer
 from nebula.pipelines.exceptions import raise_pipeline_error
 from nebula.spark_util import get_spark_session
-from nebula.transformers import *
+from nebula.transformers import AssertNotEmpty, DropColumns, SelectColumns
 
 from ..auxiliaries import pl_assert_equal
-from .auxiliaries import *
+from .auxiliaries import CallMe, ThisTransformerIsBroken
 
 _MSG = "this custom message"
 
@@ -127,16 +127,12 @@ class TestCacheToNebulaStorage:
     @staticmethod
     def test_flat_pipeline(df_input):
         """Unit-tests for 'cache-to-nebula-storage'."""
-        ns.clear()
-
         pipe = TransformerPipeline([ThisTransformerIsBroken(), AssertNotEmpty()])
 
         with pytest.raises(Exception):
             pipe.run(df_input)
 
-        df_chk = ns.get("FAIL_DF_transformer:ThisTransformerIsBroken")
-        pl_assert_equal(df_chk, df_input)
-        ns.clear()
+        pl_assert_equal(ns.get("FAIL_DF_transformer:ThisTransformerIsBroken"), df_input)
 
     @staticmethod
     def _invalid_split_function(df):
@@ -148,7 +144,6 @@ class TestCacheToNebulaStorage:
 
     def test_split_pipeline_before_splitting(self, df_input):
         """Retrieve the failed DFs before appending."""
-        ns.clear()
         data = {
             "low": [DropColumns(columns="c2")],
             "hi": [DropColumns(columns="c3")],
@@ -158,7 +153,6 @@ class TestCacheToNebulaStorage:
             pipe.run(df_input)
 
         pl_assert_equal(ns.get("FAIL_DF_fork:split"), df_input)
-        ns.clear()
 
     @staticmethod
     def _split_function(df):
@@ -170,7 +164,6 @@ class TestCacheToNebulaStorage:
 
     def test_split_pipeline_before_appending(self, df_input):
         """Retrieve the failed DFs before appending."""
-        ns.clear()
         data = {
             "low": [DropColumns(columns="c2")],
             "hi": [DropColumns(columns="c3")],
@@ -189,10 +182,8 @@ class TestCacheToNebulaStorage:
             ns.get("FAIL_DF_hi-df-before-appending:append"),
             dict_df_exp["hi"].drop("c3"),
         )
-        ns.clear()
 
     def test_interleaved(self, df_input):
-        ns.clear()
         pipe = TransformerPipeline(
             [CallMe(), SelectColumns(glob="*"), CallMe()],
             interleaved=[ThisTransformerIsBroken()],
@@ -203,4 +194,3 @@ class TestCacheToNebulaStorage:
         assert ns.get("_call_me_") == 1
         df_cached = ns.get("FAIL_DF_transformer:ThisTransformerIsBroken")
         pl_assert_equal(df_input, df_cached)
-        ns.clear()

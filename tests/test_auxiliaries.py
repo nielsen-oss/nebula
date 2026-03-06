@@ -25,7 +25,6 @@ class TestAssertAllowed:
 
 
 def test_assert_at_least_one_non_null():
-    """Test 'assert_at_least_one_non_null' function."""
     a, b, c = None, None, None
     with pytest.raises(AssertionError):
         assert_at_least_one_non_null(a=a, b=b, c=c)
@@ -41,7 +40,6 @@ def test_assert_at_least_one_non_null():
 
 
 def test_assert_at_most_one_args():
-    """Test 'assert_at_most_one_true' function."""
     a, b, c = None, None, None
     assert_at_most_one_args(a=a, b=b, c=c)
 
@@ -61,7 +59,6 @@ def test_assert_at_most_one_args():
 
 
 def test_assert_only_one_not_none():
-    """Test 'assert_only_one_non_none' function."""
     a, b, c = None, None, None
     with pytest.raises(AssertionError):
         assert_only_one_non_none(a=a, b=b, c=c)
@@ -83,7 +80,6 @@ def test_assert_only_one_not_none():
 
 @pytest.mark.parametrize("names", [None, ["li_1", "li_2", "li_3"], ["li_1"]])
 def test_compare_lists_of_string(names):
-    """Test 'compare_lists_of_string' function."""
     li_1 = ["hello", "a", "long_string"]
     li_2 = ["long_string", "bb"]
     li_3 = ["a", "long_string"]
@@ -114,7 +110,6 @@ def test_compare_lists_of_string(names):
 
 
 def test_flatten():
-    """Test 'flatten' function."""
     inputs = (
         ([], []),
         ([0], [0]),
@@ -130,7 +125,6 @@ def test_flatten():
 
 
 def test_ensure_list():
-    """Test 'ensure_flat_list' function."""
     inputs = (
         (None, []),
         (False, [False]),
@@ -151,7 +145,6 @@ def test_ensure_list():
 
 
 def test_ensure_flat_list():
-    """Test 'ensure_list' function."""
     inputs = (
         (None, []),
         ([], []),
@@ -178,15 +171,11 @@ def test_ensure_flat_list():
     ],
 )
 def test_ensure_nested_length(o: list, n: int, exp: bool):
-    """Test 'ensure_nested_length' function."""
     chk = ensure_nested_length(o, n)
     assert chk == exp
 
 
 def test_get_class_name():
-    """Test the 'get_class_name' function."""
-
-    # noqa: D202
     class A: ...  # noqa
 
     class AA: ...  # noqa
@@ -248,7 +237,6 @@ class TestSymmetricDifferences:
     ],
 )
 def test_is_list_uniform(o: list, t: type, exp: bool):
-    """Test 'is_list_uniform' function."""
     chk = is_list_uniform(o, t)
     assert chk == exp
 
@@ -420,7 +408,6 @@ class TestSplitStringInChunks:
 
 
 def test_truncate_long_string():
-    """Test 'truncate_long_string' function."""
     max_len = 20
     n_chk = 3
     for _ in range(100):
@@ -467,7 +454,6 @@ class TestValidateAggregations:
         ],
     )
     def test(self, aggregations, required_keys, allowed_keys, exact_keys):
-        """Test 'validate_aggregations' auxiliary function."""
         with pytest.raises(ValueError):
             validate_aggregations(
                 [aggregations],
@@ -485,7 +471,6 @@ class TestValidateAggregations:
         ],
     )
     def test_types(self, aggregations):
-        """Test 'validate_aggregations' types auxiliary function."""
         with pytest.raises(TypeError):
             validate_aggregations(
                 [aggregations],
