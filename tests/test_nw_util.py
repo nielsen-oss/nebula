@@ -403,7 +403,7 @@ class TestDfIsEmpty:
     @pytest.mark.parametrize("to_nw", [True, False])
     def test_generic(self, spark, data, backend: str, to_nw):
         if (backend == "spark") and (not data):
-            return  # Can not infer schema from empty dataset.
+            return  # Cannot infer schema from empty dataset.
         df = pd.DataFrame({"a": data})
 
         df = from_pandas(df, backend, to_nw=to_nw, spark=spark)

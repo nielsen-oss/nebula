@@ -1,5 +1,6 @@
 """Unit-tests for 'assertions' transformers."""
 
+import narwhals as nw
 import pandas as pd
 import polars as pl
 import pytest
@@ -59,21 +60,32 @@ class TestAssertCount:
         assert result is df
 
     @pytest.mark.parametrize("to_nw", [True, False])
-    @pytest.mark.parametrize("backend", [*TEST_BACKENDS, "polars_lazy"])
+    @pytest.mark.parametrize("backend", TEST_BACKENDS)
     @pytest.mark.parametrize(
         "expected, min_count, max_count",
         [(0, None, None), (None, 0, None), (None, None, 5), (None, 0, 5)],
     )
-    def test_valid_empty_df(self, backend, to_nw, expected, min_count, max_count):
-        if backend == "polars_lazy":
-            df = pl.LazyFrame({"a": [], "b": []})
+    def test_valid_empty_df(self, spark, duckdb_con, backend, to_nw, expected, min_count, max_count):
+        if backend == "spark":  # cannot infer the schema from an empty df
+            df = spark.createDataFrame([], "struct<a:string,b:int>")
         else:
             df = pd.DataFrame({"a": [], "b": []})
-            df = from_pandas(df, backend, to_nw=to_nw)
+            df = from_pandas(df, backend, to_nw=to_nw, duckdb_con=duckdb_con)
         t = AssertCount(expected=expected, min_count=min_count, max_count=max_count)
         result = t.transform(df)
-        if backend != "polars_lazy" and not to_nw:
+        if not to_nw:
             assert result is df
+
+    @pytest.mark.parametrize("to_nw", [True, False])
+    @pytest.mark.parametrize(
+        "expected, min_count, max_count",
+        [(0, None, None), (None, 0, None), (None, None, 5), (None, 0, 5)],
+    )
+    def test_valid_empty_df_lazy_polars(self, to_nw, expected, min_count, max_count):
+        df = pl.LazyFrame({"a": [], "b": []})
+        df = nw.from_native(df) if to_nw else df
+        t = AssertCount(expected=expected, min_count=min_count, max_count=max_count)
+        t.transform(df)
 
     @pytest.mark.parametrize("backend", TEST_BACKENDS)
     @pytest.mark.parametrize(
@@ -93,16 +105,26 @@ class TestAssertNotEmpty:
     """Test 'AssertNotEmpty' transformer, Complete tests in 'TestDfIsEmpty'."""
 
     @pytest.mark.parametrize("backend", TEST_BACKENDS)
-    def test_not_empty(self, duckdb_con, backend: str, to_nw: bool):
+    def test_not_empty(self, spark, duckdb_con, backend: str, to_nw: bool):
         df = pd.DataFrame({"a": [1, 2], "b": [3, 4]})
-        df = from_pandas(df, backend, to_nw=to_nw, duckdb_con=duckdb_con)
+        df = from_pandas(df, backend, to_nw=to_nw, duckdb_con=duckdb_con, spark=spark)
         t = AssertNotEmpty()
         t.transform(df)
 
     @pytest.mark.parametrize("backend", TEST_BACKENDS)
-    def test_empty(self, duckdb_con, backend: str, to_nw: bool):
-        df = pd.DataFrame({"a": [], "b": []})
-        df = from_pandas(df, backend, to_nw=to_nw, duckdb_con=duckdb_con)
+    def test_empty(self, spark, duckdb_con, backend: str, to_nw: bool):
+        if backend == "spark":  # cannot infer the schema from an empty df
+            df = spark.createDataFrame([], "struct<a:string,b:int>")
+        else:
+            df = pd.DataFrame({"a": [], "b": []})
+            df = from_pandas(df, backend, to_nw=to_nw, duckdb_con=duckdb_con)
+        t = AssertNotEmpty()
+        with pytest.raises(AssertionError):
+            t.transform(df)
+
+    def test_empty_lazy_polars(self, to_nw: bool):
+        df = pl.LazyFrame({"a": [], "b": []})
+        df = nw.from_native(df) if to_nw else df
         t = AssertNotEmpty()
         with pytest.raises(AssertionError):
             t.transform(df)
