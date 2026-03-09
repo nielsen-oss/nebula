@@ -16,10 +16,10 @@ class TestGetDataframeType:
     """Unit-Test 'get_dataframe_type' function."""
 
     @pytest.mark.parametrize("backend", TEST_BACKENDS)
-    def test_valid(self, spark, backend):
+    def test_valid(self, spark, duckdb_con, backend):
         """Test dataframe type detection for all backends."""
         df_pd = pd.DataFrame({"a": [1], "b": [2.0]})
-        df = from_pandas(df_pd, backend, to_nw=False, spark=spark)
+        df = from_pandas(df_pd, backend, to_nw=False, spark=spark, duckdb_con=duckdb_con)
         chk = get_dataframe_type(df)
         assert chk == backend
 

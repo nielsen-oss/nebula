@@ -1,6 +1,6 @@
 # Nebula
 
-**Declarative data transformation pipelines for Pandas, Polars, and PySpark**
+**Declarative data transformation pipelines for Pandas, Polars, DuckDB, and PySpark**
 
 [![CI](https://github.com/nielsen-oss/nebula/workflows/CI/badge.svg)](https://github.com/nielsen-oss/nebula/actions)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
@@ -12,7 +12,7 @@
 
 ## What is Nebula?
 
-Nebula is a Python library for building **config-driven, multi-backend data pipelines**. Write your transformation logic once, run it on Pandas, Polars, or PySpark.
+Nebula is a Python library for building **config-driven, multi-backend data pipelines**. Write your transformation logic once, run it on Pandas, Polars, DuckDB, or PySpark.
 
 **Perfect for:**
 - 🔧 ETL workflows that need to adapt to different environments
@@ -36,6 +36,7 @@ pip install -e "."
 # With specific backend(s)
 pip install -e ".[pandas]"
 pip install -e ".[polars]"
+pip install -e ".[duckdb]"
 pip install -e ".[spark]"
 
 # All backends
@@ -70,7 +71,7 @@ df = pd.DataFrame({
 })
 
 result = pipeline.run(df)
-# Works the same with polars.DataFrame or pyspark.sql.DataFrame!
+# Works the same with polars.DataFrame, duckdb.DuckDBPyRelation, or pyspark.sql.DataFrame!
 ```
 
 ---
@@ -78,7 +79,7 @@ result = pipeline.run(df)
 ## Key Features
 
 ### 🎯 Multi-Backend Support
-Write once, run on Pandas, Polars, or PySpark. Nebula uses [Narwhals](https://github.com/narwhals-dev/narwhals) for seamless backend abstraction.
+Write once, run on Pandas, Polars, DuckDB, or PySpark. Nebula uses [Narwhals](https://github.com/narwhals-dev/narwhals) for seamless backend abstraction.
 
 ### 📝 Config-Driven Pipelines
 Define pipelines in YAML/JSON and load them dynamically:
@@ -202,12 +203,18 @@ Check out the [`example_notebooks/`](example_notebooks/) directory for comprehen
 
 1. **[Flat Pipelines](example_notebooks/01_flat_pipeline.ipynb)** - Basic linear transformations
 2. **[Split Pipelines](example_notebooks/02_split_pipeline.ipynb)** - Processing different data subsets
-3. **[Branching & Row Operations](example_notebooks/03_branching_and_row_operations.ipynb)** - Advanced control flow
+3. **Branching & Row Operations:**
+   - [3a - Branching](example_notebooks/03a_branching.ipynb) - Fork, join, append, dead-end
+   - [3b - Apply to Rows](example_notebooks/03b_apply_to_rows.ipynb) - Filter, transform, merge row subsets
+   - [3c - Skip Options](example_notebooks/03c_skip_options.ipynb) - Conditional execution
 4. **[Storage & Runtime](example_notebooks/04_storage_and_runtime.ipynb)** - Intermediate results and debugging
-5. **[Configuration-Driven](example_notebooks/05_configuration_driven.ipynb)** - YAML/JSON pipelines
-6. **[Custom Transformers](example_notebooks/06_custom_transformers.ipynb)** - Extending Nebula
-7. **[Real-World Example](example_notebooks/07_real_world_example.ipynb)** - Complete ETL workflow
-8. **[Spark Debugging](example_notebooks/08_spark_debugging.ipynb)** - PySpark-specific tips
+5. **Configuration-Driven Pipelines:**
+   - [5a - Basics](example_notebooks/05a_configuration_basics.ipynb) - Config format, transformer options
+   - [5b - Advanced](example_notebooks/05b_configuration_advanced.ipynb) - Custom functions, loops, lazy params
+6. **[DuckDB Backend](example_notebooks/06_duckdb_backend.ipynb)** - Using DuckDB as backend
+7. **[Custom Transformers](example_notebooks/07_custom_transformers.ipynb)** - Extending Nebula
+8. **[Real-World Example](example_notebooks/08_real_world_example.ipynb)** - Complete ETL workflow
+9. **[Spark Debugging](example_notebooks/09_spark_debugging.ipynb)** - PySpark-specific tips
 
 ---
 
@@ -255,7 +262,7 @@ Nebula includes ~30 tested transformers covering common ETL operations:
 ## Why Nebula?
 
 ### Problem: DataFrame Backend Lock-In
-You start with Pandas, scale to PySpark, then want to try Polars. Rewriting all your transformation code? Painful.
+You start with Pandas, scale to PySpark, then want to try Polars or DuckDB. Rewriting all your transformation code? Painful.
 
 ### Solution: Write Once, Run Anywhere
 ```python
@@ -264,6 +271,7 @@ pipeline = TransformerPipeline([...])
 
 result_pd = pipeline.run(pandas_df)
 result_pl = pipeline.run(polars_df)
+result_dk = pipeline.run(duckdb_rel)
 result_sp = pipeline.run(spark_df)
 ```
 
@@ -295,6 +303,7 @@ pipeline = load_pipeline(f"config_{env}.yaml")
 - **Optional backends:**
   - Pandas ≥1.2.5
   - Polars ≥1.34.0
+  - DuckDB ≥1.1.0
   - PySpark ≥3.5.0
 
 ---
@@ -317,7 +326,7 @@ pytest
 pre-commit run --all-files
 ```
 
-> **Note:** PySpark tests run locally only (CI tests Pandas/Polars).
+> **Note:** PySpark tests run locally only (CI tests Pandas/Polars/DuckDB).
 
 ---
 

@@ -10,7 +10,7 @@ import pytest
 
 from nebula.transformers.schema import *
 
-from ..auxiliaries import from_pandas
+from ..auxiliaries import from_pandas, to_pandas
 
 
 class TestAddLiterals:
@@ -33,7 +33,7 @@ class TestAddLiterals:
 
         pd.testing.assert_frame_equal(df_input, df_out)
 
-    @pytest.mark.parametrize("backend", ["pandas", "polars"])
+    @pytest.mark.parametrize("backend", ["pandas", "polars", "duckdb"])
     def test_simple_literals(self, backend):
         """Test adding simple literal columns."""
         df_input = pd.DataFrame({"a": [1, 2]})
@@ -54,14 +54,13 @@ class TestAddLiterals:
         assert list(df_out_native.columns) == expected_cols
 
         # Check values
-        if backend == "polars":
-            df_out_native = df_out_native.to_pandas()
+        df_out_native = to_pandas(df_out_native)
 
         assert all(df_out_native["count"] == 42)
         assert all(df_out_native["status"] == "active")
         assert all(df_out_native["pi"] == 3.14)
 
-    @pytest.mark.parametrize("backend", ["pandas", "polars"])
+    @pytest.mark.parametrize("backend", ["pandas", "polars", "duckdb"])
     def test_literals_with_cast(self, backend):
         """Test adding literals with explicit casting."""
         df_input = pd.DataFrame({"a": [1, 2]})
@@ -83,16 +82,13 @@ class TestAddLiterals:
         assert "str_col" in df_out_native.columns
 
         # Check types (backend-specific)
-        if backend == "polars":
-            assert df_out_native["int_col"].dtype == pl.Int32
-            assert df_out_native["float_col"].dtype == pl.Float64
-            assert df_out_native["str_col"].dtype == pl.String
-        else:
-            assert df_out_native["int_col"].dtype == "int32"
-            assert df_out_native["float_col"].dtype == "float64"
-            assert pd.api.types.is_string_dtype(df_out_native["str_col"])
+        df_out_native = to_pandas(df_out_native)
 
-    @pytest.mark.parametrize("backend", ["pandas", "polars"])
+        assert df_out_native["int_col"].dtype == "int32"
+        assert df_out_native["float_col"].dtype == "float64"
+        assert pd.api.types.is_string_dtype(df_out_native["str_col"])
+
+    @pytest.mark.parametrize("backend", ["pandas", "polars", "duckdb"])
     def test_null_literals_with_cast(self, backend):
         """Test adding typed null columns (schema definition)."""
         df_input = pd.DataFrame({"a": [1, 2]})
@@ -112,8 +108,7 @@ class TestAddLiterals:
         assert set(df_out_native.columns) == {"a", "null_int", "null_float", "null_str"}
 
         # Check all values are null
-        if backend == "polars":
-            df_out_native = df_out_native.to_pandas()
+        df_out_native = to_pandas(df_out_native)
 
         assert df_out_native["null_int"].isna().all()
         assert df_out_native["null_float"].isna().all()
@@ -136,7 +131,7 @@ class TestAddLiterals:
         assert df_out_native["nullable_int"].dtype == "Int64"
         assert df_out_native["nullable_int"].isna().all()
 
-    @pytest.mark.parametrize("backend", ["pandas", "polars"])
+    @pytest.mark.parametrize("backend", ["pandas", "polars", "duckdb"])
     def test_value_optional_defaults_to_none(self, backend):
         """Test that 'value' key is optional and defaults to None."""
         df_input = pd.DataFrame({"a": [1, 2]})
@@ -153,12 +148,11 @@ class TestAddLiterals:
 
         assert "default_null" in df_out_native.columns
 
-        if backend == "polars":
-            df_out_native = df_out_native.to_pandas()
+        df_out_native = to_pandas(df_out_native)
 
         assert df_out_native["default_null"].isna().all()
 
-    @pytest.mark.parametrize("backend", ["pandas", "polars"])
+    @pytest.mark.parametrize("backend", ["pandas", "polars", "duckdb"])
     def test_mixed_literals_and_nulls(self, backend):
         """Test mixing literal values and null columns."""
         df_input = pd.DataFrame({"a": [1, 2]})
@@ -178,8 +172,7 @@ class TestAddLiterals:
         expected_cols = ["a", "status", "score", "count", "optional_field"]
         assert list(df_out_native.columns) == expected_cols
 
-        if backend == "polars":
-            df_out_native = df_out_native.to_pandas()
+        df_out_native = to_pandas(df_out_native)
 
         # Check values
         assert all(df_out_native["status"] == "active")
@@ -206,8 +199,8 @@ class TestAddLiterals:
         assert all(df_out_native["c"] == 100)
 
     @pytest.mark.parametrize("dtype", ["int64", "float32", "string", "bool"])
-    def test_various_simple_types(self, dtype):
-        """Test various simple types are supported."""
+    def test_simple_types(self, dtype):
+        """Test simple types."""
         df_input = pd.DataFrame({"a": [1, 2]})
         nw_df = nw.from_native(df_input)
 

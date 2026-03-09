@@ -103,6 +103,8 @@ class Transformer(metaclass=InitParamsStorage):
             return self._transform_polars(df)
         elif name == "spark":
             return self._transform_spark(df)
+        elif name == "duckdb":
+            return self._transform_duckdb(df)
         else:  # pragma: no cover
             raise ValueError(f"Unknown dataframe type {name}")
 

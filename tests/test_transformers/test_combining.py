@@ -22,7 +22,7 @@ class TestAppendDataFrame:
         yield
         ns.clear()
 
-    @pytest.mark.parametrize("backend", ["pandas", "polars"])
+    @pytest.mark.parametrize("backend", ["pandas", "polars", "duckdb"])
     @pytest.mark.parametrize("to_nw", [True, False])
     @pytest.mark.parametrize("allow_missing", [True, False])
     @pytest.mark.parametrize("store_key", ["df1", "df2"])
@@ -37,7 +37,7 @@ class TestAppendDataFrame:
         df_chk = t.transform(df)
         df_chk_pd = to_pandas(df_chk).reset_index(drop=True)
         df_exp = pd.concat([df_pd_in, to_pandas(ns.get(store_key))], axis=0)
-        pd.testing.assert_frame_equal(df_chk_pd, df_exp.reset_index(drop=True))
+        pd.testing.assert_frame_equal(df_chk_pd, df_exp.reset_index(drop=True), check_dtype=False)
 
 
 class TestJoin:

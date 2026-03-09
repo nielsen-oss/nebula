@@ -3,6 +3,7 @@
 from typing import NamedTuple
 
 __all__ = [
+    "HAS_DUCKDB",
     "HAS_PANDAS",
     "HAS_POLARS",
     "HAS_SPARK",
@@ -10,6 +11,7 @@ __all__ = [
 ]
 
 # Minimum supported versions
+MIN_DUCKDB = "1.0.0"
 MIN_PANDAS = "1.2.5"
 MIN_POLARS = "1.34.0"
 MIN_PYSPARK = "3.5.0"
@@ -40,11 +42,13 @@ def _check_backend(module_name: str, min_version: str) -> BackendInfo:
 
 
 # Check backends on module import
+_DUCKDB_INFO = _check_backend("duckdb", MIN_DUCKDB)
 _PANDAS_INFO = _check_backend("pandas", MIN_PANDAS)
 _POLARS_INFO = _check_backend("polars", MIN_POLARS)
 _PYSPARK_INFO = _check_backend("pyspark", MIN_PYSPARK)
 
 # Simple flags for backward compatibility
+HAS_DUCKDB: bool = _DUCKDB_INFO.available
 HAS_PANDAS: bool = _PANDAS_INFO.available
 HAS_POLARS: bool = _POLARS_INFO.available
 HAS_SPARK: bool = _PYSPARK_INFO.available

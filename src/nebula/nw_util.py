@@ -54,6 +54,8 @@ def _classify_eagerness(df) -> str:
         return "lazy" if isinstance(df, pl.LazyFrame) else "eager"
     if "pyspark" in df_module:
         return "lazy"  # spark is always lazy
+    if "duckdb" in df_module:
+        return "lazy"  # duckdb relations are lazy
     return "eager"  # pandas is always eager
 
 
@@ -275,6 +277,52 @@ def to_native_dataframes(dataframes) -> tuple[list, str, bool]:
     return ret, backends.pop(), narwhals_found
 
 
+def _handle_append_error_missing_cols(native_dataframes, full_columns):
+    msg = []
+    for i, right_df in enumerate(native_dataframes[1:], start=1):
+        left_df = native_dataframes[i - 1]
+        col_left = set(right_df.columns)
+        col_right = set(left_df.columns)
+        missing_left = full_columns - col_left
+        missing_right = full_columns - col_right
+        if missing_left:
+            msg.append(f"missing in df({i}): {sorted(missing_left)}")
+        if missing_right:
+            msg.append(f"missing in df({i}): {sorted(missing_right)}")
+
+    raise ValueError("Column mismatch between dataframes -> " + ", ".join(msg))
+
+
+def _handle_append_duck_db(native_dataframes, full_columns, allow_missing_cols, diff):
+    if allow_missing_cols and diff:
+        # Build a type map from all dataframes for missing-column casting
+        col_types: dict[str, str] = {}
+        for df in native_dataframes:
+            for col_name, col_type in zip(df.columns, df.types):
+                if col_name not in col_types:
+                    col_types[col_name] = col_type
+
+        # Align columns: add typed NULL for missing columns in each df
+        ordered_cols = sorted(full_columns)
+        aligned = []
+        for df in native_dataframes:
+            df_cols = set(df.columns)
+            parts = []
+            for c in ordered_cols:
+                if c in df_cols:
+                    parts.append(f'"{c}"')
+                else:
+                    parts.append(f'NULL::{col_types[c]} AS "{c}"')
+            aligned.append(df.select(", ".join(parts)))
+        native_dataframes = aligned
+    else:
+        # Ensure consistent column order
+        cols = native_dataframes[0].columns
+        native_dataframes = [df.select(", ".join(f'"{c}"' for c in cols)) for df in native_dataframes]
+    ret = reduce(lambda a, b: a.union(b), native_dataframes)
+    return ret
+
+
 def append_dataframes(
     dataframes,
     *,
@@ -282,7 +330,7 @@ def append_dataframes(
     relax: bool = False,
     rechunk: bool = False,
     ignore_index: bool = False,
-):
+):  # noqa: PLR0915
     """Append (concatenate vertically) a list of dataframes.
 
     This function handles dataframes from pandas, Polars, and Spark backends,
@@ -399,19 +447,7 @@ def append_dataframes(
 
     # Handle the error
     if diff and not allow_missing_cols:
-        msg = []
-        for i, right_df in enumerate(native_dataframes[1:], start=1):
-            left_df = native_dataframes[i - 1]
-            col_left = set(right_df.columns)
-            col_right = set(left_df.columns)
-            missing_left = full_columns - col_left
-            missing_right = full_columns - col_right
-            if missing_left:
-                msg.append(f"missing in df({i}): {sorted(missing_left)}")
-            if missing_right:
-                msg.append(f"missing in df({i}): {sorted(missing_right)}")
-
-        raise ValueError("Column mismatch between dataframes -> " + ", ".join(msg))
+        _handle_append_error_missing_cols(native_dataframes, full_columns)
 
     if native_backend == "pandas":
         import pandas as pd
@@ -436,6 +472,9 @@ def append_dataframes(
         func = partial(DataFrame.unionByName, allowMissingColumns=allow_missing_cols)
         ret = reduce(func, native_dataframes)
 
+    elif native_backend == "duckdb":  # require more complex logic
+        ret = _handle_append_duck_db(native_dataframes, full_columns, allow_missing_cols, diff)
+
     else:  # pragma: no cover
         raise TypeError(f"Unsupported dataframe type: {native_backend}")
 
@@ -459,6 +498,8 @@ def df_is_empty(df_input) -> bool:
         return df.is_empty()
     elif df_type_name == "spark":
         return df.isEmpty()
+    elif df_type_name == "duckdb":
+        return df.shape[0] == 0
     else:  # pragma: no cover
         raise ValueError(f"Unsupported dataframe type: {df_type_name}")
 

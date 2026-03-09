@@ -10,7 +10,7 @@ from typing import Any
 
 import narwhals as nw
 
-from nebula.backend_util import HAS_PANDAS, HAS_POLARS, HAS_SPARK
+from nebula.backend_util import HAS_DUCKDB, HAS_PANDAS, HAS_POLARS, HAS_SPARK
 
 __all__ = [
     "GenericNativeDataFrame",
@@ -38,6 +38,11 @@ if HAS_SPARK:
     import pyspark
 
     _df_types.append(pyspark.sql.DataFrame)
+
+if HAS_DUCKDB:
+    import duckdb
+
+    _df_types.append(duckdb.DuckDBPyRelation)
 
 # Handle case where no backends are installed
 if _df_types:
@@ -71,6 +76,8 @@ def get_dataframe_type(df) -> str:
         return "polars"
     elif "pyspark" in df_module:
         return "spark"
+    elif "duckdb" in df_module:
+        return "duckdb"
 
     # Fallback: isinstance checks (more reliable but requires imports)
     if HAS_PANDAS:
@@ -91,6 +98,12 @@ def get_dataframe_type(df) -> str:
         if isinstance(df, ps_DF):  # pragma: no cover
             return "spark"
 
+    if HAS_DUCKDB:
+        from duckdb import DuckDBPyRelation
+
+        if isinstance(df, DuckDBPyRelation):  # pragma: no cover
+            return "duckdb"
+
     # Build a helpful error message
     supported = []
     if HAS_PANDAS:
@@ -99,6 +112,8 @@ def get_dataframe_type(df) -> str:
         supported.append("polars.DataFrame")
     if HAS_SPARK:
         supported.append("pyspark.sql.DataFrame")
+    if HAS_DUCKDB:
+        supported.append("duckdb.DuckDBPyRelation")
 
     if not supported:  # pragma: no cover
         raise TypeError(

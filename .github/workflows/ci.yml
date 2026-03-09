@@ -40,9 +40,9 @@ jobs:
       - name: Install dependencies (no Spark)
         run: |
           pip install --upgrade pip
-          pip install -e ".[dev]"
+          pip install -e ".[all,dev]"
 
-      - name: Run tests (pandas & polars only)
+      - name: Run tests (pandas, polars and duckdb only)
         env:
           TESTS_NO_SPARK: "true"
         run: |

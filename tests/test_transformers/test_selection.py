@@ -24,7 +24,7 @@ class TestDropColumns:
         [
             ("pandas", True, {"columns": ["c1", "c3"]}),
             ("polars", True, {"glob": "c*"}),
-            ("polars", False, {"regex": "c[1-5]"}),
+            ("duckdb", False, {"regex": "c[1-5]"}),
         ],
     )
     def test_drop_columns(self, backend: str, is_nw: bool, kws):
@@ -80,7 +80,7 @@ class TestRenameColumns:
                 ["col_c0", "c1", "c2", "c3", "c4", "col_d0", "d1", "d2", "d3", "d4"],
             ),
             (
-                "polars",
+                "duckdb",
                 True,
                 {"regex_pattern": "^c", "regex_replacement": "column_"},
                 [

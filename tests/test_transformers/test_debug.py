@@ -10,7 +10,7 @@ from ..auxiliaries import from_pandas
 
 class TestPrintSchema:
     @pytest.mark.parametrize("to_nw", [True, False])
-    @pytest.mark.parametrize("backend", ["pandas", "polars"])
+    @pytest.mark.parametrize("backend", ["pandas", "polars", "duckdb"])
     def test(self, to_nw: bool, backend: str):
         """Test PrintSchema transformer."""
         df_pd = pd.DataFrame(

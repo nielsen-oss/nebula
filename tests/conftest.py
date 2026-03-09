@@ -3,6 +3,7 @@
 import os
 import sys
 
+import duckdb
 import pytest
 
 
@@ -40,3 +41,10 @@ def start_spark():
     )
     yield spark
     spark.stop()
+
+
+@pytest.fixture(scope="session", name="duckdb_con")
+def start_duckdb():
+    con = duckdb.connect()
+    yield con
+    con.close()
