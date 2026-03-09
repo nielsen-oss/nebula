@@ -111,6 +111,24 @@ class DropNulls(Transformer):
             return df.dropna(self._how, subset=subset, thresh=self._thresh)
         return df.dropna(self._how, thresh=self._thresh)
 
+    def _transform_duckdb(self, df):
+        subset: list[str] = self._get_selected_columns(df)
+        cols = subset if subset else list(df.columns)
+
+        if self._thresh is not None:
+            # Keep rows with at least 'thresh' non-null values
+            count_expr = " + ".join(f'CASE WHEN "{c}" IS NOT NULL THEN 1 ELSE 0 END' for c in cols)
+            return df.filter(f"({count_expr}) >= {self._thresh}")
+
+        if self._how == "any":
+            # Drop rows where ANY column is null
+            condition = " AND ".join(f'"{c}" IS NOT NULL' for c in cols)
+        else:
+            # Drop rows where ALL columns are null
+            condition = " OR ".join(f'"{c}" IS NOT NULL' for c in cols)
+
+        return df.filter(condition)
+
 
 class Filter(Transformer):
     def __init__(

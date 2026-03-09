@@ -111,6 +111,10 @@ class AssertCount(Transformer):
         self._validate_count(df.count())
         return df
 
+    def _transform_duckdb(self, df):
+        self._validate_count(df.shape[0])
+        return df
+
 
 class AssertNotEmpty(Transformer):
     def __init__(self, *, df_name: str = "DataFrame"):

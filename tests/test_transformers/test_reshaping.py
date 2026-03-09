@@ -103,7 +103,7 @@ class TestGroupBy:
         df_nw_exp = df_nw.group_by(groupby_columns).agg(nw.col("c3").sum().alias("result"))
         self._compare(df_result, df_nw_exp)
 
-    @pytest.mark.parametrize("backend", ["pandas", "polars"])
+    @pytest.mark.parametrize("backend", ["pandas", "polars", "duckdb"])
     @pytest.mark.parametrize("to_nw", [True, False])
     @pytest.mark.parametrize("prefix", ["pre_", ""])
     @pytest.mark.parametrize("suffix", ["_post", ""])
@@ -122,7 +122,7 @@ class TestGroupBy:
         df_nw_exp = df_nw.group_by("c1").agg(agg_exprs)
         self._compare(df_result, df_nw_exp)
 
-    @pytest.mark.parametrize("backend", ["pandas", "polars"])
+    @pytest.mark.parametrize("backend", ["pandas", "polars", "duckdb"])
     @pytest.mark.parametrize("to_nw", [True, False])
     def test_with_regex(self, spark, backend, to_nw, df_input):
         """Test groupby column selection with regex."""
@@ -136,7 +136,7 @@ class TestGroupBy:
         df_nw_exp = df_nw.group_by(["c1", "c2"]).agg(nw.col("c3").sum().alias("c3"))
         self._compare(df_result, df_nw_exp)
 
-    @pytest.mark.parametrize("backend", ["pandas", "polars"])
+    @pytest.mark.parametrize("backend", ["pandas", "polars", "duckdb"])
     @pytest.mark.parametrize("to_nw", [True, False])
     def test_with_startswith(self, spark, backend, to_nw, df_input):
         """Test groupby column selection with startswith."""
@@ -153,14 +153,17 @@ class TestGroupBy:
         df_nw_exp = df_nw.group_by(groupby_cols).agg(nw.col("c0").count().alias("c0_count"))
         self._compare(df_result, df_nw_exp)
 
-    @pytest.mark.parametrize("backend", ["pandas", "polars"])
+    @pytest.mark.parametrize("backend", ["pandas", "polars", "duckdb"])
     @pytest.mark.parametrize("to_nw", [True, False])
     @pytest.mark.parametrize(
         "agg_func",
         ["sum", "mean", "median", "min", "max", "std", "var", "count", "first", "last"],
     )
-    def test_various_aggregations(self, spark, backend, to_nw, df_input, agg_func):
-        """Test that various common aggregation functions work."""
+    def test_mix_aggregations(self, spark, backend, to_nw, df_input, agg_func):
+        """Test that common aggregation functions work."""
+        # first/last are order-dependent and not supported on lazy frames (duckdb)
+        if backend == "duckdb" and agg_func in {"first", "last"}:
+            pytest.skip("order-dependent aggregation not supported on DuckDB lazy frames")
         t = GroupBy(aggregations={agg_func: ["c3"]}, groupby_columns="c1", suffix=f"_{agg_func}")
         df_result = t.transform(from_pandas(df_input, backend, to_nw, spark=spark))
 

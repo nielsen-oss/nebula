@@ -3,6 +3,7 @@
 import re
 from fnmatch import fnmatch
 
+import duckdb
 import narwhals as nw
 import pandas as pd
 import polars as pl
@@ -20,11 +21,27 @@ __all__ = [
 ]
 
 
-def from_pandas(df_input, backend: str, to_nw: bool, spark=None):
+_DUCKDB_CON = None
+
+
+def _get_duckdb_con(duckdb_con=None):
+    global _DUCKDB_CON
+    if duckdb_con is not None:
+        return duckdb_con
+    if _DUCKDB_CON is None:
+        import duckdb
+
+        _DUCKDB_CON = duckdb.connect()
+    return _DUCKDB_CON
+
+
+def from_pandas(df_input, backend: str, to_nw: bool, spark=None, duckdb_con=None):
     if backend == "polars":
         df = pl.from_pandas(df_input)
     elif backend == "spark":
         df = spark.createDataFrame(df_input)
+    elif backend == "duckdb":
+        df = _get_duckdb_con(duckdb_con).from_df(df_input)
     else:
         df = df_input
 
@@ -103,5 +120,7 @@ def to_pandas(df_input) -> pd.DataFrame:
         return df.toPandas()
     if isinstance(df, pd.DataFrame):
         return df
+    if isinstance(df, duckdb.DuckDBPyRelation):
+        return df.to_df()
 
     raise TypeError(f"Unknown df type: {type(df)}")

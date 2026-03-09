@@ -112,9 +112,9 @@ class Cast(Transformer):
             df_native = nw.to_native(df)
             df_type = get_dataframe_type(df_native)
 
-            if df_type == "pandas":
+            if df_type in {"pandas", "duckdb"}:
                 raise ValueError(
-                    "Pandas does not support nested types (array, struct, map, list). "
+                    f"{df_type.capitalize()} does not support nested types (array, struct, map, list). "
                     f"Cast requested: {self._cast}. Use Polars or Spark instead."
                 )
 
