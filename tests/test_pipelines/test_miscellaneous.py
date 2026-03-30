@@ -100,7 +100,7 @@ class TestToString:
             [SelectColumns(glob="*"), DropNulls()],
             name="flat-params",
         )
-        s = pipe.to_string(add_params=True)
+        s = pipe.to_string(show_params=True)
         assert "flat-params" in s
         assert "PARAMS:" in s
 
@@ -111,7 +111,7 @@ class TestToString:
                 (_fn_with_args, [1, 2], {"z": 99}, "my description"),
             ]
         )
-        s = pipe.to_string(add_params=True)
+        s = pipe.to_string(show_params=True)
         assert "_dummy_fn" in s
         assert "_fn_with_args" in s
         assert "Description" in s
@@ -160,7 +160,7 @@ class TestToString:
             split_function=my_split,
             name="split-pipe",
         )
-        s = pipe.to_string(add_params=True)
+        s = pipe.to_string(show_params=True)
         assert "SPLIT" in s
         assert "low" in s
         assert "hi" in s
@@ -223,7 +223,7 @@ class TestToString:
             [AssertNotEmpty()],
             branch={"end": "join", "on": "idx", "how": "left"},
         )
-        s = pipe.to_string(add_params=True)
+        s = pipe.to_string(show_params=True)
         assert "Join" in s
 
 

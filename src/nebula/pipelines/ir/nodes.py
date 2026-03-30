@@ -144,7 +144,7 @@ class TransformerNode(PipelineNode):
     def get_params_for_print(self, max_param_length: int):
         """Get the params for print to terminal."""
         if self.params_for_print is None:
-            self.params_for_print = get_transformer_name(self.transformer, add_params=True, max_len=max_param_length)
+            self.params_for_print = get_transformer_name(self.transformer, show_params=True, max_len=max_param_length)
         return self.params_for_print
 
 

@@ -230,22 +230,22 @@ class TestIsKeywordRequest:
             assert is_keyword_request({"store": ["list", "value"]}) is True
 
 
-@pytest.mark.parametrize("add_params", [True, False])
+@pytest.mark.parametrize("show_params", [True, False])
 @pytest.mark.parametrize("max_len", [-1, 0, 100])
 @pytest.mark.parametrize("wrap_text", [True, False])
 @pytest.mark.parametrize("as_list", [True, False])
-def test_get_transformer_name(add_params, max_len, wrap_text, as_list):
+def test_get_transformer_name(show_params, max_len, wrap_text, as_list):
     """Test 'get_transformer_name' function."""
     cols_select: list[str] = ["this_column_is_23_chars"] * 100
     param_len_full: int = len("".join(cols_select))
     t = SelectColumns(columns=cols_select)
     kwargs = {
-        "add_params": add_params,
+        "show_params": show_params,
         "max_len": max_len,
         "wrap_text": wrap_text,
         "as_list": as_list,
     }
-    if add_params and wrap_text and as_list:
+    if show_params and wrap_text and as_list:
         with pytest.raises(ValueError):
             get_transformer_name(t, **kwargs)
         return
@@ -256,7 +256,7 @@ def test_get_transformer_name(add_params, max_len, wrap_text, as_list):
 
     if as_list:
         assert isinstance(chk, list)
-        if not add_params:
+        if not show_params:
             return
         n_chk = sum(len(i) for i in chk)
         if max_len <= 0:
@@ -265,7 +265,7 @@ def test_get_transformer_name(add_params, max_len, wrap_text, as_list):
             assert n_chk <= (base_len + max_len), chk
     else:
         assert isinstance(chk, str)
-        if not add_params:
+        if not show_params:
             return
         n_chk = len(chk)
         if max_len <= 0:
@@ -906,7 +906,7 @@ class TestGetTransformerNameNoParams:
 
     def test_no_init_params(self):
         t = AnotherTransformer()
-        result = get_transformer_name(t, add_params=True)
+        result = get_transformer_name(t, show_params=True)
         assert result in ("", [])
 
 
@@ -961,32 +961,32 @@ class TestGetTransformerNameLazy:
     def test_lazy_wrapper_with_params(self):
         """LazyWrapper with kwargs should show params."""
         lazy = LazyWrapper(SelectColumns, columns=["a", "b"])
-        result = get_transformer_name(lazy, add_params=True)
+        result = get_transformer_name(lazy, show_params=True)
         assert isinstance(result, str)
         assert "columns=" in result
 
     def test_lazy_wrapper_no_params(self):
         """LazyWrapper with no kwargs should return empty."""
         lazy = LazyWrapper(SelectColumns)
-        result = get_transformer_name(lazy, add_params=True)
+        result = get_transformer_name(lazy, show_params=True)
         assert result in ("", [])
 
     def test_lazy_wrapper_with_ns_reference(self):
         """LazyWrapper with ns reference in kwargs should show ns.get(...)."""
         lazy = LazyWrapper(SelectColumns, columns=(ns, "my_cols"))
-        result = get_transformer_name(lazy, add_params=True)
+        result = get_transformer_name(lazy, show_params=True)
         assert isinstance(result, str)
         assert 'ns.get("my_cols")' in result
 
     def test_lazy_wrapper_as_list(self):
         """LazyWrapper params as list format."""
         lazy = LazyWrapper(SelectColumns, columns=["a", "b"])
-        result = get_transformer_name(lazy, add_params=True, as_list=True)
+        result = get_transformer_name(lazy, show_params=True, as_list=True)
         assert isinstance(result, list)
         assert len(result) > 0
 
     def test_lazy_wrapper_wrap_text(self):
         """LazyWrapper params with wrap_text."""
         lazy = LazyWrapper(SelectColumns, columns=["a", "b"], glob="*")
-        result = get_transformer_name(lazy, add_params=True, wrap_text=True)
+        result = get_transformer_name(lazy, show_params=True, wrap_text=True)
         assert isinstance(result, str)

@@ -55,7 +55,7 @@ class PipelinePrinter:
 
     Example:
         printer = PipelinePrinter(pipeline._ir)
-        printer.print(add_params=True)
+        printer.print(show_params=True)
     """
 
     def __init__(
@@ -76,34 +76,34 @@ class PipelinePrinter:
         self.indent_size = indent_size
         self.max_param_length = max_param_length
 
-    def print(self, *, add_params: bool = False, add_ids: bool = False) -> None:
+    def print(self, *, show_params: bool = False, add_ids: bool = False) -> None:
         """Print the pipeline to terminal.
 
         Args:
-            add_params: If True, include transformer parameters.
+            show_params: If True, include transformer parameters.
             add_ids: If True, include node IDs (useful for debugging).
         """
-        lines = self._collect_lines(add_params=add_params, add_ids=add_ids)
+        lines = self._collect_lines(show_params=show_params, add_ids=add_ids)
         for line in lines:
             print(line)
 
-    def to_string(self, *, add_params: bool = False, add_ids: bool = False) -> str:
+    def to_string(self, *, show_params: bool = False, add_ids: bool = False) -> str:
         """Get pipeline representation as string.
 
         Args:
-            add_params: If True, include transformer parameters.
+            show_params: If True, include transformer parameters.
             add_ids: If True, include node IDs.
 
         Returns:
             Multi-line string representation.
         """
-        lines = self._collect_lines(add_params=add_params, add_ids=add_ids)
+        lines = self._collect_lines(show_params=show_params, add_ids=add_ids)
         return "\n".join(lines)
 
-    def _collect_lines(self, *, add_params: bool, add_ids: bool) -> list[str]:
+    def _collect_lines(self, *, show_params: bool, add_ids: bool) -> list[str]:
         """Collect all output lines."""
         lines = []
-        self._visit_node(self.ir, 0, lines, add_params, add_ids)
+        self._visit_node(self.ir, 0, lines, show_params, add_ids)
         return lines
 
     def _indent(self, level: int) -> str:
@@ -115,7 +115,7 @@ class PipelinePrinter:
         node: "PipelineNode",
         level: int,
         lines: list[str],
-        add_params: bool,
+        show_params: bool,
         add_ids: bool,
     ) -> None:
         """Visit a node and add its representation to lines."""
@@ -134,19 +134,19 @@ class PipelinePrinter:
         indent = self._indent(level)
 
         if isinstance(node, SequenceNode):
-            self._visit_sequence(node, level, lines, add_params, add_ids)
+            self._visit_sequence(node, level, lines, show_params, add_ids)
         elif isinstance(node, TransformerNode):
-            self._visit_transformer(node, level, lines, add_params, add_ids)
+            self._visit_transformer(node, level, lines, show_params, add_ids)
         elif isinstance(node, FunctionNode):
-            self._visit_function(node, level, lines, add_params, add_ids)
+            self._visit_function(node, level, lines, show_params, add_ids)
         elif isinstance(node, StorageNode):
             self._visit_storage(node, level, lines, add_ids)
         elif isinstance(node, ConversionNode):
             self._visit_conversion(node, level, lines, add_ids)
         elif isinstance(node, ForkNode):
-            self._visit_fork(node, level, lines, add_params, add_ids)
+            self._visit_fork(node, level, lines, show_params, add_ids)
         elif isinstance(node, MergeNode):
-            self._visit_merge(node, level, lines, add_params, add_ids)
+            self._visit_merge(node, level, lines, show_params, add_ids)
         elif isinstance(node, InputNode):
             lines.append(f"{indent}[Input: {node.name}]")
         elif isinstance(node, OutputNode):
@@ -159,7 +159,7 @@ class PipelinePrinter:
         node: "SequenceNode",
         level: int,
         lines: list[str],
-        add_params: bool,
+        show_params: bool,
         add_ids: bool,
     ) -> None:
         """Visit a sequence node."""
@@ -180,14 +180,14 @@ class PipelinePrinter:
 
             if isinstance(step, (InputNode, OutputNode)) and level == 0:
                 continue  # Skip at root level
-            self._visit_node(step, level, lines, add_params, add_ids)
+            self._visit_node(step, level, lines, show_params, add_ids)
 
     def _visit_transformer(
         self,
         node: "TransformerNode",
         level: int,
         lines: list[str],
-        add_params: bool,
+        show_params: bool,
         add_ids: bool,
     ) -> None:
         """Visit a transformer node."""
@@ -195,7 +195,7 @@ class PipelinePrinter:
         name = node.transformer_name
         line = f"{indent} - {name}"
 
-        if add_params:
+        if show_params:
             params = node.get_params_for_print(self.max_param_length)
             if params:
                 line += f" -> PARAMS: {params}"
@@ -214,7 +214,7 @@ class PipelinePrinter:
         node: "FunctionNode",
         level: int,
         lines: list[str],
-        add_params: bool,
+        show_params: bool,
         add_ids: bool,
     ) -> None:
         """Visit a function node."""
@@ -223,7 +223,7 @@ class PipelinePrinter:
 
         line = f"{indent} - {name}"
 
-        if add_params and (node.args or node.kwargs):
+        if show_params and (node.args or node.kwargs):
             params = node.get_params_for_print(self.max_param_length)
             line += f" -> {params}"
 
@@ -268,7 +268,7 @@ class PipelinePrinter:
         node: "ForkNode",
         level: int,
         lines: list[str],
-        add_params: bool,
+        show_params: bool,
         add_ids: bool,
     ) -> None:
         """Visit a fork node."""
@@ -296,8 +296,8 @@ class PipelinePrinter:
 
         lines.append(f"{indent}{header}")
 
-        # Show config if add_params
-        if add_params:
+        # Show config if show_params
+        if show_params:
             no_show = {"storage"}
             for key, value in sorted(node.config.items()):
                 if value and (key not in no_show.union(MERGE_KWS)):
@@ -309,7 +309,7 @@ class PipelinePrinter:
                 msg_step_count = self._get_msg_step_count(branch_steps)
                 lines.append(f"{indent}**SPLIT <<< {split_name} >>> ({msg_step_count}):")
                 for step in branch_steps:
-                    self._visit_node(step, level + 1, lines, add_params, add_ids)
+                    self._visit_node(step, level + 1, lines, show_params, add_ids)
 
         else:  # branch | apply_to_rows
             flow_name = "Branch" if node.fork_type == "branch" else "Apply To rows"
@@ -317,21 +317,21 @@ class PipelinePrinter:
             msg_step_count = self._get_msg_step_count(branch_steps)
             lines.append(f"{indent}>> {flow_name} ({msg_step_count}):")
             for step in branch_steps:
-                self._visit_node(step, level + 1, lines, add_params, add_ids)
+                self._visit_node(step, level + 1, lines, show_params, add_ids)
 
             # Visit otherwise
             if node.otherwise:
                 msg_step_count = self._get_msg_step_count(node.otherwise)
                 lines.append(f"{indent}>> Otherwise ({msg_step_count})")
                 for step in node.otherwise:
-                    self._visit_node(step, level + 1, lines, add_params, add_ids)
+                    self._visit_node(step, level + 1, lines, show_params, add_ids)
 
     def _visit_merge(
         self,
         node: "MergeNode",
         level: int,
         lines: list[str],
-        add_params: bool,
+        show_params: bool,
         add_ids: bool,
     ) -> None:
         """Visit a merge node."""
@@ -351,7 +351,7 @@ class PipelinePrinter:
 
         lines.append(line)
 
-        if add_params:
+        if show_params:
             for key, value in node.config.items():
                 if value and key in MERGE_KWS:
                     lines.append(f"{indent}  - {key}: {value}")
@@ -392,16 +392,16 @@ class PipelinePrinter:
 def print_pipeline(
     ir: "SequenceNode",
     *,
-    add_params: bool = False,
+    show_params: bool = False,
     indent_size: int = 4,
 ) -> None:  # pragma: no cover
     """Convenience function to print a pipeline IR.
 
     Args:
         ir: The pipeline IR root node.
-        add_params: If True, include transformer parameters.
+        show_params: If True, include transformer parameters.
         indent_size: Number of spaces per indentation level.
     """
     max_param_length = PIPE_CFG["max_param_length"]
     printer = PipelinePrinter(ir, max_param_length=max_param_length, indent_size=indent_size)
-    printer.print(add_params=add_params)
+    printer.print(show_params=show_params)

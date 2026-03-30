@@ -144,7 +144,7 @@ src/nebula/
 
 ## InitParamsStorage (Parameter Tracking)
 
-All transformers use a metaclass (`InitParamsStorage`) that automatically records the keyword arguments passed to `__init__`. This is what powers `pipeline.show(add_params=True)` — it can display each step's configuration without transformers needing to implement any display logic. This is also why `super().__init__()` is mandatory in custom transformers: without it, parameter tracking breaks and `show()` output is incomplete.
+All transformers use a metaclass (`InitParamsStorage`) that automatically records the keyword arguments passed to `__init__`. This is what powers `pipeline.show(show_params=True)` — it can display each step's configuration without transformers needing to implement any display logic. This is also why `super().__init__()` is mandatory in custom transformers: without it, parameter tracking breaks and `show()` output is incomplete.
 
 ## Dependencies
 

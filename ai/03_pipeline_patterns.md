@@ -342,15 +342,15 @@ result = pipe.run(
 ```python
 # Text output
 pipe.show()                              # basic structure
-pipe.show(add_params=True)               # include transformer parameters
-pipe.show(add_params=True, add_ids=True) # include node IDs (for resume_from)
+pipe.show(show_params=True)               # include transformer parameters
+pipe.show(show_params=True, add_ids=True) # include node IDs (for resume_from)
 
 # Graphviz DAG (requires graphviz + pyyaml)
-dot = pipe.plot(add_params=True, add_description=True)
+dot = pipe.plot(show_params=True, add_description=True)
 dot.render("pipeline", format="png")
 
 # String representation
-text = pipe.to_string(add_params=True)
+text = pipe.to_string(show_params=True)
 ```
 
 ---

@@ -47,7 +47,7 @@ def test_load_pipeline_mock_dry_run(pipeline_key: str):
 
     pipe = load_pipeline(data, extra_functions=exposed_functions)
 
-    pipe.show(add_params=True)
+    pipe.show(show_params=True)
 
 
 def test_load_pipeline_wrong_keyword():
