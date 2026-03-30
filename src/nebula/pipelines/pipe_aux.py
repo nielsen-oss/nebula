@@ -269,7 +269,7 @@ def replace_params_references(obj):
 def get_transformer_name(
     obj: Transformer | LazyWrapper,
     *,
-    add_params: bool = False,
+    show_params: bool = False,
     max_len: int = 80,
     wrap_text: bool = False,
     as_list: bool = False,
@@ -279,7 +279,7 @@ def get_transformer_name(
     Args:
         obj (Transformer):
             The transformer object.
-        add_params (bool):
+        show_params (bool):
             If True, include transformer initialization
             parameters in the name.
         max_len (int):
@@ -294,14 +294,14 @@ def get_transformer_name(
             If True, the string of parameters will be returned as wrapped text,
             creating a new line for each parameter. In this case, the
             'max_len' parameter is ignored.
-            This behavior is only applicable if the 'add_params' parameter
+            This behavior is only applicable if the 'show_params' parameter
             is set to True.
             Defaults to False.
         as_list (bool):
             If True, the name of the transformer and the parameters are
             returned as strings in a list. In this case, the 'max_len'
             parameter refers to each string in the output list.
-            This behavior is only applicable if the 'add_params' parameter
+            This behavior is only applicable if the 'show_params' parameter
             is set to True.
             The trasformer name will always be the first element of the list.
             Defaults to False.
@@ -319,16 +319,16 @@ def get_transformer_name(
         >>> class CustomTransformer(Transformer):
         >>>     def _transform(self, df): ...
         >>> my_transformer = CustomTransformer(param1=42, param2="example")
-        >>> name = get_transformer_name(my_transformer, add_params=True)
+        >>> name = get_transformer_name(my_transformer, show_params=True)
         >>> print(name)
         'CustomTransformer -> PARAMS: param1=42, param2="example"'
     """
-    if add_params and wrap_text and as_list:
+    if show_params and wrap_text and as_list:
         raise ValueError('"wrap_text" and "as_list" cannot be both True.')
 
     is_lazy = is_lazy_transformer(obj)
 
-    if not add_params:
+    if not show_params:
         return [] if as_list else ""
 
     li_attrs: list[str] = []

@@ -19,7 +19,7 @@ Example:
     )
 
     result = pipeline.run(df)
-    pipeline.show(add_params=True)
+    pipeline.show(show_params=True)
     pipeline.plot().render('pipeline.png')
 """
 
@@ -514,57 +514,57 @@ class TransformerPipeline:
     def show(
         self,
         *,
-        add_params: bool = False,
+        show_params: bool = False,
         add_ids: bool = False,
         indent_size: int = 4,
     ) -> None:
         """Print pipeline structure to terminal.
 
         Args:
-            add_params: Include transformer parameters.
+            show_params: Include transformer parameters.
             add_ids: Include node IDs (useful for resume_from).
             indent_size: Spaces per indentation level.
 
         Example:
             pipeline.show()
-            pipeline.show(add_params=True, add_ids=True)
+            pipeline.show(show_params=True, add_ids=True)
         """
         printer = PipelinePrinter(
             self._ir,
             max_param_length=PIPE_CFG["max_param_length"],
             indent_size=indent_size,
         )
-        printer.print(add_params=add_params, add_ids=add_ids)
+        printer.print(show_params=show_params, add_ids=add_ids)
 
-    def to_string(self, *, add_params: bool = False) -> str:
+    def to_string(self, *, show_params: bool = False) -> str:
         """Get pipeline structure as string.
 
         Args:
-            add_params: Include transformer parameters.
+            show_params: Include transformer parameters.
 
         Returns:
             Multi-line string representation.
         """
         printer = PipelinePrinter(self._ir, max_param_length=PIPE_CFG["max_param_length"])
-        return printer.to_string(add_params=add_params)
+        return printer.to_string(show_params=show_params)
 
     def plot(
         self,
         *,
-        add_params: bool = False,
+        show_params: bool = False,
         add_description: bool = False,
     ):  # pragma: no cover
         """Create Graphviz visualization.
 
         Args:
-            add_params: Include transformer parameters.
+            show_params: Include transformer parameters.
             add_description: Include transformer descriptions.
 
         Returns:
             Graphviz Digraph object.
 
         Example:
-            dot = pipeline.plot(add_params=True)
+            dot = pipeline.plot(show_params=True)
             dot.render('pipeline', format='png')
             dot  # Display in Jupyter
         """
@@ -575,7 +575,7 @@ class TransformerPipeline:
 
         renderer = GraphvizRenderer(self._ir)
 
-        ret = renderer.render(add_params=add_params, add_description=add_description)
+        ret = renderer.render(show_params=show_params, add_description=add_description)
         # print(ret)
         return ret
 
@@ -616,7 +616,7 @@ def _example_flat_pipeline():  # pragma: no cover
         # name="my_pipeline",
     )
     # show the pipeline without running it ...
-    pipeline.show(add_params=True)
+    pipeline.show(show_params=True)
     # ... now run it
     example_df_output = pipeline.run(example_df_input)
     print(example_df_output)

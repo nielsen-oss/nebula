@@ -762,7 +762,7 @@ class TestExpandLoopsInPipeline:
         chk = expand_loops(pipe)
         assert chk == exp
         loaded = load_pipeline(chk)
-        loaded.show(add_params=True)
+        loaded.show(show_params=True)
 
     @staticmethod
     def test_hardcoded_split_pipeline():
@@ -913,7 +913,7 @@ class TestExpandLoopsInPipeline:
         assert chk == exp
         extra_functions = {"outer_func": lambda x: x}
         loaded = load_pipeline(chk, extra_functions=extra_functions)
-        loaded.show(add_params=True)
+        loaded.show(show_params=True)
 
     @staticmethod
     def test_nested_templating():
@@ -965,4 +965,4 @@ class TestExpandLoopsInPipeline:
         chk = expand_loops(pipe)
         assert chk == exp
         loaded = load_pipeline(chk)
-        loaded.show(add_params=True)
+        loaded.show(show_params=True)

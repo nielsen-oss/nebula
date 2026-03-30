@@ -216,7 +216,7 @@ class GraphvizRenderer:  # pragma: no cover
 
     Example:
         renderer = GraphvizRenderer(pipeline._ir)
-        dot = renderer.render(add_params=True)
+        dot = renderer.render(show_params=True)
         dot.render('pipeline', format='png')
     """
 
@@ -243,13 +243,13 @@ class GraphvizRenderer:  # pragma: no cover
     def render(
         self,
         *,
-        add_params: bool = False,
+        show_params: bool = False,
         add_description: bool = False,
     ) -> "Digraph":
         """Render the pipeline IR as a Graphviz diagram.
 
         Args:
-            add_params: If True, include transformer parameters.
+            show_params: If True, include transformer parameters.
             add_description: If True, include transformer descriptions.
 
         Returns:
@@ -262,7 +262,7 @@ class GraphvizRenderer:  # pragma: no cover
         dot.attr("node", **_FONT_STYLE)
 
         # Build the graph
-        self._render_node(self.ir, dot, add_params, add_description)
+        self._render_node(self.ir, dot, show_params, add_description)
 
         return dot
 
@@ -277,7 +277,7 @@ class GraphvizRenderer:  # pragma: no cover
         self,
         node: "PipelineNode",
         dot: "Digraph",
-        add_params: bool,
+        show_params: bool,
         add_description: bool,
         parent_gv_name: str | None = None,
     ) -> str | None:
@@ -295,19 +295,19 @@ class GraphvizRenderer:  # pragma: no cover
         )
 
         if isinstance(node, SequenceNode):
-            return self._render_sequence(node, dot, add_params, add_description, parent_gv_name)
+            return self._render_sequence(node, dot, show_params, add_description, parent_gv_name)
         elif isinstance(node, TransformerNode):
-            return self._render_transformer(node, dot, add_params, add_description, parent_gv_name)
+            return self._render_transformer(node, dot, show_params, add_description, parent_gv_name)
         elif isinstance(node, FunctionNode):
-            return self._render_function(node, dot, add_params, add_description, parent_gv_name)
+            return self._render_function(node, dot, show_params, add_description, parent_gv_name)
         elif isinstance(node, StorageNode):
             return self._render_storage(node, dot, parent_gv_name)
         elif isinstance(node, ConversionNode):
             return self._render_conversion(node, dot, parent_gv_name)
         elif isinstance(node, ForkNode):
-            return self._render_fork(node, dot, add_params, add_description, parent_gv_name)
+            return self._render_fork(node, dot, show_params, add_description, parent_gv_name)
         elif isinstance(node, MergeNode):
-            return self._render_merge(node, dot, add_params)
+            return self._render_merge(node, dot, show_params)
         elif isinstance(node, InputNode):
             return self._render_input(node, dot, parent_gv_name)
         elif isinstance(node, OutputNode):
@@ -338,7 +338,7 @@ class GraphvizRenderer:  # pragma: no cover
         self,
         node: "SequenceNode",
         dot: "Digraph",
-        add_params: bool,
+        show_params: bool,
         add_description: bool,
         parent_gv_name: str | None,
     ) -> str | None:
@@ -346,7 +346,7 @@ class GraphvizRenderer:  # pragma: no cover
         last_gv_name = parent_gv_name
 
         for step in node.steps:
-            last_gv_name = self._render_node(step, dot, add_params, add_description, last_gv_name)
+            last_gv_name = self._render_node(step, dot, show_params, add_description, last_gv_name)
 
         return last_gv_name
 
@@ -354,7 +354,7 @@ class GraphvizRenderer:  # pragma: no cover
         self,
         node: "TransformerNode",
         dot: "Digraph",
-        add_params: bool,
+        show_params: bool,
         add_description: bool,
         parent_gv_name: str | None,
     ) -> str:
@@ -362,12 +362,12 @@ class GraphvizRenderer:  # pragma: no cover
         name = node.transformer_name
 
         params = None
-        if add_params:
-            params = get_transformer_name(node.transformer, add_params=True, as_list=True, max_len=-1)
+        if show_params:
+            params = get_transformer_name(node.transformer, show_params=True, as_list=True, max_len=-1)
             if params:
                 params = _transformer_params_to_yaml_format(params)
 
-        if add_params or add_description:
+        if show_params or add_description:
             label = self._build_html_label(
                 name,
                 params=params,
@@ -382,14 +382,14 @@ class GraphvizRenderer:  # pragma: no cover
         self,
         node: "FunctionNode",
         dot: "Digraph",
-        add_params: bool,
+        show_params: bool,
         add_description: bool,
         parent_gv_name: str | None,
     ) -> str:
         """Render a function node."""
         name = node.func_name
-        bold: bool = add_params or add_description
-        if add_params and (node.args or node.kwargs):
+        bold: bool = show_params or add_description
+        if show_params and (node.args or node.kwargs):
             params = _function_params_to_yaml_format(node.args, node.kwargs)
             label = self._build_html_label(name, params=params, description=node.description)
         else:
@@ -431,7 +431,7 @@ class GraphvizRenderer:  # pragma: no cover
         self,
         node: "ForkNode",
         dot: "Digraph",
-        add_params: bool,
+        show_params: bool,
         add_description: bool,
         parent_gv_name: str | None,
     ) -> str:
@@ -473,7 +473,7 @@ class GraphvizRenderer:  # pragma: no cover
             # Render branch steps
             last_gv_name = branch_label_gv
             for step in branch_steps:
-                last_gv_name = self._render_node(step, dot, add_params, add_description, last_gv_name)
+                last_gv_name = self._render_node(step, dot, show_params, add_description, last_gv_name)
 
             if last_gv_name:
                 branch_end_names.append(last_gv_name)
@@ -486,7 +486,7 @@ class GraphvizRenderer:  # pragma: no cover
 
             last_gv_name = otherwise_label_gv
             for step in node.otherwise:
-                last_gv_name = self._render_node(step, dot, add_params, add_description, last_gv_name)
+                last_gv_name = self._render_node(step, dot, show_params, add_description, last_gv_name)
 
             if last_gv_name:
                 branch_end_names.append(last_gv_name)
@@ -506,7 +506,7 @@ class GraphvizRenderer:  # pragma: no cover
         self,
         node: "MergeNode",
         dot: "Digraph",
-        add_params: bool,
+        show_params: bool,
     ) -> str:
         """Render a merge node."""
         if node.merge_type == "append":
@@ -518,7 +518,7 @@ class GraphvizRenderer:  # pragma: no cover
         else:
             label = f"Merge: {node.merge_type}"
 
-        if add_params:
+        if show_params:
             params = {k: v for k, v in node.config.items() if v}
             if params:
                 params = _generic_flat_params_to_yaml_format(params)
@@ -621,18 +621,18 @@ class GraphvizRenderer:  # pragma: no cover
 def render_pipeline(
     ir: "SequenceNode",
     *,
-    add_params: bool = False,
+    show_params: bool = False,
     add_description: bool = False,
 ) -> "Digraph":  # pragma: no cover
     """Convenience function to render a pipeline IR.
 
     Args:
         ir: The pipeline IR root node.
-        add_params: If True, include transformer parameters.
+        show_params: If True, include transformer parameters.
         add_description: If True, include transformer descriptions.
 
     Returns:
         Graphviz Digraph object.
     """
     renderer = GraphvizRenderer(ir)
-    return renderer.render(add_params=add_params, add_description=add_description)
+    return renderer.render(show_params=show_params, add_description=add_description)

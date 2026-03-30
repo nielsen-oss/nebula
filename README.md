@@ -160,10 +160,10 @@ pipeline = TransformerPipeline([pipeline_1, pipeline2, ...])
 Inspect your pipeline structure:
 ```python
 # Text output
-pipeline.show(add_params=True)
+pipeline.show(show_params=True)
 
 # Graphviz diagram
-pipeline.plot(add_params=True, add_description=True)
+pipeline.plot(show_params=True, add_description=True)
 ```
 
 ![Pipeline Visualization](docs/images/pipeline_example.svg)

@@ -545,4 +545,4 @@ if __name__ == "__main__":  # pragma: no cover
         #     extra_functions=extra_functions,
         #     extra_transformers=my_n1_transformer,
     )
-    pipe.show(add_params=True)
+    pipe.show(show_params=True)
