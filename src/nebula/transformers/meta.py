@@ -28,6 +28,36 @@ _NW_NESTED_COL_METHODS: dict[str, set[str]] = {
     "dt": _get_public_methods(nw.col().dt),
 }
 
+# -- Polars-native registries (optional) ------------------------------------
+try:
+    import polars as pl
+
+    _PL_DATAFRAME_METHODS: set[str] = _get_public_methods(pl.DataFrame)
+    _PL_LAZYFRAME_METHODS: set[str] = _get_public_methods(pl.LazyFrame)
+    _PL_DF_METHODS: set[str] = _PL_DATAFRAME_METHODS | _PL_LAZYFRAME_METHODS
+
+    _PL_FLAT_COL_METHODS: set[str] = _get_public_methods(pl.col("_"))
+    _PL_COL_ACCESSORS: set[str] = {"str", "dt", "list", "struct", "cat", "arr"}
+    _PL_NESTED_COL_METHODS: dict[str, set[str]] = {
+        acc: _get_public_methods(getattr(pl.col("_"), acc)) for acc in _PL_COL_ACCESSORS
+    }
+    _HAS_POLARS = True
+except ImportError:
+    _PL_DATAFRAME_METHODS = set()
+    _PL_LAZYFRAME_METHODS = set()
+    _PL_DF_METHODS = set()
+    _PL_FLAT_COL_METHODS = set()
+    _PL_COL_ACCESSORS = set()
+    _PL_NESTED_COL_METHODS = {}
+    _HAS_POLARS = False
+
+
+def _is_polars_native(native) -> bool:
+    if not _HAS_POLARS:
+        return False
+    return isinstance(native, (pl.DataFrame, pl.LazyFrame))
+
+
 _HORIZONTAL_FUNCTIONS: set[str] = {
     "coalesce",
     "concat_str",
@@ -86,7 +116,7 @@ class DataFrameMethod(Transformer):
         Raises:
             ValueError: If method is not a valid Narwhals method.
         """
-        assert_allowed(method, _NW_DF_METHODS, "dataframe-method")
+        assert_allowed(method, _NW_DF_METHODS | _PL_DF_METHODS, "dataframe-method")
 
         super().__init__()
         self._method_name: str = method
@@ -96,35 +126,25 @@ class DataFrameMethod(Transformer):
     def _transform_nw(self, df):
         """Call the specified method on the Narwhals DataFrame or LazyFrame.
 
-        Args:
-            df: Narwhals DataFrame or LazyFrame.
-
-        Returns:
-            Result of calling the method (typically a DataFrame/LazyFrame).
-
-        Raises:
-            AttributeError: If method is not available for the frame type.
+        Tries the Narwhals API first. If the method only exists in Polars
+        and the underlying frame is a Polars frame, falls back to calling
+        the method on the native Polars object.
         """
-        # Validate method availability for the specific frame type
-        if isinstance(df, nw.LazyFrame):
-            if self._method_name not in _NW_LAZYFRAME_METHODS:
-                msg = (
-                    f"Method '{self._method_name}' is not available for LazyFrame. "
-                    f"This method is only available on eager DataFrames. "
-                    f"Available LazyFrame methods: {sorted(_NW_LAZYFRAME_METHODS)}"
-                )
-                raise AttributeError(msg)
-        elif self._method_name not in _NW_DATAFRAME_METHODS:
-            msg = (
-                f"Method '{self._method_name}' is not available for DataFrame. "
-                f"This method is only available on LazyFrames. "
-                f"Available DataFrame methods: {sorted(_NW_DATAFRAME_METHODS)}"
-            )
-            raise AttributeError(msg)
+        try:
+            if isinstance(df, nw.LazyFrame):
+                if self._method_name not in _NW_LAZYFRAME_METHODS:
+                    raise AttributeError(self._method_name)
+            elif self._method_name not in _NW_DATAFRAME_METHODS:
+                raise AttributeError(self._method_name)
 
-        # Call the method with provided args and kwargs
-        method = getattr(df, self._method_name)
-        return method(*self._args, **self._kwargs)
+            method = getattr(df, self._method_name)
+            return method(*self._args, **self._kwargs)
+        except AttributeError:
+            native = nw.to_native(df)
+            if not _is_polars_native(native):
+                raise
+            result = getattr(native, self._method_name)(*self._args, **self._kwargs)
+            return nw.from_native(result)
 
 
 class HorizontalFunction(Transformer):
@@ -278,14 +298,15 @@ class WithColumns(Transformer):
         n_split = len(method_splits)
         self._method_accessor: str | None = None
         self._method_name: str
+        _all_accessors = {"str", "dt"} | _PL_COL_ACCESSORS
         if n_split == 1:
-            assert_allowed(method, _NW_FLAT_COL_METHODS, "column-method")
+            assert_allowed(method, _NW_FLAT_COL_METHODS | _PL_FLAT_COL_METHODS, "column-method")
             self._method_accessor = None
             self._method_name = method_splits[0]
         elif n_split == 2:  # noqa: PLR2004
             accessor: str = method_splits[0]
-            assert_allowed(accessor, {"str", "dt"}, "column-accessor")
-            allowed = _NW_NESTED_COL_METHODS[accessor]
+            assert_allowed(accessor, _all_accessors, "column-accessor")
+            allowed = _NW_NESTED_COL_METHODS.get(accessor, set()) | _PL_NESTED_COL_METHODS.get(accessor, set())
             assert_allowed(method_splits[1], allowed, "column-method")
             self._method_accessor = accessor
             self._method_name = method_splits[1]
@@ -301,24 +322,40 @@ class WithColumns(Transformer):
     def _transform_nw(self, df):
         selection: list[str] = self._get_selected_columns(df)
 
-        if not selection:  # Pass through if no columns selected
+        if not selection:
             return df
 
-        meth = nw.col(*selection)
+        try:
+            meth = nw.col(*selection)
+            if self._method_accessor:
+                meth = getattr(meth, self._method_accessor)
+            meth = getattr(meth, self._method_name)
+            func = meth(*self._args, **self._kwargs)
 
-        if self._method_accessor:
-            meth = getattr(meth, self._method_accessor)
-        meth = getattr(meth, self._method_name)
+            if self._alias:
+                func = func.alias(self._alias)
+            if self._prefix:
+                func = func.name.prefix(self._prefix)
+            if self._suffix:
+                func = func.name.suffix(self._suffix)
 
-        func = meth(*self._args, **self._kwargs)
+            return df.with_columns(func)
+        except AttributeError:
+            native = nw.to_native(df)
+            if not _is_polars_native(native):
+                raise
 
-        if self._alias:
-            func = func.alias(self._alias)
+            meth = pl.col(*selection)
+            if self._method_accessor:
+                meth = getattr(meth, self._method_accessor)
+            meth = getattr(meth, self._method_name)
+            func = meth(*self._args, **self._kwargs)
 
-        if self._prefix:
-            func = func.name.prefix(self._prefix)
+            if self._alias:
+                func = func.alias(self._alias)
+            if self._prefix:
+                func = func.name.prefix(self._prefix)
+            if self._suffix:
+                func = func.name.suffix(self._suffix)
 
-        if self._suffix:
-            func = func.name.suffix(self._suffix)
-
-        return df.with_columns(func)
+            return nw.from_native(native.with_columns(func))

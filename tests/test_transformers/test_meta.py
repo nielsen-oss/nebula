@@ -77,15 +77,17 @@ class TestDataFrameMethod:
 
     @pytest.mark.parametrize("to_lazy", [True, False])
     def test_method_not_available_for_lazyframe(self, to_lazy: bool):
-        """Test that Data/LazyFrame-only methods raise an error on Lazy/DataFrame."""
-        df = pl.DataFrame({"c1": ["a", "b"], "c2": [1, 2]})
+        """Test that Data/LazyFrame-only methods raise an error on Lazy/DataFrame.
 
-        # Note: need to find a method that exists in DataFrame/LazyFrame
-        # but not LazyFrame/DataFrame
+        Uses a pandas backend so the Polars-native fallback does not mask the error.
+        """
+        df = pd.DataFrame({"c1": ["a", "b"], "c2": [1, 2]})
+        df_nw = nw.from_native(df)
+
         df_methods = {i for i in dir(nw.DataFrame) if i.islower() and i[0] != "_"}
         lazy_methods = {i for i in dir(nw.LazyFrame) if i.islower() and i[0] != "_"}
         if to_lazy:
-            df = df.lazy()
+            df_nw = df_nw.lazy()
             only = df_methods - lazy_methods
         else:
             only = lazy_methods - df_methods
@@ -93,10 +95,33 @@ class TestDataFrameMethod:
         if not only:
             pytest.skip("No DataFrame-only methods found in current Narwhals version")
 
-        # Use the first only method
         only_method = sorted(only)[0]
 
         t = DataFrameMethod(method=only_method)
+
+        with pytest.raises(AttributeError):
+            t.transform(df_nw)
+
+    def test_polars_only_method(self):
+        """Test that a Polars-only DataFrame method works via native fallback."""
+        df = pl.DataFrame(
+            {
+                "c1": [1, 2, 3, 4, 5],
+                "c2": [5, 4, 3, 2, 1],
+            }
+        )
+
+        t = DataFrameMethod(method="bottom_k", kwargs={"k": 2, "by": "c1"})
+        df_out = t.transform(df)
+
+        assert len(df_out) == 2
+        assert sorted(df_out["c1"].to_list()) == [1, 2]
+
+    def test_polars_only_method_on_pandas_raises(self):
+        """Test that a Polars-only method raises on a pandas DataFrame."""
+        df = pd.DataFrame({"c1": [1, 2, 3]})
+
+        t = DataFrameMethod(method="bottom_k", kwargs={"k": 2, "by": "c1"})
 
         with pytest.raises(AttributeError):
             t.transform(df)
@@ -600,3 +625,58 @@ class TestWithColumns:
 
         result = df_out.collect()
         assert result["value"].to_list() == [10.6, 20.9]
+
+    def test_polars_only_col_method(self):
+        """Test a Polars-only column method via native fallback."""
+        df = pl.DataFrame(
+            {
+                "value": [3, 1, 2, 5, 4],
+            }
+        )
+        df_nw = nw.from_native(df)
+
+        t = WithColumns(columns="value", method="arg_sort", alias="rank")
+        df_out = t.transform(df_nw)
+
+        result = nw.to_native(df_out)
+        assert "rank" in result.columns
+        assert result["rank"].to_list() == [1, 2, 0, 4, 3]
+
+    def test_polars_only_str_method(self):
+        """Test a Polars-only str accessor method via native fallback."""
+        df = pl.DataFrame(
+            {
+                "text": ["hello world", "foo bar baz"],
+            }
+        )
+        df_nw = nw.from_native(df)
+
+        t = WithColumns(columns="text", method="str.count_matches", args=["o"])
+        df_out = t.transform(df_nw)
+
+        result = nw.to_native(df_out)
+        assert result["text"].to_list() == [2, 2]
+
+    def test_polars_only_list_accessor(self):
+        """Test a Polars list accessor method via native fallback."""
+        df = pl.DataFrame(
+            {
+                "items": [[3, 1, 2], [6, 4, 5]],
+            }
+        )
+        df_nw = nw.from_native(df)
+
+        t = WithColumns(columns="items", method="list.sort")
+        df_out = t.transform(df_nw)
+
+        result = nw.to_native(df_out)
+        assert result["items"].to_list() == [[1, 2, 3], [4, 5, 6]]
+
+    def test_polars_only_method_on_pandas_raises(self):
+        """Test that a Polars-only col method raises on pandas."""
+        df = pd.DataFrame({"value": [3, 1, 2]})
+
+        t = WithColumns(columns="value", method="arg_sort", alias="rank")
+
+        with pytest.raises(AttributeError):
+            t.transform(df)
