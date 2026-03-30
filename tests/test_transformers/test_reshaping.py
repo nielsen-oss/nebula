@@ -465,8 +465,6 @@ class TestPivot:
 
     def test_pivot_duckdb(self, duckdb_con):
         """Test pivot with DuckDB backend."""
-        import pandas as pd
-
         data = {
             "product_id": [1, 1, 1, 2, 2, 2],
             "month": ["jan", "feb", "mar", "jan", "feb", "mar"],
@@ -664,3 +662,24 @@ class TestUnpivot:
         # Nulls should be preserved in the melted column
         nulls = result.filter(nw.col("sales").is_null())
         assert nulls.shape[0] == 2
+
+    def test_unpivot_lazy_polars(self, wide_df):
+        """Test unpivot works with Polars LazyFrames."""
+        lazy_df = wide_df.lazy()
+        transformer = Unpivot(
+            id_cols=["product_id", "category"],
+            melt_cols=["sales_jan", "sales_feb", "sales_mar"],
+            variable_col="month",
+            value_col="revenue",
+        )
+        result = transformer.transform(lazy_df)
+
+        # Collect if lazy
+        if isinstance(result, nw.LazyFrame):
+            result = result.collect()
+
+        assert result.shape == (9, 4)
+        assert set(result.columns) == {"product_id", "category", "month", "revenue"}
+
+        first_product = result.filter(nw.col("product_id") == 1).sort("month")
+        assert first_product["revenue"].to_list() == [110, 100, 120]

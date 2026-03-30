@@ -11,14 +11,13 @@ from nebula.auxiliaries import (
     select_columns,
 )
 from nebula.base import Transformer
+from nebula.df_types import get_dataframe_type
 
 __all__ = [
     "GroupBy",
     "Pivot",
     "Unpivot",
 ]
-
-from nebula.df_types import get_dataframe_type
 
 
 class GroupBy(Transformer):
