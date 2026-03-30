@@ -11,6 +11,7 @@ from nebula.auxiliaries import (
     select_columns,
 )
 from nebula.base import Transformer
+from nebula.df_types import get_dataframe_type
 
 __all__ = [
     "GroupBy",
@@ -328,6 +329,15 @@ class Pivot(Transformer):
         return select_columns(df_columns, **{k: v for k, v in kwargs.items() if v is not None})
 
     def _transform_nw(self, df):
+        is_lazy: bool = isinstance(df, nw.LazyFrame)
+        if is_lazy:
+            df_native = nw.to_native(df)
+            df_type: str = get_dataframe_type(df_native)
+            if df_type == "polars":
+                raise TypeError(
+                    "Pivot does not support Polars LazyFrames. Collect the LazyFrame before applying Pivot."
+                )
+
         # Select id columns
         id_cols = self._resolve_columns(
             list(df.columns),
@@ -358,6 +368,12 @@ class Pivot(Transformer):
                 endswith=self._values_endswith,
             )
 
+        if is_lazy:
+            if df_type == "duckdb":
+                return self._pivot_duckdb(df_native, id_cols, values_cols)
+            else:  # pragma: no cover
+                raise TypeError(f"Pivot does not support lazy frames of type '{df_type}'.")
+
         # Narwhals pivot
         return df.pivot(
             on=self._pivot_col,
@@ -366,6 +382,40 @@ class Pivot(Transformer):
             aggregate_function=self._aggregate_function,
             separator=self._separator,
         )
+
+    def _pivot_duckdb(self, df_native, id_cols, values_cols):
+        """Pivot using DuckDB SQL via FILTER clause on the relation."""
+        pivot_col = self._pivot_col
+        agg = self._aggregate_function
+
+        # Determine value columns
+        if not values_cols:
+            all_cols = list(df_native.columns)
+            values_cols = [c for c in all_cols if c != pivot_col and c not in (id_cols or [])]
+
+        # Get distinct pivot values
+        pivot_values = [
+            row[0]
+            for row in df_native.query(
+                "__src", f'SELECT DISTINCT "{pivot_col}" FROM __src ORDER BY "{pivot_col}"'
+            ).fetchall()
+        ]
+
+        # Build aggregation expressions with FILTER
+        use_prefix = len(values_cols) > 1
+        agg_parts = []
+        for v in values_cols:
+            for pv in pivot_values:
+                alias = f"{v}{self._separator}{pv}" if use_prefix else str(pv)
+                agg_parts.append(f'{agg}("{v}") FILTER (WHERE "{pivot_col}" = \'{pv}\') AS "{alias}"')
+
+        id_select = ", ".join(f'"{c}"' for c in id_cols) if id_cols else ""
+        select_clause = f"{id_select}, {', '.join(agg_parts)}" if id_select else ", ".join(agg_parts)
+        group_clause = f"GROUP BY {id_select}" if id_select else ""
+
+        query = f"SELECT {select_clause} FROM __src {group_clause}"
+        result = df_native.query("__src", query)
+        return nw.from_native(result)
 
 
 class Unpivot(Transformer):
@@ -408,6 +458,12 @@ class Unpivot(Transformer):
         # Select melt columns (to UNPIVOT)
         melt_cols = select_columns(df_columns, columns=self._melt_cols, regex=self._melt_regex)
 
+        if isinstance(df, nw.LazyFrame):
+            df_native = nw.to_native(df)
+            df_type: str = get_dataframe_type(df_native)
+            if df_type == "duckdb":
+                return self._unpivot_duckdb(df_native, id_cols, melt_cols)
+
         # on = columns to melt
         # index = columns to keep as identifiers
         return df.unpivot(
@@ -416,3 +472,17 @@ class Unpivot(Transformer):
             variable_name=self._variable_col,
             value_name=self._value_col,
         )
+
+    def _unpivot_duckdb(self, df_native, id_cols, melt_cols):
+        """Unpivot using DuckDB SQL UNPIVOT syntax."""
+        id_select = ", ".join(f'"{c}"' for c in id_cols) if id_cols else ""
+        melt_select = ", ".join(f'"{c}"' for c in melt_cols)
+
+        query = (
+            f"SELECT {id_select + ', ' if id_select else ''}"
+            f'"{self._variable_col}", "{self._value_col}" '
+            f"FROM (UNPIVOT __src ON {melt_select} "
+            f'INTO NAME "{self._variable_col}" VALUE "{self._value_col}")'
+        )
+        result = df_native.query("__src", query)
+        return nw.from_native(result)

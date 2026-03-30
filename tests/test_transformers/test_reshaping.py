@@ -452,6 +452,46 @@ class TestPivot:
         assert "feb" in result.columns
         assert "mar" in result.columns
 
+    def test_pivot_lazy_polars_raises(self, long_df):
+        """Test that pivot raises TypeError for Polars LazyFrames."""
+        lazy_df = long_df.lazy()
+        transformer = Pivot(
+            pivot_col="month",
+            id_cols="product_id",
+            aggregate_function="first",
+        )
+        with pytest.raises(TypeError, match="Polars LazyFrames"):
+            transformer.transform(lazy_df)
+
+    def test_pivot_duckdb(self, duckdb_con):
+        """Test pivot with DuckDB backend."""
+        data = {
+            "product_id": [1, 1, 1, 2, 2, 2],
+            "month": ["jan", "feb", "mar", "jan", "feb", "mar"],
+            "revenue": [100, 110, 120, 200, 190, 210],
+        }
+        df_native = duckdb_con.from_df(pd.DataFrame(data))
+        df = nw.from_native(df_native)
+
+        transformer = Pivot(
+            pivot_col="month",
+            id_cols="product_id",
+            aggregate_function="first",
+        )
+        result = transformer.transform(df)
+        result_pd = nw.to_native(result).to_df()
+
+        assert result_pd.shape == (2, 4)
+        assert "product_id" in result_pd.columns
+        assert "jan" in result_pd.columns
+        assert "feb" in result_pd.columns
+        assert "mar" in result_pd.columns
+
+        product_1 = result_pd[result_pd["product_id"] == 1]
+        assert product_1["jan"].values[0] == 100
+        assert product_1["feb"].values[0] == 110
+        assert product_1["mar"].values[0] == 120
+
 
 class TestUnpivot:
     """Test suite for Unpivot transformer."""
@@ -622,3 +662,51 @@ class TestUnpivot:
         # Nulls should be preserved in the melted column
         nulls = result.filter(nw.col("sales").is_null())
         assert nulls.shape[0] == 2
+
+    def test_unpivot_lazy_polars(self, wide_df):
+        """Test unpivot works with Polars LazyFrames."""
+        lazy_df = wide_df.lazy()
+        transformer = Unpivot(
+            id_cols=["product_id", "category"],
+            melt_cols=["sales_jan", "sales_feb", "sales_mar"],
+            variable_col="month",
+            value_col="revenue",
+        )
+        result = transformer.transform(lazy_df)
+
+        # Collect if lazy
+        if isinstance(result, nw.LazyFrame):
+            result = result.collect()
+
+        assert result.shape == (9, 4)
+        assert set(result.columns) == {"product_id", "category", "month", "revenue"}
+
+        first_product = result.filter(nw.col("product_id") == 1).sort("month")
+        assert first_product["revenue"].to_list() == [110, 100, 120]
+
+    def test_unpivot_duckdb(self, duckdb_con):
+        """Test unpivot with DuckDB backend."""
+        data = {
+            "product_id": [1, 2, 3],
+            "category": ["A", "B", "A"],
+            "sales_jan": [100, 200, 150],
+            "sales_feb": [110, 190, 160],
+            "sales_mar": [120, 210, 170],
+        }
+        df_native = duckdb_con.from_df(pd.DataFrame(data))
+        df = nw.from_native(df_native)
+
+        transformer = Unpivot(
+            id_cols=["product_id", "category"],
+            melt_cols=["sales_jan", "sales_feb", "sales_mar"],
+            variable_col="month",
+            value_col="revenue",
+        )
+        result = transformer.transform(df)
+        result_pd = nw.to_native(result).to_df()
+
+        assert result_pd.shape == (9, 4)
+        assert set(result_pd.columns) == {"product_id", "category", "month", "revenue"}
+
+        product_1 = result_pd[result_pd["product_id"] == 1].sort_values("month")
+        assert product_1["revenue"].tolist() == [110, 100, 120]
