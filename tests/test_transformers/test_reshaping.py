@@ -683,3 +683,30 @@ class TestUnpivot:
 
         first_product = result.filter(nw.col("product_id") == 1).sort("month")
         assert first_product["revenue"].to_list() == [110, 100, 120]
+
+    def test_unpivot_duckdb(self, duckdb_con):
+        """Test unpivot with DuckDB backend."""
+        data = {
+            "product_id": [1, 2, 3],
+            "category": ["A", "B", "A"],
+            "sales_jan": [100, 200, 150],
+            "sales_feb": [110, 190, 160],
+            "sales_mar": [120, 210, 170],
+        }
+        df_native = duckdb_con.from_df(pd.DataFrame(data))
+        df = nw.from_native(df_native)
+
+        transformer = Unpivot(
+            id_cols=["product_id", "category"],
+            melt_cols=["sales_jan", "sales_feb", "sales_mar"],
+            variable_col="month",
+            value_col="revenue",
+        )
+        result = transformer.transform(df)
+        result_pd = nw.to_native(result).to_df()
+
+        assert result_pd.shape == (9, 4)
+        assert set(result_pd.columns) == {"product_id", "category", "month", "revenue"}
+
+        product_1 = result_pd[result_pd["product_id"] == 1].sort_values("month")
+        assert product_1["revenue"].tolist() == [110, 100, 120]

@@ -458,6 +458,12 @@ class Unpivot(Transformer):
         # Select melt columns (to UNPIVOT)
         melt_cols = select_columns(df_columns, columns=self._melt_cols, regex=self._melt_regex)
 
+        if isinstance(df, nw.LazyFrame):
+            df_native = nw.to_native(df)
+            df_type: str = get_dataframe_type(df_native)
+            if df_type == "duckdb":
+                return self._unpivot_duckdb(df_native, id_cols, melt_cols)
+
         # on = columns to melt
         # index = columns to keep as identifiers
         return df.unpivot(
@@ -466,3 +472,17 @@ class Unpivot(Transformer):
             variable_name=self._variable_col,
             value_name=self._value_col,
         )
+
+    def _unpivot_duckdb(self, df_native, id_cols, melt_cols):
+        """Unpivot using DuckDB SQL UNPIVOT syntax."""
+        id_select = ", ".join(f'"{c}"' for c in id_cols) if id_cols else ""
+        melt_select = ", ".join(f'"{c}"' for c in melt_cols)
+
+        query = (
+            f"SELECT {id_select + ', ' if id_select else ''}"
+            f'"{self._variable_col}", "{self._value_col}" '
+            f"FROM (UNPIVOT __src ON {melt_select} "
+            f'INTO NAME "{self._variable_col}" VALUE "{self._value_col}")'
+        )
+        result = df_native.query("__src", query)
+        return nw.from_native(result)
