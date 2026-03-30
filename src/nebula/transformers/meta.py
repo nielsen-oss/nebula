@@ -42,7 +42,7 @@ try:
         acc: _get_public_methods(getattr(pl.col("_"), acc)) for acc in _PL_COL_ACCESSORS
     }
     _HAS_POLARS = True
-except ImportError:
+except ImportError:  # pragma: no cover
     _PL_DATAFRAME_METHODS = set()
     _PL_LAZYFRAME_METHODS = set()
     _PL_DF_METHODS = set()
@@ -53,7 +53,7 @@ except ImportError:
 
 
 def _is_polars_native(native) -> bool:
-    if not _HAS_POLARS:
+    if not _HAS_POLARS:  # pragma: no cover
         return False
     return isinstance(native, (pl.DataFrame, pl.LazyFrame))
 
