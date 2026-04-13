@@ -1,10 +1,12 @@
 """Main module."""
 
+from nebula.pipelines.pipe_cfg import PipelineConfig
 from nebula.pipelines.pipeline import TransformerPipeline
 from nebula.pipelines.pipeline_loader import load_pipeline
 from nebula.storage import nebula_storage
 
 __all__ = [
+    "PipelineConfig",
     "TransformerPipeline",
     "load_pipeline",
     "nebula_storage",

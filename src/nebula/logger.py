@@ -12,6 +12,22 @@ class Logger:
     def __init__(self):
         logging.basicConfig(level=logging.INFO, format=_fmt)
         self._logger = logging.getLogger(__name__)
+        self._verbose: bool = True
+
+    @property
+    def verbose(self) -> bool:
+        """Return whether verbose logging is enabled."""
+        return self._verbose
+
+    @verbose.setter
+    def verbose(self, value: bool) -> None:
+        """Enable or disable verbose logging."""
+        self._verbose = value
+
+    def info(self, msg, *args, **kwargs):
+        """Log info message only when verbose is enabled."""
+        if self._verbose:
+            self._logger.info(msg, *args, **kwargs)
 
     def __getattr__(self, item):
         """__getattr__ implementation.
