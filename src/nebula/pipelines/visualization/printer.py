@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from ..pipe_cfg import PIPE_CFG
+from ..pipe_cfg import PipelineConfig
 
 if TYPE_CHECKING:  # pragma: no cover
     from ..ir.nodes import (
@@ -402,6 +402,6 @@ def print_pipeline(
         show_params: If True, include transformer parameters.
         indent_size: Number of spaces per indentation level.
     """
-    max_param_length = PIPE_CFG["max_param_length"]
+    max_param_length = PipelineConfig["max_param_length"]
     printer = PipelinePrinter(ir, max_param_length=max_param_length, indent_size=indent_size)
     printer.print(show_params=show_params)

@@ -29,6 +29,7 @@ from typing import Any, Callable, Iterable, Union
 
 from nebula.auxiliaries import assert_at_most_one_args
 from nebula.base import LazyWrapper, Transformer
+from nebula.logger import logger
 from nebula.pipelines._checks import *
 from nebula.pipelines.execution import (
     LoggingHooks,
@@ -42,7 +43,7 @@ from nebula.pipelines.pipe_aux import (
     is_keyword_request,
     is_split_pipeline,
 )
-from nebula.pipelines.pipe_cfg import PIPE_CFG
+from nebula.pipelines.pipe_cfg import PipelineConfig
 from nebula.pipelines.visualization import PipelinePrinter
 
 __all__ = ["TransformerPipeline", "PipelineHooks", "NoOpHooks", "LoggingHooks"]
@@ -472,7 +473,8 @@ class TransformerPipeline:
         *,
         hooks: PipelineHooks | None = None,
         resume_from: str | None = None,
-        show_params: bool = False,
+        show_params: bool | None = None,
+        verbose: bool | None = None,
         after_each_step: Transformer | Callable | None = None,
     ) -> Any:
         """Execute the pipeline on input DataFrame.
@@ -482,6 +484,9 @@ class TransformerPipeline:
             hooks: Optional hooks for monitoring/extensibility.
             resume_from: Node ID to resume from (skip prior nodes).
             show_params: Whether to show the parameter of transformers, function, etc.
+            verbose: Whether to log pipeline execution info. If None, uses
+                PipelineConfig["verbose"] (default True). Set to False to silence
+                all execution logging.
             after_each_step: Transformer or function to run after each step.
                 If a function, it must take a DataFrame and return a DataFrame.
                 Use functools.partial to pass additional arguments.
@@ -497,10 +502,22 @@ class TransformerPipeline:
 
             # Resume from checkpoint
             result = pipeline.run(df, resume_from="Filter_abc123@3")
+
+            # Silent execution
+            result = pipeline.run(df, verbose=False)
         """
+        # Resolve settings: parameter > PIPE_CFG
+        _show_params = show_params if show_params is not None else PipelineConfig["show_params"]
+        _verbose = verbose if verbose is not None else PipelineConfig["verbose"]
+        prev_verbose = logger.verbose
+        logger.verbose = _verbose
+
         # Default to logging hooks for backward compatibility
         if hooks is None:
-            hooks = LoggingHooks(max_param_length=PIPE_CFG["max_param_length"], show_params=show_params)
+            if _verbose:
+                hooks = LoggingHooks(max_param_length=PipelineConfig["max_param_length"], show_params=_show_params)
+            else:
+                hooks = NoOpHooks()
 
         executor = PipelineExecutor(
             ir=self._ir,
@@ -509,7 +526,10 @@ class TransformerPipeline:
             force_interleaved=after_each_step,
         )
 
-        return executor.run(df)
+        try:
+            return executor.run(df)
+        finally:
+            logger.verbose = prev_verbose
 
     def show(
         self,
@@ -531,7 +551,7 @@ class TransformerPipeline:
         """
         printer = PipelinePrinter(
             self._ir,
-            max_param_length=PIPE_CFG["max_param_length"],
+            max_param_length=PipelineConfig["max_param_length"],
             indent_size=indent_size,
         )
         printer.print(show_params=show_params, add_ids=add_ids)
@@ -545,7 +565,7 @@ class TransformerPipeline:
         Returns:
             Multi-line string representation.
         """
-        printer = PipelinePrinter(self._ir, max_param_length=PIPE_CFG["max_param_length"])
+        printer = PipelinePrinter(self._ir, max_param_length=PipelineConfig["max_param_length"])
         return printer.to_string(show_params=show_params)
 
     def plot(
