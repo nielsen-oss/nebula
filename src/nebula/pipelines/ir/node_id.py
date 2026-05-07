@@ -82,10 +82,13 @@ def _get_function_content(func, args: tuple, kwargs: dict) -> str:
     return f"{name}:{args_str}:{kwargs_str}"
 
 
-def _get_storage_content(operation: str, key: str, debug_value: bool | None) -> str:
+def _get_storage_content(operation: str, key: str, debug_value: bool | None, keys: Any = None) -> str:
     """Extract content string from storage operation for hashing."""
     if operation == "toggle_debug":
         return f"storage:toggle:{debug_value}"
+    if operation in ("clear", "clear_except"):
+        keys_repr = "" if keys is None else str(sorted(keys) if isinstance(keys, (list, tuple, set)) else keys)
+        return f"storage:{operation}:{keys_repr}"
     return f"storage:{operation}:{key}"
 
 
@@ -112,6 +115,7 @@ def generate_node_id(  # noqa: PLR0913
     operation: str = "",
     key: str = "",
     debug_value: bool | None = None,
+    keys: Any = None,
     fork_type: str = "",
     merge_type: str = "",
     config: dict = None,
@@ -133,6 +137,7 @@ def generate_node_id(  # noqa: PLR0913
         operation: For storage nodes
         key: For storage nodes
         debug_value: For storage toggle nodes
+        keys: Storage keys
         fork_type: For fork nodes
         merge_type: For merge nodes
         config: For fork/merge nodes
@@ -153,7 +158,7 @@ def generate_node_id(  # noqa: PLR0913
         content = _get_function_content(func, args, kwargs)
         prefix = f"fn_{getattr(func, '__name__', 'unknown')}"
     elif node_type == "storage":
-        content = _get_storage_content(operation, key, debug_value)
+        content = _get_storage_content(operation, key, debug_value, keys)
         prefix = f"{operation}"
         if key:
             prefix += f":{key}"
@@ -223,6 +228,7 @@ def _assign_ids_recursive(node: "PipelineNode", position: tuple[int | str, ...])
             operation=node.operation,
             key=node.key,
             debug_value=node.debug_value,
+            keys=node.keys,
         )
     elif isinstance(node, ForkNode):
         node.id = generate_node_id("fork", position, fork_type=node.fork_type, config=node.config)

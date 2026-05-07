@@ -27,6 +27,8 @@ _NOT_ALLOWED_SPLIT_NAMES: set[str] = {
     "store_debug",
     "storage_debug_mode",
     "from_store",
+    "clear",
+    "clear_except",
     "transformer",
     "function",
     "to_native",

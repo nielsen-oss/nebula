@@ -54,7 +54,6 @@ dev = [
     # Testing
     "pytest>=7.4.4",
     "pytest-cov",
-    "coverage",
     "chispa",  # Spark testing utilities
     # Code quality
     "pre-commit>=4.3.0",
