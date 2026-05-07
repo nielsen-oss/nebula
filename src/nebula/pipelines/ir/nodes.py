@@ -195,23 +195,29 @@ class FunctionNode(PipelineNode):
 
 @dataclass
 class StorageNode(PipelineNode):
-    """Storage operations: store, load, debug toggle.
+    """Storage operations: store, load, debug toggle, clear.
 
     Operations:
     - 'store': Save df to nebula_storage with key
     - 'store_debug': Save df only if debug mode is active
     - 'load': Replace df with one from storage
     - 'toggle_debug': Enable/disable debug storage mode
+    - 'clear': Clear all storage, or remove the given keys
+    - 'clear_except': Clear all storage except for the given keys
 
     Attributes:
         operation: The storage operation type.
         key: Storage key (for store/load operations).
         debug_value: True/False for toggle_debug operation.
+        keys: Keys for clear/clear_except operations (str or iterable).
     """
 
-    operation: Literal["store", "store_debug", "load", "toggle_debug"] = "store"
+    operation: Literal[
+        "store", "store_debug", "load", "toggle_debug", "clear", "clear_except"
+    ] = "store"
     key: str = ""
     debug_value: bool | None = None
+    keys: Any = None
 
     def __post_init__(self):  # noqa: D105
         self.node_type = NodeType.STORAGE
@@ -228,6 +234,12 @@ class StorageNode(PipelineNode):
         elif self.operation == "toggle_debug":
             action = "Activate" if self.debug_value else "Deactivate"
             return f"{action} storage debug mode"
+        elif self.operation == "clear":
+            if self.keys is None:
+                return "Clear all storage"
+            return f"Clear storage keys: {self.keys}"
+        elif self.operation == "clear_except":
+            return f"Clear storage except keys: {self.keys}"
         return f"Unknown operation: {self.operation}"  # pragma: no cover
 
 

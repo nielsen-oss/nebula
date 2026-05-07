@@ -151,3 +151,90 @@ class TestCollectAndToLazyKeywords:
 
     def test_pipe_show_does_not_raise(self, source: str, keyword: str):
         _build_pipe(keyword, source)
+
+
+def _seed_storage_keys() -> None:
+    ns.clear()
+    ns.set("k1", "v1")
+    ns.set("k2", "v2")
+    ns.set("k3", "v3")
+
+
+@pytest.mark.parametrize("source", ["python", "yaml"])
+def test_clear_string_keyword(source: str):
+    """Bare 'clear' keyword empties the entire storage."""
+    df_input = pl.DataFrame({"a": [1, 2, 3]})
+    _seed_storage_keys()
+
+    pipe = _build_pipe("clear", source)
+    pipe.run(df_input)
+
+    assert ns.count_objects() == 0
+
+
+@pytest.mark.parametrize("source", ["python", "yaml"])
+def test_clear_dict_single_key(source: str):
+    """{'clear': 'key'} removes only that key."""
+    df_input = pl.DataFrame({"a": [1, 2, 3]})
+    _seed_storage_keys()
+
+    pipe = _build_pipe({"clear": "k2"}, source)
+    pipe.run(df_input)
+
+    assert ns.isin("k1") is True
+    assert ns.isin("k2") is False
+    assert ns.isin("k3") is True
+
+
+@pytest.mark.parametrize("source", ["python", "yaml"])
+def test_clear_dict_list_of_keys(source: str):
+    """{'clear': [...]} removes only the listed keys."""
+    df_input = pl.DataFrame({"a": [1, 2, 3]})
+    _seed_storage_keys()
+
+    pipe = _build_pipe({"clear": ["k1", "k3"]}, source)
+    pipe.run(df_input)
+
+    assert ns.isin("k1") is False
+    assert ns.isin("k2") is True
+    assert ns.isin("k3") is False
+
+
+@pytest.mark.parametrize("source", ["python", "yaml"])
+def test_clear_except_dict_single_key(source: str):
+    """{'clear_except': 'key'} keeps only that key."""
+    df_input = pl.DataFrame({"a": [1, 2, 3]})
+    _seed_storage_keys()
+
+    pipe = _build_pipe({"clear_except": "k2"}, source)
+    pipe.run(df_input)
+
+    assert ns.isin("k1") is False
+    assert ns.isin("k2") is True
+    assert ns.isin("k3") is False
+
+
+@pytest.mark.parametrize("source", ["python", "yaml"])
+def test_clear_except_dict_list_of_keys(source: str):
+    """{'clear_except': [...]} keeps only the listed keys."""
+    df_input = pl.DataFrame({"a": [1, 2, 3]})
+    _seed_storage_keys()
+
+    pipe = _build_pipe({"clear_except": ["k1", "k3"]}, source)
+    pipe.run(df_input)
+
+    assert ns.isin("k1") is True
+    assert ns.isin("k2") is False
+    assert ns.isin("k3") is True
+
+
+def test_clear_does_not_alter_dataframe():
+    """The 'clear' keyword passes the df through unchanged."""
+    df_input = pl.DataFrame({"a": [1, 2, 3]})
+    _seed_storage_keys()
+
+    pipe = TransformerPipeline(["clear"])
+    df_out = pipe.run(df_input)
+
+    pl_assert_equal(df_out, df_input)
+    assert ns.count_objects() == 0

@@ -381,6 +381,10 @@ class IRBuilder:
         if storage_op:
             return storage_op
 
+        # Bare "clear" string keyword -> clear all storage
+        if isinstance(item, str) and item == "clear":
+            return StorageNode(operation="clear", keys=None)
+
         # Check for conversion request (string keywords)
         conversion_op = self._parse_conversion_request(item)
         if conversion_op:
@@ -486,6 +490,24 @@ class IRBuilder:
             if not isinstance(value, str):  # pragma: no cover
                 raise TypeError("'from_store' value must be string")
             return StorageNode(operation="load", key=value)
+
+        elif key == "clear":
+            # value can be None/True/False (clear all), a single str key,
+            # or an iterable of keys (list/tuple/set).
+            if value is None or value is True or value is False:
+                return StorageNode(operation="clear", keys=None)
+            if not isinstance(value, (str, list, tuple, set)):
+                raise TypeError(
+                    "'clear' value must be None/bool, a string, or a list/tuple/set of keys"
+                )
+            return StorageNode(operation="clear", keys=value)
+
+        elif key == "clear_except":
+            if not isinstance(value, (str, list, tuple, set)):
+                raise TypeError(
+                    "'clear_except' value must be a string or a list/tuple/set of keys"
+                )
+            return StorageNode(operation="clear_except", keys=value)
 
         return None
 

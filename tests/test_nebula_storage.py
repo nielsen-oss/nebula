@@ -94,6 +94,51 @@ def test_clear_user_defined_keys():
     assert ns.isin("key3") is False
 
 
+def test_clear_except_single_key():
+    """Test 'clear_except' keeps only the given single key."""
+    ns.set("key1", "v1")
+    ns.set("key2", "v2")
+    ns.set("key3", "v3")
+
+    ns.clear_except("key2")
+
+    assert ns.count_objects() == 1
+    assert ns.isin("key1") is False
+    assert ns.isin("key2") is True
+    assert ns.isin("key3") is False
+
+
+def test_clear_except_list_of_keys():
+    """Test 'clear_except' keeps only the given keys."""
+    ns.set("key1", "v1")
+    ns.set("key2", "v2")
+    ns.set("key3", "v3")
+
+    ns.clear_except(["key1", "key3"])
+
+    assert ns.count_objects() == 2
+    assert ns.isin("key1") is True
+    assert ns.isin("key2") is False
+    assert ns.isin("key3") is True
+
+
+def test_clear_except_unknown_key_clears_all():
+    """If none of the keys are present, all entries are removed."""
+    ns.set("key1", "v1")
+    ns.set("key2", "v2")
+
+    ns.clear_except(["does_not_exist"])
+
+    assert ns.count_objects() == 0
+
+
+def test_clear_except_invalid_type_raises():
+    """Test 'clear_except' raises on unsupported argument types."""
+    ns.set("key1", "v1")
+    with pytest.raises(TypeError):
+        ns.clear_except(123)
+
+
 def test_list_keys():
     """Test 'list_keys' functionality specifying a list of unsorted keys."""
     ns.set("b", "value1")

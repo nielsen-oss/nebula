@@ -55,6 +55,7 @@ class _NebulaStorage:
             list_keys(): Return the sorted list of keys in storage.
             count_objects(): Return the number of keys in the cache.
             clear(keys=None): Clear all cache or remove specific keys.
+            clear_except(keys): Clear all cache except for the given keys.
             set(key: str, value, *, debug: bool = False): Add an object to the storage.
             get(key): Get an object from the storage.
             isin(key: str): Check if an object is stored.
@@ -114,6 +115,21 @@ class _NebulaStorage:
             logger.info(f"{_PRE}clear user-defined keys.")
             for key in keys:
                 self._cache.pop(key, None)
+        self._n = len(self._cache)
+        logger.info(f"{_PRE}{self._n} keys remained after clearing.")
+
+    def clear_except(self, keys) -> None:
+        """Clear all cache except for the given keys."""
+        if isinstance(keys, str):
+            keep = {keys}
+        elif isinstance(keys, (list, tuple, set, dict)):
+            keep = set(keys)
+        else:
+            raise TypeError(
+                f"{_PRE}'clear_except' accepts a str or an iterable of keys."
+            )
+        logger.info(f"{_PRE}clear all keys except user-defined ones.")
+        self._cache = {k: v for k, v in self._cache.items() if k in keep}
         self._n = len(self._cache)
         logger.info(f"{_PRE}{self._n} keys remained after clearing.")
 

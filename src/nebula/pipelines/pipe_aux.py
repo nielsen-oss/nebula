@@ -32,6 +32,8 @@ PIPELINE_KEYWORDS_DICT: set[str] = {
     "store_debug",
     "storage_debug_mode",
     "from_store",
+    "clear",
+    "clear_except",
 }
 
 PIPELINE_KEYWORDS_STRING: set[str] = {
@@ -39,6 +41,7 @@ PIPELINE_KEYWORDS_STRING: set[str] = {
     "from_native",
     "collect",
     "to_lazy",
+    "clear",
 }
 
 PIPELINE_KEYWORDS: set[str] = PIPELINE_KEYWORDS_DICT | PIPELINE_KEYWORDS_STRING

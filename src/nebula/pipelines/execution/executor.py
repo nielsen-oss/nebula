@@ -272,6 +272,12 @@ class PipelineExecutor:
         elif node.operation == "toggle_debug":
             ns.allow_debug(node.debug_value)
 
+        elif node.operation == "clear":
+            ns.clear(node.keys)
+
+        elif node.operation == "clear_except":
+            ns.clear_except(node.keys)
+
         duration = ctx.end_node(node.id)
         self.hooks.on_node_end(node, duration, {"df": ctx.df})
 
