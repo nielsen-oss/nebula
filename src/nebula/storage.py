@@ -125,9 +125,7 @@ class _NebulaStorage:
         elif isinstance(keys, (list, tuple, set, dict)):
             keep = set(keys)
         else:
-            raise TypeError(
-                f"{_PRE}'clear_except' accepts a str or an iterable of keys."
-            )
+            raise TypeError(f"{_PRE}'clear_except' accepts a str or an iterable of keys.")
         logger.info(f"{_PRE}clear all keys except user-defined ones.")
         self._cache = {k: v for k, v in self._cache.items() if k in keep}
         self._n = len(self._cache)

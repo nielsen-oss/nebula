@@ -212,9 +212,7 @@ class StorageNode(PipelineNode):
         keys: Keys for clear/clear_except operations (str or iterable).
     """
 
-    operation: Literal[
-        "store", "store_debug", "load", "toggle_debug", "clear", "clear_except"
-    ] = "store"
+    operation: Literal["store", "store_debug", "load", "toggle_debug", "clear", "clear_except"] = "store"
     key: str = ""
     debug_value: bool | None = None
     keys: Any = None

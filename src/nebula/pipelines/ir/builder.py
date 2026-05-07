@@ -497,16 +497,12 @@ class IRBuilder:
             if value is None or value is True or value is False:
                 return StorageNode(operation="clear", keys=None)
             if not isinstance(value, (str, list, tuple, set)):
-                raise TypeError(
-                    "'clear' value must be None/bool, a string, or a list/tuple/set of keys"
-                )
+                raise TypeError("'clear' value must be None/bool, a string, or a list/tuple/set of keys")
             return StorageNode(operation="clear", keys=value)
 
         elif key == "clear_except":
             if not isinstance(value, (str, list, tuple, set)):
-                raise TypeError(
-                    "'clear_except' value must be a string or a list/tuple/set of keys"
-                )
+                raise TypeError("'clear_except' value must be a string or a list/tuple/set of keys")
             return StorageNode(operation="clear_except", keys=value)
 
         return None
