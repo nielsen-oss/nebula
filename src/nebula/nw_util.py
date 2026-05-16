@@ -160,7 +160,7 @@ def collect_dataframe(df):
     import polars as pl
 
     if isinstance(native, pl.LazyFrame):
-        logger.info("Running collect")
+        logger.info("Running 'collect' ...")
         start_ns = perf_counter_ns()
         collected = native.collect()
         logger.info(f"'collect' Completed in {(perf_counter_ns() - start_ns) / 1_000_000_000:.1f}s")
@@ -705,7 +705,7 @@ def to_lazy_dataframe(df):
     import polars as pl
 
     if isinstance(native, pl.DataFrame):
-        logger.info("Running to_lazy ...")
+        logger.info("Running 'to_lazy' ...")
         start_ns = perf_counter_ns()
         lazy = native.lazy()
         logger.info(f"'to_lazy' completed in {(perf_counter_ns() - start_ns) / 1_000_000_000:.1f}s")
