@@ -2,6 +2,7 @@
 
 import operator as py_operator
 from functools import partial, reduce
+from time import perf_counter_ns
 from typing import Iterable
 
 import narwhals as nw
@@ -12,6 +13,7 @@ from nebula.auxiliaries import (
     get_symmetric_differences_in_sets,
 )
 from nebula.df_types import get_dataframe_type
+from nebula.logger import logger
 
 __all__ = [
     "append_dataframes",
@@ -158,7 +160,10 @@ def collect_dataframe(df):
     import polars as pl
 
     if isinstance(native, pl.LazyFrame):
+        logger.info("Running 'collect' ...")
+        start_ns = perf_counter_ns()
         collected = native.collect()
+        logger.info(f"'collect' Completed in {(perf_counter_ns() - start_ns) / 1_000_000_000:.1f}s")
         return nw.from_native(collected) if is_nw else collected
 
     # Already eager — return unchanged so the pipeline stays idempotent
@@ -700,7 +705,10 @@ def to_lazy_dataframe(df):
     import polars as pl
 
     if isinstance(native, pl.DataFrame):
+        logger.info("Running 'to_lazy' ...")
+        start_ns = perf_counter_ns()
         lazy = native.lazy()
+        logger.info(f"'to_lazy' completed in {(perf_counter_ns() - start_ns) / 1_000_000_000:.1f}s")
         return nw.from_native(lazy) if is_nw else lazy
 
     # Already lazy — return unchanged so the pipeline stays idempotent
