@@ -1,6 +1,7 @@
 """Unit-test for schema transformers."""
 
 import os
+from datetime import datetime, time, timedelta
 from decimal import Decimal
 
 import narwhals as nw
@@ -447,8 +448,6 @@ class TestCast:
         Note: Time and Duration types need to be provided in native format,
         not as strings, as Polars doesn't support direct string-to-time casting.
         """
-        from datetime import time, timedelta
-
         df = pl.DataFrame(
             {
                 "time_col": [time(12, 30, 45), time(14, 15, 30), time(10, 0, 0)],
@@ -470,6 +469,75 @@ class TestCast:
         # Verify the values are preserved
         assert result["time_col"][0] == time(12, 30, 45)
         assert result["duration_col"][0] == timedelta(microseconds=1000000)
+
+    @pytest.mark.parametrize("unit", ["us", "ms", "ns"])
+    def test_polars_datetime_duration_with_time_unit(self, unit):
+        """Polars-native cast to datetime/duration with explicit time unit."""
+        df = pl.DataFrame(
+            {
+                "dt": [datetime(2024, 1, 1), datetime(2024, 1, 2), datetime(2024, 1, 3)],
+                "td": [timedelta(seconds=1), timedelta(seconds=2), timedelta(seconds=3)],
+            }
+        )
+
+        cast = Cast(cast={"dt": f"datetime[{unit}]", "td": f"duration[{unit}]"})
+        result = cast.transform(df)
+
+        assert result["dt"].dtype == pl.Datetime(time_unit=unit)
+        assert result["td"].dtype == pl.Duration(time_unit=unit)
+
+    @pytest.mark.parametrize("unit", ["us", "ms", "ns"])
+    def test_polars_timedelta_alias_with_time_unit(self, unit):
+        """'timedelta[unit]' is accepted as an alias for 'duration[unit]'."""
+        df = pl.DataFrame({"td": [timedelta(seconds=1), timedelta(seconds=2)]})
+
+        cast = Cast(cast={"td": f"timedelta[{unit}]"})
+        result = cast.transform(df)
+
+        assert result["td"].dtype == pl.Duration(time_unit=unit)
+
+    def test_polars_invalid_time_unit_raises(self):
+        """Unsupported time unit raises a clear error."""
+        df = pl.DataFrame({"dt": [datetime(2024, 1, 1)]})
+
+        cast = Cast(cast={"dt": "datetime[s]"})
+        with pytest.raises(ValueError, match="time unit"):
+            cast.transform(df)
+
+    @pytest.mark.parametrize("backend", ["pandas", "polars", "duckdb"])
+    @pytest.mark.parametrize("unit", ["us", "ms", "ns"])
+    def test_narwhals_datetime_with_time_unit(self, backend, unit):
+        """Cast datetime to a specific time unit across backends via narwhals."""
+        df_input = pd.DataFrame(
+            {
+                "dt": [datetime(2024, 1, 1), datetime(2024, 1, 2), datetime(2024, 1, 3)],
+            }
+        )
+        nw_df = from_pandas(df_input, backend, to_nw=True)
+
+        cast = Cast(cast={"dt": f"datetime[{unit}]"})
+        result_nw = cast.transform(nw_df)
+
+        assert result_nw.schema["dt"] == nw.Datetime(time_unit=unit)
+
+    @pytest.mark.parametrize("backend", ["pandas", "polars"])
+    @pytest.mark.parametrize("unit", ["us", "ms", "ns"])
+    def test_narwhals_duration_with_time_unit(self, backend, unit):
+        """Cast duration to a specific time unit across backends via narwhals.
+
+        DuckDB doesn't expose a duration dtype the same way, so it's excluded.
+        """
+        df_input = pd.DataFrame(
+            {
+                "td": [timedelta(seconds=1), timedelta(seconds=2), timedelta(seconds=3)],
+            }
+        )
+        nw_df = from_pandas(df_input, backend, to_nw=True)
+
+        cast = Cast(cast={"td": f"duration[{unit}]"})
+        result_nw = cast.transform(nw_df)
+
+        assert result_nw.schema["td"] == nw.Duration(time_unit=unit)
 
     @pytest.mark.skipif(os.environ.get("TESTS_NO_SPARK") == "true", reason="no spark")
     def test_spark(self, spark):
