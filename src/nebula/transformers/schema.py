@@ -9,6 +9,52 @@ from nebula.transformers._constants import NW_TYPES, PANDAS_NULLABLE_INTEGERS, P
 
 __all__ = ["AddLiterals", "Cast"]
 
+_TIME_UNITS = ("us", "ms", "ns")
+_TIME_DTYPE_PREFIXES = ("datetime", "duration", "timedelta")
+
+
+def _split_time_unit(dtype_str: str) -> tuple[str, str | None]:
+    """Return (prefix, time_unit) for strings like 'datetime[us]' / 'duration[ms]'.
+
+    If the string is not in the bracketed form, returns (dtype_str, None).
+    Raises ValueError if the prefix is one of datetime/duration/timedelta but the
+    time unit is not one of us/ms/ns.
+    """
+    if not (dtype_str.endswith("]") and "[" in dtype_str):
+        return dtype_str, None
+
+    prefix, _, rest = dtype_str.partition("[")
+    if prefix not in _TIME_DTYPE_PREFIXES:
+        return dtype_str, None
+
+    unit = rest[:-1].strip()
+    if unit not in _TIME_UNITS:
+        raise ValueError(f"Invalid time unit '{unit}' for '{prefix}'. Must be one of: {list(_TIME_UNITS)}")
+    return prefix, unit
+
+
+def _parse_nw_dtype(dtype_str: str):
+    """Parse a dtype string into a narwhals DType, or return None if unsupported.
+
+    Supports:
+    - Simple types listed in NW_TYPES (e.g. 'int64', 'float64', 'str', 'datetime').
+    - Datetime/Duration with a time unit: 'datetime[us]', 'datetime[ms]',
+      'datetime[ns]', 'duration[us]', 'duration[ms]', 'duration[ns]'.
+      'timedelta' is accepted as an alias for 'duration'.
+    """
+    dtype_str = dtype_str.strip().lower()
+
+    if dtype_str in NW_TYPES:
+        return NW_TYPES[dtype_str]
+
+    prefix, unit = _split_time_unit(dtype_str)
+    if unit is None:
+        return None
+
+    if prefix == "datetime":
+        return nw.Datetime(time_unit=unit)
+    return nw.Duration(time_unit=unit)
+
 
 class AddLiterals(Transformer):
     def __init__(self, *, data: list[dict]):
@@ -90,8 +136,12 @@ class Cast(Transformer):
 
         Args:
             cast (dict[str, str]): Column name to target type mapping.
-                For simple types, use standard names: 'int64', 'float64', 'str', 'bool'
-                For Spark nested types, use Spark DDL strings: 'array<string>', 'struct<...>'
+                For simple types, use standard names: 'int64', 'float64', 'str', 'bool'.
+                For datetime/duration with an explicit time unit, use bracket syntax:
+                    'datetime[us]', 'datetime[ms]', 'datetime[ns]',
+                    'duration[us]', 'duration[ms]', 'duration[ns]'
+                ('timedelta' is accepted as an alias for 'duration').
+                For Spark nested types, use Spark DDL strings: 'array<string>', 'struct<...>'.
         """
         if not isinstance(cast, dict):
             raise TypeError("'cast' must be a dictionary")
@@ -100,21 +150,23 @@ class Cast(Transformer):
         self._cast: dict[str, str] = cast
 
     def _transform_nw(self, df):
-        """Narwhals implementation for simple types."""
-        # Check if any Spark-specific types requested
-        spark_types = ["array", "struct", "map"]
-        has_nested = any(any(st in dtype.lower() for st in spark_types) for dtype in self._cast.values())
+        """Narwhals implementation for types expressible through narwhals."""
+        parsed_nw: dict[str, nw.dtypes.DType] = {}
+        for col, dtype_str in self._cast.items():
+            nw_dtype = _parse_nw_dtype(dtype_str)
+            if nw_dtype is None:
+                parsed_nw = None
+                break
+            parsed_nw[col] = nw_dtype
 
-        set_types = set(self._cast.values())
-
-        if has_nested or not set_types.issubset(NW_TYPES):
-            # Fall back to native implementation for nested types
+        if parsed_nw is None:
+            # Fall back to native implementation (nested types, polars-only types).
             df_native = nw.to_native(df)
             df_type = get_dataframe_type(df_native)
 
             if df_type in {"pandas", "duckdb"}:
                 raise ValueError(
-                    f"{df_type.capitalize()} does not support nested types (array, struct, map, list). "
+                    f"{df_type.capitalize()} does not support the requested cast types. "
                     f"Cast requested: {self._cast}. Use Polars or Spark instead."
                 )
 
@@ -125,24 +177,10 @@ class Cast(Transformer):
                 return nw.from_native(self._transform_spark(df_native))
 
             raise ValueError(  # pragma: no cover
-                f"Backend '{df_type}' does not support nested type casting. "
-                f"Supported: polars, spark. Cast: {self._cast}"
+                f"Backend '{df_type}' does not support these cast types. Supported: polars, spark. Cast: {self._cast}"
             )
 
-        # Cast columns
-        exprs = []
-        for col in df.columns:
-            if col in self._cast:
-                target_type = self._cast[col].lower()
-                if target_type in NW_TYPES:
-                    exprs.append(nw.col(col).cast(NW_TYPES[target_type]).alias(col))
-                else:  # pragma: no cover
-                    raise ValueError(
-                        f"Unknown type '{self._cast[col]}' for column '{col}'. Supported: {list(NW_TYPES.keys())}"
-                    )
-            else:
-                exprs.append(nw.col(col))
-
+        exprs = [nw.col(col).cast(parsed_nw[col]).alias(col) if col in parsed_nw else nw.col(col) for col in df.columns]
         return df.select(exprs)
 
     def _transform_spark(self, df):
@@ -174,6 +212,13 @@ class Cast(Transformer):
         # Check for simple types first
         if dtype_str in PL_TYPES:
             return PL_TYPES[dtype_str]
+
+        # Parse Datetime/Duration with time unit: 'datetime[us]', 'duration[ms]', etc.
+        prefix, unit = _split_time_unit(dtype_str)
+        if unit is not None:  # pragma: no cover
+            if prefix == "datetime":
+                return pl.Datetime(time_unit=unit)
+            return pl.Duration(time_unit=unit)
 
         # Parse List types: list[inner_type]
         if dtype_str.startswith("list[") and dtype_str.endswith("]"):
