@@ -21,7 +21,7 @@ from typing import Any, Callable, Iterable
 import narwhals as nw
 
 from nebula.auxiliaries import select_columns
-from nebula.df_types import get_dataframe_type
+from nebula.df_types import get_column_names, get_dataframe_type
 from nebula.metaclasses import InitParamsStorage
 from nebula.storage import nebula_storage as ns
 
@@ -68,7 +68,7 @@ class Transformer(metaclass=InitParamsStorage):
 
     def _get_selected_columns(self, df) -> list[str]:
         """Return the dataframe requested columns."""
-        return self.__columns_selector(list(df.columns))
+        return self.__columns_selector(get_column_names(df))
 
     @property
     def transformer_init_parameters(self) -> dict:

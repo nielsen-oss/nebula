@@ -16,6 +16,7 @@ __all__ = [
     "GenericNativeDataFrame",
     "GenericDataFrame",
     "NwDataFrame",
+    "get_column_names",
     "get_dataframe_type",
     "is_natively_spark",
 ]
@@ -53,6 +54,25 @@ else:  # pragma: no cover
     GenericNativeDataFrame = Any
 
 GenericDataFrame = NwDataFrame | GenericNativeDataFrame
+
+
+def get_column_names(df) -> list[str]:
+    """Return the column names of a dataframe without warning on lazy frames.
+
+    Accessing ``.columns`` on a (narwhals- or natively-) lazy polars frame emits a
+    ``PerformanceWarning`` because the schema has to be resolved. ``collect_schema().names()``
+    performs the same resolution through the sanctioned API and avoids the warning.
+    Pandas/Spark/DuckDB frames expose ``.columns`` directly and don't warn.
+
+    Args:
+        df: A narwhals or native dataframe (any supported backend).
+
+    Returns:
+        list[str]: The column names, in order.
+    """
+    if hasattr(df, "collect_schema"):  # narwhals & polars (eager + lazy)
+        return df.collect_schema().names()
+    return list(df.columns)
 
 
 def get_dataframe_type(df) -> str:

@@ -9,6 +9,7 @@ from nebula.auxiliaries import (
     ensure_flat_list,
 )
 from nebula.base import Transformer
+from nebula.df_types import get_column_names
 
 __all__ = [
     "DropColumns",
@@ -77,7 +78,7 @@ class DropColumns(Transformer):
     def _transform_nw(self, nw_df):
         selection: list[str] = self._get_selected_columns(nw_df)
         if self._allow_excess_columns:
-            actual = set(nw_df.columns)
+            actual = set(get_column_names(nw_df))
             selection = [col for col in selection if col in actual]
         return nw_df.drop(selection)
 
@@ -150,14 +151,14 @@ class RenameColumns(Transformer):
         self._map_rename: dict[str, str] = {**mapping, **dict(zip(columns, columns_renamed))} if columns else mapping
 
     def _check_diff(self, df):
-        diff = set(self._map_rename.keys()) - set(df.columns)
+        diff = set(self._map_rename.keys()) - set(get_column_names(df))
         if diff and self._fail_on_missing_columns:  # pragma: no cover
             diff_str = ", ".join(diff)
             msg = f"Some columns to be renamed are NOT present in the dataframe! {diff_str}"
             raise ValueError(msg)
 
     def _get_regex_mapping(self, nw_df) -> dict[str, str]:
-        return {c: re.sub(self._regex_pattern, self._regex_repl, c) for c in nw_df.columns}
+        return {c: re.sub(self._regex_pattern, self._regex_repl, c) for c in get_column_names(nw_df)}
 
     def _transform_nw(self, nw_df):
         self._check_diff(nw_df)
