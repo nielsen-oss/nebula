@@ -94,11 +94,13 @@ class DropNulls(Transformer):
         if self._drop_na:
             # Get numeric columns from selection
             float_types = [pl.Float32, pl.Float64, pl.Decimal]
-            schema = df.schema
+            # collect_schema() resolves a LazyFrame's schema without the
+            # PerformanceWarning raised by `.schema` / `.columns`.
+            schema = df.collect_schema()
             if subset:
                 numeric_cols = [c for c in subset if schema[c] in float_types]
             else:
-                numeric_cols = [c for c in df.columns if schema[c] in float_types]
+                numeric_cols = [c for c in schema.names() if schema[c] in float_types]
 
             if numeric_cols:
                 cond |= meth(pl.col(*numeric_cols).is_nan())

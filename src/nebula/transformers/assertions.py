@@ -2,6 +2,7 @@
 
 from nebula.auxiliaries import ensure_flat_list
 from nebula.base import Transformer
+from nebula.df_types import get_column_names
 from nebula.nw_util import df_is_empty
 
 __all__ = [
@@ -26,7 +27,7 @@ class AssertContainsColumns(Transformer):
         self._cols: list[str] = ensure_flat_list(columns)
 
     def _transform_nw(self, df):
-        actual_cols = set(df.columns)
+        actual_cols = set(get_column_names(df))
         missing_cols = [i for i in self._cols if i not in actual_cols]
 
         if missing_cols:

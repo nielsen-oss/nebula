@@ -4,7 +4,7 @@ import narwhals as nw
 
 from nebula.auxiliaries import validate_keys
 from nebula.base import Transformer
-from nebula.df_types import get_dataframe_type
+from nebula.df_types import get_column_names, get_dataframe_type
 from nebula.transformers._constants import NW_TYPES, PANDAS_NULLABLE_INTEGERS, PL_TYPES
 
 __all__ = ["AddLiterals", "Cast"]
@@ -180,7 +180,10 @@ class Cast(Transformer):
                 f"Backend '{df_type}' does not support these cast types. Supported: polars, spark. Cast: {self._cast}"
             )
 
-        exprs = [nw.col(col).cast(parsed_nw[col]).alias(col) if col in parsed_nw else nw.col(col) for col in df.columns]
+        exprs = [
+            nw.col(col).cast(parsed_nw[col]).alias(col) if col in parsed_nw else nw.col(col)
+            for col in get_column_names(df)
+        ]
         return df.select(exprs)
 
     def _transform_spark(self, df):
@@ -313,7 +316,7 @@ class Cast(Transformer):
 
         # Parse cast dict and build dtype objects
         exprs = []
-        for col in df.columns:
+        for col in get_column_names(df):
             if col in self._cast:
                 target_type_str = self._cast[col]
 

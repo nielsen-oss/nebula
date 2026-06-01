@@ -11,7 +11,7 @@ from nebula.auxiliaries import (
     select_columns,
 )
 from nebula.base import Transformer
-from nebula.df_types import get_dataframe_type
+from nebula.df_types import get_column_names, get_dataframe_type
 
 __all__ = [
     "GroupBy",
@@ -340,7 +340,7 @@ class Pivot(Transformer):
 
         # Select id columns
         id_cols = self._resolve_columns(
-            list(df.columns),
+            get_column_names(df),
             columns=self._id_cols,
             regex=self._id_regex,
             glob=self._id_glob,
@@ -360,7 +360,7 @@ class Pivot(Transformer):
             ]
         ):
             values_cols = self._resolve_columns(
-                list(df.columns),
+                get_column_names(df),
                 columns=self._values_cols,
                 regex=self._values_regex,
                 glob=self._values_glob,
@@ -450,7 +450,7 @@ class Unpivot(Transformer):
         self._value_col: str = value_col
 
     def _transform_nw(self, df):
-        df_columns = list(df.columns)
+        df_columns = get_column_names(df)
 
         # Select id columns (to KEEP)
         id_cols = select_columns(df_columns, columns=self._id_cols, regex=self._id_regex)
