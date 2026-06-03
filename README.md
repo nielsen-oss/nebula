@@ -232,7 +232,7 @@ Nebula includes ~30 tested transformers covering common ETL operations:
 - `Join`, `AppendDataFrame` - Merging multiple DataFrames
 
 ### Reshaping
-- `Melt`, `Pivot`, `GroupBy` - DataFrame shape transformations
+- `Unpivot`, `Pivot`, `GroupBy` - DataFrame shape transformations
 
 ### Schema & Types
 - `Cast`, `AddLiterals` - Type operations
@@ -345,7 +345,7 @@ Apache License 2.0 - see [LICENSE](LICENSE) file for details.
 
 ## Project Status
 
-**Current:** Alpha (v0.01) - API may change
+**Current:** Alpha (v0.0.1) - API may change
 
 **Upcoming:**
 - [ ] Sphinx documentation site

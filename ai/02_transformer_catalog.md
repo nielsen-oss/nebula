@@ -179,7 +179,7 @@ Pivot(
 ```
 Backend: Narwhals.
 
-### Unpivot (Melt)
+### Unpivot
 Wide to long.
 ```python
 Unpivot(
@@ -192,7 +192,7 @@ Unpivot(
     value_col: str,
 )
 ```
-Backend: Narwhals. Also exported as `Melt` (alias).
+Backend: Narwhals. The `melt_cols` / `melt_regex` parameters select the columns to unpivot.
 
 ---
 

@@ -113,10 +113,10 @@ src/nebula/
     combining.py                 # Join, AppendDataFrame
     reshaping.py                 # GroupBy, Pivot, Unpivot
     schema.py                    # Cast, AddLiterals
-    collections.py               # When, MathOperator, DataFrameMethod, WithColumns, HorizontalFunction
+    collections.py               # When, MathOperator
     assertions.py                # AssertContainsColumns, AssertCount, AssertNotEmpty
     debug.py                     # PrintSchema
-    meta.py                      # (empty/reserved)
+    meta.py                      # DataFrameMethod, WithColumns, HorizontalFunction
     spark_transformers.py        # Spark-only: Repartition, Persist, Window functions, etc.
   pipelines/
     pipeline.py                  # TransformerPipeline class
