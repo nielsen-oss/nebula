@@ -12,7 +12,7 @@ from nebula.auxiliaries import (
     ensure_flat_list,
     get_symmetric_differences_in_sets,
 )
-from nebula.df_types import get_dataframe_type
+from nebula.df_types import get_column_names, get_dataframe_type
 from nebula.logger import logger
 
 __all__ = [
@@ -286,8 +286,8 @@ def _handle_append_error_missing_cols(native_dataframes, full_columns):
     msg = []
     for i, right_df in enumerate(native_dataframes[1:], start=1):
         left_df = native_dataframes[i - 1]
-        col_left = set(right_df.columns)
-        col_right = set(left_df.columns)
+        col_left = set(get_column_names(right_df))
+        col_right = set(get_column_names(left_df))
         missing_left = full_columns - col_left
         missing_right = full_columns - col_right
         if missing_left:
@@ -445,8 +445,9 @@ def append_dataframes(
     sets_columns: list[set[str]] = []
     full_columns: set[str] = set()
     for df in dataframes:
-        sets_columns.append(set(df.columns))
-        full_columns.update(set(df.columns))
+        _columns = set(get_column_names(df))
+        sets_columns.append(_columns)
+        full_columns.update(_columns)
 
     diff: set[str] = get_symmetric_differences_in_sets(*sets_columns)
 
@@ -465,7 +466,7 @@ def append_dataframes(
         if allow_missing_cols:
             how = "diagonal"
         else:
-            cols = native_dataframes[0].columns
+            cols = get_column_names(native_dataframes[0])
             native_dataframes = [df.select(cols) for df in native_dataframes]
             how = "vertical"
         how += "_relaxed" if relax else ""
